@@ -13,27 +13,12 @@ import { KeyPoolService } from './key-pool.service';
 
 export const KEY_POOL_EVENTS_CHANNEL = 'kp:events';
 
-/**
- * Event payload published on KEY_POOL_EVENTS_CHANNEL. Any subscriber
- * (including this process) reloads the snapshot when it sees one.
- */
 export type KeyPoolEvent =
   | { type: 'refresh'; provider?: string }
   | { type: 'added'; keyId: string }
   | { type: 'updated'; keyId: string }
   | { type: 'removed'; keyId: string };
 
-/**
- * Maintains the in-memory key snapshot used by KeyPoolService.acquireKey()
- * and broadcasts cache-invalidation events across the cluster.
- *
- * Lifecycle:
- *   - onApplicationBootstrap: initial load from DB, subscribe to Pub/Sub.
- *   - On any local mutation (admin API, processor reportFailure): caller
- *     also calls publish() to fan out to other processes.
- *   - Periodic safety reload every REFRESH_INTERVAL_MS in case a publish
- *     was lost while a subscriber was disconnected.
- */
 @Injectable()
 export class KeyPoolSync implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(KeyPoolSync.name);
@@ -100,12 +85,6 @@ export class KeyPoolSync implements OnApplicationBootstrap, OnModuleDestroy {
     if (this.publisher) await this.publisher.quit().catch(() => undefined);
   }
 
-  /**
-   * Reload one or all providers from DB into the KeyPoolService snapshot.
-   * Includes ACTIVE rows AND COOLDOWN rows whose cooldown has expired (we
-   * still load them so the next acquireKey sees them as eligible without
-   * waiting for KeyHealthService to flip the status).
-   */
   async reloadAll(provider?: string): Promise<void> {
     const where = provider
       ? { provider, status: Not(ApiKeyStatus.DISABLED) }
@@ -145,9 +124,6 @@ export class KeyPoolSync implements OnApplicationBootstrap, OnModuleDestroy {
       }
     }
 
-    // Surface what was loaded so an empty pool is impossible to miss
-    // when debugging "Ninja API never gets called" — that symptom is
-    // almost always "no keys in the pool".
     for (const [prov, list] of byProvider) {
       const active = list.filter(
         (r) => r.status === ApiKeyStatus.ACTIVE,
@@ -182,11 +158,10 @@ export class KeyPoolSync implements OnApplicationBootstrap, OnModuleDestroy {
     }
   }
 
-  /**
-   * One-shot count of active rows for a provider — used by the env-fallback
-   * seeder to decide whether to insert the legacy MAILTESTER_API_KEY row.
-   */
-  async countActive(provider: string, statuses?: ApiKeyStatus[]): Promise<number> {
+  async countActive(
+    provider: string,
+    statuses?: ApiKeyStatus[],
+  ): Promise<number> {
     return this.repo.count({
       where: {
         provider,

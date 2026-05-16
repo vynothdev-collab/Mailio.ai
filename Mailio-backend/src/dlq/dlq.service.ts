@@ -20,16 +20,6 @@ export interface DlqPushInput {
   attempts: number;
 }
 
-/**
- * Owns the dead-letter table. Pushes are fire-and-forget from the failed
- * handlers; the table is the durable record. Retry pulls payload off the
- * row and re-enqueues onto the original queue with a fresh attempts budget.
- *
- * `retry()` looks up the right Queue by name — the producer set is small
- * (verify.high, verify.bulk, db.write, csv.parse) and explicit here so we
- * don't accept arbitrary queue names that could be used as a write
- * primitive against any BullMQ key.
- */
 @Injectable()
 export class DlqService {
   private readonly logger = new Logger(DlqService.name);
@@ -58,9 +48,6 @@ export class DlqService {
           sourceQueue: input.sourceQueue,
           jobName: input.jobName,
           userId: input.userId,
-          // Defensive truncation — payloads can include arbitrary apiRawResponse
-          // blobs; trim string fields above a sane ceiling so a runaway response
-          // doesn't bloat the DLQ table.
           payload: input.payload,
           errorMessage: input.errorMessage.slice(0, 4000),
           attempts: input.attempts,
@@ -85,7 +72,8 @@ export class DlqService {
       .orderBy('d.created_at', 'DESC')
       .skip((opts.page - 1) * opts.limit)
       .take(opts.limit);
-    if (opts.sourceQueue) qb.andWhere('d.source_queue = :sq', { sq: opts.sourceQueue });
+    if (opts.sourceQueue)
+      qb.andWhere('d.source_queue = :sq', { sq: opts.sourceQueue });
     if (opts.status) qb.andWhere('d.status = :st', { st: opts.status });
     if (opts.userId) qb.andWhere('d.user_id = :uid', { uid: opts.userId });
     const [data, total] = await qb.getManyAndCount();
@@ -98,11 +86,6 @@ export class DlqService {
     return row;
   }
 
-  /**
-   * Re-enqueue onto the original queue. Resets the attempt counter (this
-   * is the operator's "try again from scratch"); the resulting job's
-   * jobId is recorded on the row for traceability.
-   */
   async retry(id: string): Promise<DlqJob> {
     const row = await this.findOne(id);
     if (row.status !== DlqStatus.PENDING) {
@@ -117,9 +100,6 @@ export class DlqService {
       );
     }
 
-    // Use a fresh jobId so BullMQ doesn't dedupe against the original
-    // failed job. Source-queue specific jobId conventions still apply
-    // for downstream dedupe — caller's responsibility.
     const job = await queue.add(row.jobName, row.payload);
 
     row.status = DlqStatus.RETRIED;

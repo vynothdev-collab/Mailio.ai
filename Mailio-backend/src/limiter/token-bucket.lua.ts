@@ -1,23 +1,3 @@
-/**
- * Atomic token-bucket rate limiter. Runs entirely inside a single Redis
- * EVAL call so it is safe across any number of worker processes / hosts.
- *
- *   KEYS[1] = bucket key, e.g. "mailio:rl:mailtester"
- *   ARGV[1] = max tokens (capacity / window)
- *   ARGV[2] = window in ms (full refill duration)
- *   ARGV[3] = now (ms since epoch, supplied by caller for testability)
- *   ARGV[4] = cost (tokens this acquire consumes, default 1)
- *
- * Returns {granted, retryAfterMs}:
- *   {1, 0}            on success — caller may proceed immediately.
- *   {0, retryAfterMs} on denial  — caller should delay this long before
- *                                  retrying. Partial refill state is
- *                                  preserved so the denial doesn't reset
- *                                  the clock unfairly.
- *
- * Storage: hash with two fields { tokens (float as string), lastRefill (ms) }.
- * PEXPIRE on the key is 2 windows; idle buckets self-prune.
- */
 export const TOKEN_BUCKET_LUA = `
 local key = KEYS[1]
 local max = tonumber(ARGV[1])

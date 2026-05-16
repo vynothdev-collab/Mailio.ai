@@ -16,15 +16,6 @@ import { ApiKey, ApiKeyStatus } from '../providers/entities/api-key.entity';
 import { KeyPoolSync } from '../providers/key-pool.sync';
 import { CreateApiKeyDto, UpdateApiKeyDto } from './dto/create-api-key.dto';
 
-/**
- * Runtime CRUD over the api_keys table. Mounted under /admin/keys and
- * gated by the same basic-auth middleware as the Bull Board (configured
- * in AdminModule). Every mutation publishes a KeyPool refresh event so
- * worker snapshots converge without restart.
- *
- * Key values are returned with a short prefix only; the raw secret is
- * never echoed back over HTTP.
- */
 @Controller('admin/keys')
 export class AdminKeysController {
   constructor(

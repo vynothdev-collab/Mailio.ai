@@ -12,14 +12,6 @@ import {
 import { DlqService } from '../dlq/dlq.service';
 import { DlqStatus } from '../dlq/entities/dlq-job.entity';
 
-/**
- * Operator surface for the DLQ. Same /admin gate as the queues dashboard
- * and the keys CRUD — registered in AdminModule's middleware list.
- *
- * Endpoints are intentionally narrow: list + view + retry + discard.
- * No bulk operations yet; if those become useful, add a `POST
- * /admin/dlq/retry-all?sourceQueue=...` with explicit filter required.
- */
 @Controller('admin/dlq')
 export class AdminDlqController {
   constructor(private readonly dlq: DlqService) {}

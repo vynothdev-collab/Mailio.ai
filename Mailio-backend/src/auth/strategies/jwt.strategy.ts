@@ -29,11 +29,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid token type');
     }
     const user = await this.usersService.findById(payload.sub);
-    // Returning null/undefined would let Passport mark the request as
-    // authenticated against an empty user — explicitly throw instead so
-    // deactivated or deleted accounts can't ride a still-valid JWT.
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('Account is inactive or no longer exists');
+      throw new UnauthorizedException(
+        'Account is inactive or no longer exists',
+      );
     }
     return user;
   }

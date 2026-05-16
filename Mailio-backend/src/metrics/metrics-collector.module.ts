@@ -10,16 +10,6 @@ import {
 } from '../verification/verification.service';
 import { MetricsCollectorService } from './metrics-collector.service';
 
-/**
- * Opt-in collector that polls queue counts and key-pool status into
- * gauges. Separate from MetricsModule so processes that don't need this
- * (e.g. a future stripped-down container) can skip the periodic timer
- * without losing the call-site instrumentation.
- *
- * Imported by ApiAppModule and WorkerAppModule — both processes have a
- * Redis connection and DB connection, so either can serve /metrics with
- * accurate gauges.
- */
 @Module({
   imports: [
     TypeOrmModule.forFeature([ApiKey]),

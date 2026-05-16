@@ -21,14 +21,6 @@ const RESULT_MAP: Record<string, VerificationResult> = {
 
 const MAILTESTER_PROVIDER = 'mailtester';
 
-/**
- * Shared verification logic. Subclasses bind to a specific queue via
- * @Processor(...) but reuse this exact process() / onFailed() implementation.
- *
- * KeyPool + DbWrite are pulled from DI; both queues feed the same singletons,
- * so the global rate budget and the canonical write path stay consistent
- * regardless of which queue produced the job.
- */
 export abstract class VerificationBaseProcessor extends WorkerHost {
   protected readonly logger = new Logger(this.constructor.name);
 
@@ -46,10 +38,6 @@ export abstract class VerificationBaseProcessor extends WorkerHost {
   /** Subclasses override so the DLQ row carries the right source_queue. */
   protected abstract sourceQueueName(): string;
 
-  /**
-   * Emit both the request-count counter and the latency histogram in
-   * one place so success and failure paths can't drift apart.
-   */
   private recordProviderOutcome(
     keyId: string,
     outcome: string,
@@ -77,14 +65,6 @@ export abstract class VerificationBaseProcessor extends WorkerHost {
 
     const slot = await this.keyPool.acquireKey(MAILTESTER_PROVIDER);
     if (!slot.ok) {
-      // Loud log — silently re-queueing forever is the #1 reason
-      // "Ninja API never gets called" in this codebase. Common causes:
-      //   - api_keys table empty + MAILTESTER_API_KEY env var unset
-      //     (env seeder needs the env var to bootstrap a row)
-      //   - every key is in COOLDOWN / DISABLED status
-      //   - per-key rate budget exhausted globally
-      // Look at /admin/keys (if mounted) or `SELECT * FROM api_keys`
-      // to diagnose.
       const snapshot = this.keyPool.getSnapshot(MAILTESTER_PROVIDER);
       this.logger.warn(
         `KeyPool denied acquire for ${MAILTESTER_PROVIDER} ` +
@@ -116,12 +96,6 @@ export abstract class VerificationBaseProcessor extends WorkerHost {
       const httpStatus = e instanceof ProviderError ? e.httpStatus : undefined;
       this.recordProviderOutcome(slot.key.id, kind, startMs);
 
-      // Log EVERY failed attempt at warn level so debugging "Ninja
-      // returns processed_count++ but valid/invalid/risky stay flat"
-      // is one log scan away. Without this the actual provider error
-      // is only visible after the final attempt (onFailed handler) —
-      // by which time the original cause (401, timeout, etc.) is
-      // hidden inside a re-thrown BullMQ wrapper.
       const msg = (e as Error).message;
       this.logger.warn(
         `Ninja verify FAILED ${email.address} ` +
@@ -210,9 +184,6 @@ export abstract class VerificationBaseProcessor extends WorkerHost {
       );
     }
 
-    // Permanently-failed verify jobs land in the DLQ for operator review.
-    // Don't let a DLQ insert error mask the original failure path —
-    // db.write enqueue above is the user-visible outcome; DLQ is audit.
     try {
       await this.dlq.push({
         sourceQueue: this.sourceQueueName(),
@@ -226,7 +197,9 @@ export abstract class VerificationBaseProcessor extends WorkerHost {
         .labels({ source_queue: this.sourceQueueName() })
         .inc();
     } catch (e) {
-      this.logger.warn(`DLQ push failed for ${emailId}: ${(e as Error).message}`);
+      this.logger.warn(
+        `DLQ push failed for ${emailId}: ${(e as Error).message}`,
+      );
     }
   }
 }

@@ -99,11 +99,19 @@ export class SingleVerifyService {
 
     const [todayRows, yesterdayRows, allRows] = await Promise.all([
       this.emailsRepo.find({
-        where: { userId, isSingleVerify: true, createdAt: Between(today, new Date()) },
+        where: {
+          userId,
+          isSingleVerify: true,
+          createdAt: Between(today, new Date()),
+        },
         select: ['id', 'verificationResult', 'durationMs'],
       }),
       this.emailsRepo.find({
-        where: { userId, isSingleVerify: true, createdAt: Between(yesterday, today) },
+        where: {
+          userId,
+          isSingleVerify: true,
+          createdAt: Between(yesterday, today),
+        },
         select: ['id', 'verificationResult', 'durationMs'],
       }),
       this.emailsRepo.find({
@@ -113,26 +121,44 @@ export class SingleVerifyService {
     ]);
 
     const todayCount = todayRows.length;
-    const validAll = allRows.filter((e) => e.verificationResult === VerificationResult.VALID).length;
-    const successRate = allRows.length > 0 ? Math.round((validAll / allRows.length) * 1000) / 10 : 0;
-    const durations = allRows.filter((e) => e.durationMs != null).map((e) => e.durationMs!);
-    const avgResponseMs = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
+    const validAll = allRows.filter(
+      (e) => e.verificationResult === VerificationResult.VALID,
+    ).length;
+    const successRate =
+      allRows.length > 0
+        ? Math.round((validAll / allRows.length) * 1000) / 10
+        : 0;
+    const durations = allRows
+      .filter((e) => e.durationMs != null)
+      .map((e) => e.durationMs!);
+    const avgResponseMs =
+      durations.length > 0
+        ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+        : 0;
 
     const yesterdayCount = yesterdayRows.length;
-    const countChange = yesterdayCount > 0
-      ? `${todayCount >= yesterdayCount ? '+' : ''}${Math.round(((todayCount - yesterdayCount) / yesterdayCount) * 100)}%`
-      : '+0%';
+    const countChange =
+      yesterdayCount > 0
+        ? `${todayCount >= yesterdayCount ? '+' : ''}${Math.round(((todayCount - yesterdayCount) / yesterdayCount) * 100)}%`
+        : '+0%';
 
     return {
       todayCount,
       successRate,
       apiUsage: allRows.length,
       avgResponseMs,
-      changes: { todayCount: countChange, successRate: '+0%', avgResponseMs: '0ms' },
+      changes: {
+        todayCount: countChange,
+        successRate: '+0%',
+        avgResponseMs: '0ms',
+      },
     };
   }
 
-  async downloadSingle(id: string, userId: string): Promise<{ csv: string; filename: string }> {
+  async downloadSingle(
+    id: string,
+    userId: string,
+  ): Promise<{ csv: string; filename: string }> {
     const email = await this.emailsRepo.findOne({ where: { id, userId } });
     if (!email) throw new Error('Not found');
 
@@ -169,7 +195,9 @@ export class SingleVerifyService {
     return 'unknown';
   }
 
-  private buildChecks(apiRes: Awaited<ReturnType<MailTesterService['verify']>>): CheckItem[] {
+  private buildChecks(
+    apiRes: Awaited<ReturnType<MailTesterService['verify']>>,
+  ): CheckItem[] {
     return [
       {
         key: 'format',
@@ -198,8 +226,18 @@ export class SingleVerifyService {
       {
         key: 'catch_all',
         label: 'Catch-All Domain',
-        value: apiRes.catch_all == null ? 'Unknown' : apiRes.catch_all ? 'Yes' : 'No',
-        status: apiRes.catch_all == null ? 'info' : apiRes.catch_all ? 'info' : 'pass',
+        value:
+          apiRes.catch_all == null
+            ? 'Unknown'
+            : apiRes.catch_all
+              ? 'Yes'
+              : 'No',
+        status:
+          apiRes.catch_all == null
+            ? 'info'
+            : apiRes.catch_all
+              ? 'info'
+              : 'pass',
       },
       {
         key: 'free_provider',

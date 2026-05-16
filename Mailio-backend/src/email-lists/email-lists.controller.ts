@@ -41,7 +41,10 @@ const LIST_SCHEMA = {
   properties: {
     id: { type: 'string', format: 'uuid' },
     name: { type: 'string', example: 'leads-q1.csv' },
-    status: { type: 'string', enum: ['pending', 'processing', 'completed', 'failed'] },
+    status: {
+      type: 'string',
+      enum: ['pending', 'processing', 'completed', 'failed'],
+    },
     totalCount: { type: 'number', example: 5000 },
     processedCount: { type: 'number', example: 5000 },
     validCount: { type: 'number', example: 3900 },
@@ -65,15 +68,25 @@ export class EmailListsController {
   ) {}
 
   @Post()
-  @ApiOperation({ summary: 'Upload CSV/TXT to create a bulk verification list' })
+  @ApiOperation({
+    summary: 'Upload CSV/TXT to create a bulk verification list',
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
       required: ['name', 'file'],
       properties: {
-        name: { type: 'string', description: 'Human-readable list name', example: 'Q1 Leads' },
-        file: { type: 'string', format: 'binary', description: 'CSV or TXT file (max 50 MB)' },
+        name: {
+          type: 'string',
+          description: 'Human-readable list name',
+          example: 'Q1 Leads',
+        },
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'CSV or TXT file (max 50 MB)',
+        },
       },
     },
   })
@@ -89,7 +102,10 @@ export class EmailListsController {
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'File missing or unsupported format' })
+  @ApiResponse({
+    status: 400,
+    description: 'File missing or unsupported format',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @UseInterceptors(
     FileInterceptor('file', {
@@ -99,7 +115,9 @@ export class EmailListsController {
       }),
       limits: {
         fileSize:
-          parseInt(process.env.UPLOAD_MAX_FILE_SIZE_MB ?? '50', 10) * 1024 * 1024,
+          parseInt(process.env.UPLOAD_MAX_FILE_SIZE_MB ?? '50', 10) *
+          1024 *
+          1024,
       },
       fileFilter: (_req, file, cb) => {
         const ext = path.extname(file.originalname).toLowerCase();
@@ -123,16 +141,6 @@ export class EmailListsController {
       file.originalname,
     );
 
-    // Feature-flag gate for the micro-batch rollout.
-    //
-    //   BULK_BATCH_ENABLED=true   → 1 BullMQ job per 50 emails
-    //                               (verify.batch payload)
-    //   BULK_BATCH_ENABLED=false  → legacy 1 BullMQ job per email
-    //                               (verify payload)
-    //
-    // Both paths land on the same `verify.bulk` queue and are dispatched
-    // by job.name in VerificationBulkProcessor — so toggling this flag at
-    // runtime is safe with no consumer redeploy.
     if (process.env.BULK_BATCH_ENABLED === 'true') {
       await this.verificationService.enqueueBulkBatches(
         emailIds,
@@ -169,14 +177,22 @@ export class EmailListsController {
     @Query('page', new ParseIntPipe({ optional: true })) page = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 20,
   ) {
-    const [items, total] = await this.emailListsService.findByUser(user.id, page, limit);
+    const [items, total] = await this.emailListsService.findByUser(
+      user.id,
+      page,
+      limit,
+    );
     return { items, total, page, limit };
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a specific email list by ID' })
   @ApiParam({ name: 'id', description: 'Email list UUID' })
-  @ApiResponse({ status: 200, description: 'Email list details', schema: LIST_SCHEMA })
+  @ApiResponse({
+    status: 200,
+    description: 'Email list details',
+    schema: LIST_SCHEMA,
+  })
   @ApiResponse({ status: 404, description: 'List not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   findOne(@Param('id') id: string, @CurrentUser() user: User) {
@@ -184,11 +200,18 @@ export class EmailListsController {
   }
 
   @Get(':id/emails')
-  @ApiOperation({ summary: 'Get emails in a list — paginated, filterable by result' })
+  @ApiOperation({
+    summary: 'Get emails in a list — paginated, filterable by result',
+  })
   @ApiParam({ name: 'id', description: 'Email list UUID' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 50 })
-  @ApiQuery({ name: 'result', required: false, enum: VerificationResult, description: 'Filter by verification result' })
+  @ApiQuery({
+    name: 'result',
+    required: false,
+    enum: VerificationResult,
+    description: 'Filter by verification result',
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated emails in the list',
@@ -202,7 +225,10 @@ export class EmailListsController {
             properties: {
               id: { type: 'string', format: 'uuid' },
               address: { type: 'string', format: 'email' },
-              verificationResult: { type: 'string', enum: ['VALID', 'INVALID', 'RISKY', 'UNKNOWN'] },
+              verificationResult: {
+                type: 'string',
+                enum: ['VALID', 'INVALID', 'RISKY', 'UNKNOWN'],
+              },
               score: { type: 'number', example: 88 },
               processedAt: { type: 'string', format: 'date-time' },
             },
@@ -236,7 +262,12 @@ export class EmailListsController {
   @Get(':id/export')
   @ApiOperation({ summary: 'Stream list results as CSV' })
   @ApiParam({ name: 'id', description: 'Email list UUID' })
-  @ApiQuery({ name: 'result', required: false, enum: VerificationResult, description: 'Filter to a single result type' })
+  @ApiQuery({
+    name: 'result',
+    required: false,
+    enum: VerificationResult,
+    description: 'Filter to a single result type',
+  })
   @ApiProduces('text/csv')
   @ApiResponse({ status: 200, description: 'Streaming CSV attachment' })
   @ApiResponse({ status: 404, description: 'List not found' })
@@ -247,7 +278,13 @@ export class EmailListsController {
     @Res() res: Response,
     @Query('result') result?: VerificationResult,
   ) {
-    await this.emailListsService.streamDownload(id, user.id, res, 'csv', result === undefined ? 'full' : 'verified');
+    await this.emailListsService.streamDownload(
+      id,
+      user.id,
+      res,
+      'csv',
+      result === undefined ? 'full' : 'verified',
+    );
   }
 
   @Delete(':id')

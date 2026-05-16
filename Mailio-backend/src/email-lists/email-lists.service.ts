@@ -60,14 +60,6 @@ export class EmailListsService {
       throw new BadRequestException('No valid email addresses found in file');
     }
 
-    // Bulk INSERT path. TypeORM's .save([...]) issues a SELECT-then-INSERT
-    // per entity (it's upsert-shaped), which becomes the dominant phase of
-    // the upload for large lists (50k rows = 100k round trips, often
-    // 30+ seconds of upload latency the user just waits through).
-    //
-    // .insert() emits a single multi-row INSERT per chunk with RETURNING id,
-    // collapsing the chunk into ONE round trip. With CHUNK_SIZE=500 a
-    // 50k upload becomes 100 round trips instead of 100,000.
     const emailIds: string[] = [];
     for (let i = 0; i < addresses.length; i += CHUNK_SIZE) {
       const chunk = addresses.slice(i, i + CHUNK_SIZE);
@@ -148,15 +140,6 @@ export class EmailListsService {
     };
   }
 
-  /**
-   * Batch counterpart to incrementProcessed. ONE UPDATE bumps every counter
-   * for a single list, and atomically flips status to COMPLETED when the
-   * batch causes processed_count to reach total_count.
-   *
-   * Caller is expected to have already grouped batch results by listId
-   * (a single batch usually has one listId anyway). The returned snapshot
-   * is the post-update state — feed it directly into ProgressThrottler.
-   */
   async incrementProcessedBatch(
     listId: string,
     d: ListDeltas,
@@ -195,9 +178,6 @@ export class EmailListsService {
     );
 
     if (rows.length === 0) {
-      // List was deleted between batch dispatch and DB write. Return a
-      // synthetic snapshot so callers don't crash; the throttler will
-      // simply emit a no-op final state.
       return {
         processed: 0,
         total: 0,
@@ -217,16 +197,6 @@ export class EmailListsService {
     return this.listsRepo.findOne({ where: { id } });
   }
 
-  /**
-   * "Active" = the job the user is currently waiting on. That includes
-   * lists that are still parsing or sitting in the queue (status=PENDING)
-   * as well as ones whose verification has actually started
-   * (status=PROCESSING). Without this, a freshly-uploaded list spends
-   * the whole CSV-parse window invisible to the dashboard / progress UI.
-   *
-   * Sorted by createdAt DESC so the most recent upload wins when a user
-   * has more than one in-flight (rare).
-   */
   async findActiveJob(userId: string): Promise<EmailList | null> {
     return this.listsRepo.findOne({
       where: [
@@ -324,9 +294,6 @@ export class EmailListsService {
       });
     }
 
-    // Run the query first so any DB error surfaces *before* response headers
-    // are written. Avoids ERR_HTTP_HEADERS_SENT when the global filter tries
-    // to send a JSON error after we've already started the response.
     const rows = await qb.getMany();
 
     const toStatus = (r: string | null | undefined): string => {

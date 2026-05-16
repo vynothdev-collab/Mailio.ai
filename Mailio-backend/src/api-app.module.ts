@@ -25,16 +25,6 @@ import { VerificationGatewayModule } from './verification/verification-gateway.m
 import { VerificationModule } from './verification/verification.module';
 import { VerifyModule } from './verify/verify.module';
 
-/**
- * Root module for the API process (main.api.ts).
- *
- * Loads HTTP/WebSocket-facing modules and the VerificationModule producer,
- * but deliberately omits VerificationWorkerModule so no @Processor binds.
- * NotificationsModule is wired in 'subscriber' mode: a Redis pub/sub bridge
- * forwards worker-emitted progress events to the gateway.
- *
- * Safe to run with PM2 cluster mode (instances: 'max').
- */
 @Module({
   imports: [
     ConfigModule.forRoot({

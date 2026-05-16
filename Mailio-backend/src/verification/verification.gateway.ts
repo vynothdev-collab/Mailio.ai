@@ -64,7 +64,9 @@ export class VerificationGateway
   }
 
   emitListStatusChange(listId: string, status: string) {
-    this.server.to(`list:${listId}`).emit('list:status-change', { listId, status });
+    this.server
+      .to(`list:${listId}`)
+      .emit('list:status-change', { listId, status });
   }
 
   emitSingleResult(userId: string, payload: Record<string, unknown>) {

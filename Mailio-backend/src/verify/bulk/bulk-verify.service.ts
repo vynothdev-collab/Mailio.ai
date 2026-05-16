@@ -12,11 +12,6 @@ import { Email, EmailStatus } from '../../emails/entities/email.entity';
 import { User } from '../../users/entities/user.entity';
 import { VerificationService } from '../../verification/verification.service';
 
-const PLAN_LIMITS: Record<string, number> = {
-  PRO: 10_000,
-  ULTIMATE: 100_000,
-};
-
 const CHART_COLORS = {
   valid: '#22c55e',
   invalid: '#ef4444',
@@ -36,15 +31,6 @@ export class BulkVerifyService {
     private readonly csvParse: CsvParseService,
   ) {}
 
-  /**
-   * Phase-5 upload path: returns immediately with the listId. The actual
-   * file is parsed by the csv.parse worker, which inserts emails in
-   * streaming batches and enqueues verify jobs as it goes. The UI polls
-   * /verify/bulk/:jobId/progress (or subscribes to the socket) for status.
-   *
-   * No CSV touching happens here — Multer has already written the upload
-   * to disk; we just record metadata and hand the path off to the worker.
-   */
   async upload(user: User, filePath: string, originalFilename: string) {
     const name = originalFilename.replace(/\.[^.]+$/, '');
 
@@ -90,7 +76,10 @@ export class BulkVerifyService {
     const etaSeconds = this.calcEta(list);
 
     return {
-      progress: list.totalCount > 0 ? Math.round((list.processedCount / list.totalCount) * 100) : 0,
+      progress:
+        list.totalCount > 0
+          ? Math.round((list.processedCount / list.totalCount) * 100)
+          : 0,
       processedCount: list.processedCount,
       totalCount: list.totalCount,
       etaSeconds,
@@ -102,12 +91,16 @@ export class BulkVerifyService {
   }
 
   async getJobs(userId: string, page: number, limit: number, status?: string) {
-    const statusFilter = status && status !== 'all'
-      ? (status.toUpperCase() as EmailListStatus)
-      : undefined;
+    const statusFilter =
+      status && status !== 'all'
+        ? (status.toUpperCase() as EmailListStatus)
+        : undefined;
 
     const [items, total] = await this.emailListsService.findByUser(
-      userId, page, limit, statusFilter,
+      userId,
+      page,
+      limit,
+      statusFilter,
     );
 
     const data = items.map((l) => ({
@@ -140,12 +133,14 @@ export class BulkVerifyService {
       select: ['id', 'status', 'totalCount', 'processedCount', 'createdAt'],
     });
 
-    const todayLists     = allLists.filter((l) => l.createdAt >= startOfToday);
+    const todayLists = allLists.filter((l) => l.createdAt >= startOfToday);
     const yesterdayLists = allLists.filter(
       (l) => l.createdAt >= startOfYesterday && l.createdAt < startOfToday,
     );
 
-    const completedJobs = allLists.filter((l) => l.status === EmailListStatus.COMPLETED).length;
+    const completedJobs = allLists.filter(
+      (l) => l.status === EmailListStatus.COMPLETED,
+    ).length;
     const completedYesterday = yesterdayLists.filter(
       (l) => l.status === EmailListStatus.COMPLETED,
     ).length;
@@ -155,11 +150,19 @@ export class BulkVerifyService {
     // Average response time today vs yesterday — derived from the email rows.
     const [todayEmails, yesterdayEmails, allEmails] = await Promise.all([
       this.emailsRepo.find({
-        where: { userId, isSingleVerify: false, createdAt: Between(startOfToday, new Date()) },
+        where: {
+          userId,
+          isSingleVerify: false,
+          createdAt: Between(startOfToday, new Date()),
+        },
         select: ['durationMs'],
       }),
       this.emailsRepo.find({
-        where: { userId, isSingleVerify: false, createdAt: Between(startOfYesterday, startOfToday) },
+        where: {
+          userId,
+          isSingleVerify: false,
+          createdAt: Between(startOfYesterday, startOfToday),
+        },
         select: ['durationMs'],
       }),
       this.emailsRepo.find({
@@ -169,13 +172,17 @@ export class BulkVerifyService {
     ]);
 
     const avgMs = (rows: { durationMs: number | null }[]): number => {
-      const ds = rows.map((r) => r.durationMs).filter((d): d is number => d != null);
-      return ds.length > 0 ? Math.round(ds.reduce((a, b) => a + b, 0) / ds.length) : 0;
+      const ds = rows
+        .map((r) => r.durationMs)
+        .filter((d): d is number => d != null);
+      return ds.length > 0
+        ? Math.round(ds.reduce((a, b) => a + b, 0) / ds.length)
+        : 0;
     };
 
-    const avgResponseMs      = avgMs(allEmails);
-    const avgResponseToday   = avgMs(todayEmails);
-    const avgResponseYday    = avgMs(yesterdayEmails);
+    const avgResponseMs = avgMs(allEmails);
+    const avgResponseToday = avgMs(todayEmails);
+    const avgResponseYday = avgMs(yesterdayEmails);
 
     return {
       filesToday: todayLists.length,
@@ -184,8 +191,8 @@ export class BulkVerifyService {
       apiUsage: allEmails.length,
       avgResponseMs,
       changes: {
-        filesToday:    this.pctChange(todayLists.length,    yesterdayLists.length),
-        completedJobs: this.pctChange(completedJobs,        completedYesterday),
+        filesToday: this.pctChange(todayLists.length, yesterdayLists.length),
+        completedJobs: this.pctChange(completedJobs, completedYesterday),
         // For latency, smaller is better — show the absolute ms delta.
         avgResponseMs: this.msDelta(avgResponseToday, avgResponseYday),
       },
@@ -207,11 +214,6 @@ export class BulkVerifyService {
     return `${delta >= 0 ? '+' : ''}${delta}ms`;
   }
 
-  /**
-   * Aggregate Valid + Invalid + Risky counts across every bulk-verified email
-   * for the user (excludes single verifications). Powers the right-side donut
-   * on the Bulk Verify page.
-   */
   async getAggregateBreakdown(userId: string) {
     const rows = await this.emailsRepo.find({
       where: { userId, isSingleVerify: false },
@@ -234,9 +236,24 @@ export class BulkVerifyService {
     return {
       total,
       data: [
-        { name: 'Valid',   value: valid,   percentage: pct(valid),   color: CHART_COLORS.valid },
-        { name: 'Invalid', value: invalid, percentage: pct(invalid), color: CHART_COLORS.invalid },
-        { name: 'Risky',   value: risky,   percentage: pct(risky),   color: CHART_COLORS.risky },
+        {
+          name: 'Valid',
+          value: valid,
+          percentage: pct(valid),
+          color: CHART_COLORS.valid,
+        },
+        {
+          name: 'Invalid',
+          value: invalid,
+          percentage: pct(invalid),
+          color: CHART_COLORS.invalid,
+        },
+        {
+          name: 'Risky',
+          value: risky,
+          percentage: pct(risky),
+          color: CHART_COLORS.risky,
+        },
       ],
     };
   }
@@ -250,10 +267,30 @@ export class BulkVerifyService {
 
     return {
       data: [
-        { name: 'Valid', value: list.validCount, percentage: pct(list.validCount), color: CHART_COLORS.valid },
-        { name: 'Invalid', value: list.invalidCount, percentage: pct(list.invalidCount), color: CHART_COLORS.invalid },
-        { name: 'Risky', value: list.riskyCount, percentage: pct(list.riskyCount), color: CHART_COLORS.risky },
-        { name: 'Disposable', value: list.disposableCount, percentage: pct(list.disposableCount), color: CHART_COLORS.disposable },
+        {
+          name: 'Valid',
+          value: list.validCount,
+          percentage: pct(list.validCount),
+          color: CHART_COLORS.valid,
+        },
+        {
+          name: 'Invalid',
+          value: list.invalidCount,
+          percentage: pct(list.invalidCount),
+          color: CHART_COLORS.invalid,
+        },
+        {
+          name: 'Risky',
+          value: list.riskyCount,
+          percentage: pct(list.riskyCount),
+          color: CHART_COLORS.risky,
+        },
+        {
+          name: 'Disposable',
+          value: list.disposableCount,
+          percentage: pct(list.disposableCount),
+          color: CHART_COLORS.disposable,
+        },
       ],
       total,
     };
@@ -266,11 +303,20 @@ export class BulkVerifyService {
     format: 'csv' | 'json',
     type: 'verified' | 'full',
   ) {
-    return this.emailListsService.streamDownload(jobId, userId, res, format, type);
+    return this.emailListsService.streamDownload(
+      jobId,
+      userId,
+      res,
+      format,
+      type,
+    );
   }
 
   async retry(jobId: string, userId: string) {
-    const { requeuedCount } = await this.emailListsService.retryFailed(jobId, userId);
+    const { requeuedCount } = await this.emailListsService.retryFailed(
+      jobId,
+      userId,
+    );
 
     if (requeuedCount > 0) {
       const failedEmails = await this.emailsRepo.find({
@@ -291,7 +337,10 @@ export class BulkVerifyService {
     return {
       jobId: list.id,
       fileName: list.originalFilename ?? list.name,
-      progress: list.totalCount > 0 ? Math.round((list.processedCount / list.totalCount) * 100) : 0,
+      progress:
+        list.totalCount > 0
+          ? Math.round((list.processedCount / list.totalCount) * 100)
+          : 0,
       processedCount: list.processedCount,
       totalCount: list.totalCount,
       etaSeconds: this.calcEta(list),

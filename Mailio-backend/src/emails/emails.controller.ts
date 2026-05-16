@@ -32,7 +32,9 @@ export class EmailsController {
   ) {}
 
   @Post('verify')
-  @ApiOperation({ summary: 'Queue a single email for verification (priority 1)' })
+  @ApiOperation({
+    summary: 'Queue a single email for verification (priority 1)',
+  })
   async verify(@Body() dto: VerifyEmailDto, @CurrentUser() user: User) {
     const email = await this.emailsService.createSingle(dto.email, user.id);
     await this.verificationService.enqueueSingle(email.id, user.id);

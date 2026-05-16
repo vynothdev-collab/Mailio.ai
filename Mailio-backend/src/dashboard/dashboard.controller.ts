@@ -25,7 +25,9 @@ export class DashboardController {
 
   @ApiTags('dashboard')
   @Get('dashboard/stats')
-  @ApiOperation({ summary: 'Overall verification stats with period-over-period changes' })
+  @ApiOperation({
+    summary: 'Overall verification stats with period-over-period changes',
+  })
   @ApiResponse({
     status: 200,
     description: '7-day summary with percentage changes vs previous period',
@@ -98,7 +100,10 @@ export class DashboardController {
             properties: {
               id: { type: 'string', format: 'uuid' },
               email: { type: 'string', format: 'email' },
-              status: { type: 'string', enum: ['valid', 'invalid', 'risky', 'unknown'] },
+              status: {
+                type: 'string',
+                enum: ['valid', 'invalid', 'risky', 'unknown'],
+              },
               source: { type: 'string', enum: ['single', 'bulk'] },
               verifiedAt: { type: 'string', format: 'date-time' },
             },
@@ -121,8 +126,15 @@ export class DashboardController {
 
   @ApiTags('dashboard')
   @Get('dashboard/chart')
-  @ApiOperation({ summary: 'Verification result distribution for chart rendering' })
-  @ApiQuery({ name: 'period', required: false, description: '7d | 14d | 30d', example: '7d' })
+  @ApiOperation({
+    summary: 'Verification result distribution for chart rendering',
+  })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    description: '7d | 14d | 30d',
+    example: '7d',
+  })
   @ApiResponse({
     status: 200,
     description: 'Daily series data with result breakdown and colours',
@@ -156,10 +168,7 @@ export class DashboardController {
     },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  getChart(
-    @CurrentUser() user: User,
-    @Query('period') period = '7d',
-  ) {
+  getChart(@CurrentUser() user: User, @Query('period') period = '7d') {
     return this.dashboardService.getChart(user.id, period);
   }
 

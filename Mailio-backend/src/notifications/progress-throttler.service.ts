@@ -9,25 +9,6 @@ interface Snapshot {
   status: EmailListStatus;
 }
 
-/**
- * Coalesces verification:progress emissions to at most one per list per
- * flush interval (default 1 s). The batch pipeline can complete tens of
- * thousands of emails per second; without this throttle a single upload
- * would push that many events through socket.io to every subscriber on
- * the `list:{listId}` room — pure waste, since the UI only paints at
- * frame rate.
- *
- * Semantics:
- *   - Last-write-wins per listId. A faster snapshot supersedes an older
- *     one in the pending map before the next flush fires.
- *   - The terminal (processed >= total) snapshot is always emitted, and
- *     also triggers a `list:status-change` event exactly once per list.
- *   - flush() is idempotent. onModuleDestroy() forces a final flush so
- *     the last state is delivered even if the process is shutting down.
- *
- * This service is NOT a buffer for failure events — those are infrequent
- * enough to be emitted directly by the DbWriteProcessor.
- */
 @Injectable()
 export class ProgressThrottlerService implements OnModuleDestroy {
   private readonly pending = new Map<string, Snapshot>();
@@ -43,12 +24,6 @@ export class ProgressThrottlerService implements OnModuleDestroy {
     @Optional() private readonly metrics?: MetricsService,
   ) {}
 
-  /**
-   * Record the latest snapshot for a list. Schedules the next flush if
-   * one isn't already pending. Safe to call from any number of
-   * concurrent DB-write handlers — Node's single-threaded event loop
-   * serialises the Map writes.
-   */
   schedule(listId: string, snap: Snapshot): void {
     this.pending.set(listId, snap);
     if (this.timer === null) {
@@ -56,10 +31,6 @@ export class ProgressThrottlerService implements OnModuleDestroy {
     }
   }
 
-  /**
-   * Emit every pending snapshot and clear the buffer. Public so the
-   * shutdown hook (and tests) can force-drain.
-   */
   flush(): void {
     if (this.timer !== null) {
       clearTimeout(this.timer);

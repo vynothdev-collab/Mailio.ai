@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
-import { EmailList, EmailListStatus } from '../email-lists/entities/email-list.entity';
+import {
+  EmailList,
+  EmailListStatus,
+} from '../email-lists/entities/email-list.entity';
 import { Email, EmailStatus } from '../emails/entities/email.entity';
 import { VerificationResult } from '../common/types/verification-result.enum';
 import { Plan } from '../users/entities/user.entity';
@@ -62,16 +65,10 @@ export class DashboardService {
       totalVerified: allTime,
       validRate,
       invalidRate,
-      // Period-over-period changes intentionally omitted — the UI hides the
-      // delta row, so computing them would be wasted DB work.
     };
   }
 
   async getActiveJob(userId: string) {
-    // Show the user the job they're currently waiting on, regardless of
-    // whether it's still being parsed (PENDING) or already verifying
-    // (PROCESSING). Otherwise the dashboard's "Active Verification" card
-    // is blank during the parse phase.
     const list = await this.listsRepo.findOne({
       where: [
         { userId, status: EmailListStatus.PROCESSING },
@@ -92,7 +89,10 @@ export class DashboardService {
     return {
       jobId: list.id,
       fileName: list.originalFilename ?? list.name,
-      progress: list.totalCount > 0 ? Math.round((list.processedCount / list.totalCount) * 100) : 0,
+      progress:
+        list.totalCount > 0
+          ? Math.round((list.processedCount / list.totalCount) * 100)
+          : 0,
       processedCount: list.processedCount,
       totalCount: list.totalCount,
       etaSeconds,
@@ -105,8 +105,6 @@ export class DashboardService {
   }
 
   async getRecentVerifications(userId: string, page: number, limit: number) {
-    // Only show emails that finished verification — QUEUED/PROCESSING/FAILED
-    // rows would otherwise appear with "unknown" status and confuse the user.
     const [rows, total] = await this.emailsRepo.findAndCount({
       where: { userId, status: EmailStatus.COMPLETED },
       order: { processedAt: 'DESC' },
@@ -147,14 +145,35 @@ export class DashboardService {
       if (r.verificationResult) counts[r.verificationResult]++;
     }
 
-    const pct = (n: number) => total > 0 ? Math.round((n / total) * 1000) / 10 : 0;
+    const pct = (n: number) =>
+      total > 0 ? Math.round((n / total) * 1000) / 10 : 0;
 
     return {
       data: [
-        { name: 'Valid', value: counts[VerificationResult.VALID], percentage: pct(counts[VerificationResult.VALID]), color: CHART_COLORS[VerificationResult.VALID] },
-        { name: 'Invalid', value: counts[VerificationResult.INVALID], percentage: pct(counts[VerificationResult.INVALID]), color: CHART_COLORS[VerificationResult.INVALID] },
-        { name: 'Risky', value: counts[VerificationResult.RISKY], percentage: pct(counts[VerificationResult.RISKY]), color: CHART_COLORS[VerificationResult.RISKY] },
-        { name: 'Unknown', value: counts[VerificationResult.UNKNOWN], percentage: pct(counts[VerificationResult.UNKNOWN]), color: CHART_COLORS[VerificationResult.UNKNOWN] },
+        {
+          name: 'Valid',
+          value: counts[VerificationResult.VALID],
+          percentage: pct(counts[VerificationResult.VALID]),
+          color: CHART_COLORS[VerificationResult.VALID],
+        },
+        {
+          name: 'Invalid',
+          value: counts[VerificationResult.INVALID],
+          percentage: pct(counts[VerificationResult.INVALID]),
+          color: CHART_COLORS[VerificationResult.INVALID],
+        },
+        {
+          name: 'Risky',
+          value: counts[VerificationResult.RISKY],
+          percentage: pct(counts[VerificationResult.RISKY]),
+          color: CHART_COLORS[VerificationResult.RISKY],
+        },
+        {
+          name: 'Unknown',
+          value: counts[VerificationResult.UNKNOWN],
+          percentage: pct(counts[VerificationResult.UNKNOWN]),
+          color: CHART_COLORS[VerificationResult.UNKNOWN],
+        },
       ],
       total,
     };

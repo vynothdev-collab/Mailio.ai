@@ -1,11 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 
-/**
- * Minimal HTTP Basic auth for the Bull Board route. Until the full admin-role
- * RBAC lands (Phase 3), this gates the queue dashboard behind ADMIN_USER /
- * ADMIN_PASS env vars. If either var is unset, the route is blocked entirely
- * (fail-closed) rather than left open.
- */
 export function basicAuthMiddleware(
   req: Request,
   res: Response,
@@ -15,7 +9,9 @@ export function basicAuthMiddleware(
   const expectedPass = process.env.ADMIN_PASS;
 
   if (!expectedUser || !expectedPass) {
-    res.status(503).send('Admin dashboard disabled (ADMIN_USER / ADMIN_PASS not set)');
+    res
+      .status(503)
+      .send('Admin dashboard disabled (ADMIN_USER / ADMIN_PASS not set)');
     return;
   }
 

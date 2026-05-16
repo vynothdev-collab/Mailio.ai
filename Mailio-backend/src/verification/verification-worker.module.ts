@@ -13,16 +13,6 @@ import {
   VerificationService,
 } from './verification.service';
 
-/**
- * Hosts the two @Processor classes. Loaded by worker processes (and the
- * monolith bootstrap for backward compat). The two consumers share the
- * VerificationBaseProcessor implementation so their behavior is
- * identical — only the bound queue and concurrency differ.
- *
- * Total throughput is capped globally by the KeyPool, so per-queue
- * concurrency tunes *fairness*, not RPS. A typical setup runs verify.high
- * with concurrency=4 and verify.bulk with concurrency=12.
- */
 @Module({
   imports: [
     BullModule.registerQueue(

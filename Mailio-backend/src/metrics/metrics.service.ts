@@ -7,20 +7,10 @@ import {
   collectDefaultMetrics,
 } from 'prom-client';
 
-/**
- * Single Prometheus registry shared by every metric in the process. The
- * exposition endpoint pulls from this registry's metrics() output.
- *
- * Each Node process (API, worker, monolith) hosts its own registry — they
- * are scraped independently by Prometheus and aggregated at query time.
- * That's the standard pattern for multi-process Node services; no
- * cross-process aggregation is required at the application level.
- */
 @Injectable()
 export class MetricsService implements OnModuleInit {
   readonly registry = new Registry();
 
-  // ── Queues ────────────────────────────────────────────────────────────
   readonly queueJobs = new Gauge({
     name: 'mailio_queue_jobs',
     help: 'BullMQ job counts by queue and state',
@@ -34,7 +24,6 @@ export class MetricsService implements OnModuleInit {
     registers: [this.registry],
   });
 
-  // ── Provider calls ────────────────────────────────────────────────────
   readonly providerRequests = new Counter({
     name: 'mailio_provider_request_total',
     help: 'External provider verification requests',
@@ -49,7 +38,6 @@ export class MetricsService implements OnModuleInit {
     registers: [this.registry],
   });
 
-  // ── Rate limiter ──────────────────────────────────────────────────────
   readonly limiterAcquires = new Counter({
     name: 'mailio_limiter_acquire_total',
     help: 'Token-bucket acquire attempts by key and outcome',
@@ -64,7 +52,6 @@ export class MetricsService implements OnModuleInit {
     registers: [this.registry],
   });
 
-  // ── Key pool ──────────────────────────────────────────────────────────
   readonly keyPoolStatus = new Gauge({
     name: 'mailio_key_pool_keys',
     help: 'Number of keys in each status per provider',
@@ -72,7 +59,6 @@ export class MetricsService implements OnModuleInit {
     registers: [this.registry],
   });
 
-  // ── DB writer ─────────────────────────────────────────────────────────
   readonly dbWriteDuration = new Histogram({
     name: 'mailio_db_write_duration_seconds',
     help: 'Time spent in DbWriteProcessor handlers',
@@ -81,7 +67,6 @@ export class MetricsService implements OnModuleInit {
     registers: [this.registry],
   });
 
-  // ── DLQ ───────────────────────────────────────────────────────────────
   readonly dlqEntries = new Counter({
     name: 'mailio_dlq_entries_total',
     help: 'Terminal failures landed in the DLQ',
@@ -89,11 +74,6 @@ export class MetricsService implements OnModuleInit {
     registers: [this.registry],
   });
 
-  // ── Micro-batch verifier ─────────────────────────────────────────────
-  // Surface batch behaviour separately from per-email metrics so alerts
-  // can detect regressions in the new pipeline without false positives
-  // from the legacy path. `batchSize` shows the actual claimed rowcount
-  // (claims < requested when emails were already COMPLETED on retry).
   readonly batchSize = new Histogram({
     name: 'mailio_verify_batch_size',
     help: 'Emails actually claimed and processed per verify.batch job',
@@ -115,9 +95,6 @@ export class MetricsService implements OnModuleInit {
     registers: [this.registry],
   });
 
-  // ── WebSocket notifier ───────────────────────────────────────────────
-  // Post-throttle emit count — if this ever spikes back to per-email
-  // rates the ProgressThrottler is broken (alert threshold > 2 / sec / list).
   readonly wsEmits = new Counter({
     name: 'mailio_ws_progress_emits_total',
     help: 'WebSocket progress emits actually flushed (post-throttle)',

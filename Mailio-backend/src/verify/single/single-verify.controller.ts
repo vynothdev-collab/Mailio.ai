@@ -45,9 +45,15 @@ export class SingleVerifyController {
       properties: {
         id: { type: 'string', format: 'uuid' },
         email: { type: 'string', format: 'email', example: 'test@example.com' },
-        status: { type: 'string', enum: ['valid', 'invalid', 'risky', 'unknown'] },
+        status: {
+          type: 'string',
+          enum: ['valid', 'invalid', 'risky', 'unknown'],
+        },
         confidence: { type: 'number', example: 92 },
-        description: { type: 'string', example: 'Email address is valid and accepting mail' },
+        description: {
+          type: 'string',
+          example: 'Email address is valid and accepting mail',
+        },
         verifiedAt: { type: 'string', format: 'date-time' },
         durationMs: { type: 'number', example: 1240 },
         checks: {
@@ -89,8 +95,14 @@ export class SingleVerifyController {
             properties: {
               id: { type: 'string', format: 'uuid' },
               email: { type: 'string', format: 'email' },
-              status: { type: 'string', enum: ['valid', 'invalid', 'risky', 'unknown'] },
-              risk: { type: 'string', enum: ['low', 'medium', 'high', 'unknown'] },
+              status: {
+                type: 'string',
+                enum: ['valid', 'invalid', 'risky', 'unknown'],
+              },
+              risk: {
+                type: 'string',
+                enum: ['low', 'medium', 'high', 'unknown'],
+              },
               verifiedAt: { type: 'string', format: 'date-time' },
             },
           },
@@ -142,7 +154,11 @@ export class SingleVerifyController {
   @ApiOperation({ summary: 'Download single verification result as CSV' })
   @ApiParam({ name: 'id', description: 'Email record UUID' })
   @ApiProduces('text/csv')
-  @ApiResponse({ status: 200, description: 'CSV file attachment', content: { 'text/csv': { schema: { type: 'string', format: 'binary' } } } })
+  @ApiResponse({
+    status: 200,
+    description: 'CSV file attachment',
+    content: { 'text/csv': { schema: { type: 'string', format: 'binary' } } },
+  })
   @ApiResponse({ status: 404, description: 'Record not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async download(
@@ -150,7 +166,10 @@ export class SingleVerifyController {
     @CurrentUser() user: User,
     @Res() res: Response,
   ) {
-    const { csv, filename } = await this.singleVerifyService.downloadSingle(id, user.id);
+    const { csv, filename } = await this.singleVerifyService.downloadSingle(
+      id,
+      user.id,
+    );
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.end(csv);

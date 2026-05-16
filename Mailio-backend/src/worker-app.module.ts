@@ -19,20 +19,6 @@ import { ProvidersModule } from './providers/providers.module';
 import { VerificationWorkerModule } from './verification/verification-worker.module';
 import { VerificationModule } from './verification/verification.module';
 
-/**
- * Root module for the worker process (main.worker.ts).
- *
- * Loads BullMQ infrastructure, the @Processor, and its data dependencies —
- * but NOT the WebSocket gateway, controllers, or auth pipeline. Progress
- * events are published to Redis pub/sub and re-emitted by the API process.
- *
- * MUST run in PM2 `fork` mode (not `cluster`) so the BullMQ Worker doesn't
- * try to share connections across cluster children.
- *
- * The default global rate limiter is still per-process (Phase 1). Phase 2
- * replaces it with a Redis-backed global limiter, after which multiple
- * worker processes can run safely without exceeding provider limits.
- */
 @Module({
   imports: [
     ConfigModule.forRoot({

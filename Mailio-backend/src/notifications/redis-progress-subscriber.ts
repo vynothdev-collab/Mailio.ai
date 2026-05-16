@@ -7,24 +7,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { VerificationGateway } from '../verification/verification.gateway';
-import {
-  PROGRESS_CHANNEL,
-  ProgressMessage,
-} from './progress-notifier';
+import { PROGRESS_CHANNEL, ProgressMessage } from './progress-notifier';
 
-/**
- * API-process bridge. Subscribes to the Redis pub/sub channel that workers
- * publish to, and forwards each message into the WebSocket gateway so that
- * connected browsers see real-time progress regardless of which worker
- * container produced the event.
- *
- * Owns its own ioredis connection (subscriber connections cannot be shared
- * with the BullMQ connection — Redis puts them in subscribed mode).
- */
 @Injectable()
-export class RedisProgressSubscriber
-  implements OnModuleInit, OnModuleDestroy
-{
+export class RedisProgressSubscriber implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RedisProgressSubscriber.name);
   private subscriber!: Redis;
 

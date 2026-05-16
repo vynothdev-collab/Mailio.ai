@@ -45,10 +45,14 @@ export class AuthService {
 
   async refreshAccessToken(token: string) {
     try {
-      const payload = this.jwtService.verify<{ sub: string; type: string }>(token, {
-        secret: this.config.get<string>('jwt.secret'),
-      });
-      if (payload.type !== 'refresh') throw new UnauthorizedException('Invalid token type');
+      const payload = this.jwtService.verify<{ sub: string; type: string }>(
+        token,
+        {
+          secret: this.config.get<string>('jwt.secret'),
+        },
+      );
+      if (payload.type !== 'refresh')
+        throw new UnauthorizedException('Invalid token type');
       const user = await this.usersService.findById(payload.sub);
       if (!user || !user.isActive) throw new UnauthorizedException();
       return { accessToken: this.signAccessToken(user) };
@@ -57,11 +61,6 @@ export class AuthService {
     }
   }
 
-  /**
-   * Access tokens are always short-lived. The "remember me" flag only
-   * affects the refresh token's lifetime, which controls how long the
-   * client can silently mint new access tokens via /auth/refresh.
-   */
   private signAccessToken(user: User): string {
     return this.jwtService.sign(
       { sub: user.id, email: user.email, plan: user.plan, type: 'access' },

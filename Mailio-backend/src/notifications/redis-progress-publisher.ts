@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import {
@@ -7,15 +12,6 @@ import {
   ProgressNotifier,
 } from './progress-notifier';
 
-/**
- * Worker-side notifier. Publishes a JSON event to Redis pub/sub instead of
- * touching socket.io directly. The API process runs RedisProgressSubscriber
- * which receives the event and re-emits it through the WebSocket gateway.
- *
- * Pub/sub is fire-and-forget: if no API process is currently subscribed the
- * event is dropped. That matches the gateway's own at-most-once semantics
- * and is intentional — UI clients reconcile on next snapshot read.
- */
 @Injectable()
 export class RedisProgressPublisher
   extends ProgressNotifier
@@ -49,7 +45,9 @@ export class RedisProgressPublisher
   private publish(msg: ProgressMessage): void {
     this.publisher
       .publish(PROGRESS_CHANNEL, JSON.stringify(msg))
-      .catch((e) => this.logger.warn(`publish failed: ${(e as Error).message}`));
+      .catch((e) =>
+        this.logger.warn(`publish failed: ${(e as Error).message}`),
+      );
   }
 
   emitProgress(

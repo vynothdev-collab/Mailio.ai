@@ -25,10 +25,6 @@ export class UsageService {
     private readonly listsRepo: Repository<EmailList>,
   ) {}
 
-  /**
-   * Current-period quota usage. Resets on the 1st of each month.
-   * Counts every verified email (single + bulk) created in the current month.
-   */
   async getQuota(userId: string, plan: Plan) {
     const now = new Date();
     const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -53,11 +49,6 @@ export class UsageService {
     };
   }
 
-  /**
-   * Single vs bulk totals over the requested period. Powers the two breakdown
-   * tiles. `bulk` counts emails that belong to any email_list (`isSingleVerify
-   * = false`); `single` counts the rest.
-   */
   async getBreakdown(userId: string, period: UsagePeriod) {
     const since = this.periodStart(period);
     const rows = await this.emailsRepo.find({
@@ -75,10 +66,6 @@ export class UsageService {
     return { single, bulk, total: single + bulk, period };
   }
 
-  /**
-   * Per-day usage buckets — date stamps follow the user's local day boundaries
-   * computed in JS (good enough for the chart's day-resolution accuracy).
-   */
   async getChart(userId: string, period: UsagePeriod) {
     const since = this.periodStart(period);
     const rows = await this.emailsRepo.find({
@@ -89,7 +76,10 @@ export class UsageService {
     // Build a date → bucket map seeded with every day in range so the chart
     // doesn't skip empty days.
     const days = this.daysBetween(since, new Date());
-    const map = new Map<string, { date: string; single: number; bulk: number }>();
+    const map = new Map<
+      string,
+      { date: string; single: number; bulk: number }
+    >();
     for (const d of days) {
       map.set(d, { date: this.formatLabel(d), single: 0, bulk: 0 });
     }
@@ -105,26 +95,18 @@ export class UsageService {
     return Array.from(map.values());
   }
 
-  /**
-   * Paginated usage log. Each row is either a single verification (1 credit)
-   * or a bulk job (credits = totalCount of the list).
-   */
-  async getLog(
-    userId: string,
-    page: number,
-    limit: number,
-    type: UsageType,
-  ) {
-    // We page against a UNION of the two sources. Since paging across tables
-    // is awkward, fetch a generous window then slice in memory — fine for
-    // typical user volumes.
+  async getLog(userId: string, page: number, limit: number, type: UsageType) {
     const fetchSingles = type !== 'bulk';
     const fetchBulks = type !== 'single';
 
     const [singleRows, bulkRows] = await Promise.all([
       fetchSingles
         ? this.emailsRepo.find({
-            where: { userId, isSingleVerify: true, status: EmailStatus.COMPLETED },
+            where: {
+              userId,
+              isSingleVerify: true,
+              status: EmailStatus.COMPLETED,
+            },
             order: { createdAt: 'DESC' },
             take: 500,
           })
@@ -172,8 +154,6 @@ export class UsageService {
     return { data, total, page, limit };
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────
-
   private periodStart(period: UsagePeriod): Date {
     const days = period === '30d' ? 30 : period === '14d' ? 14 : 7;
     const since = new Date();
@@ -199,7 +179,20 @@ export class UsageService {
   private formatLabel(key: string): string {
     // "2026-05-09" → "May 9"
     const [, m, d] = key.split('-').map(Number);
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return `${months[(m ?? 1) - 1]} ${d ?? 1}`;
   }
 }

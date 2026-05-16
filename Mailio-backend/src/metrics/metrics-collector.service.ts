@@ -17,15 +17,6 @@ import {
 } from '../verification/verification.service';
 import { MetricsService } from './metrics.service';
 
-/**
- * Periodic pull-side metric updater. Counters/histograms are pushed at the
- * call site (low overhead); gauges that describe "current state" are
- * cheaper to refresh on a tick than to maintain incrementally everywhere.
- *
- * Default interval METRICS_COLLECT_MS=15s — comfortably under the typical
- * Prometheus scrape interval so /metrics never serves stale-by-more-than-
- * one-tick gauges.
- */
 @Injectable()
 export class MetricsCollectorService
   implements OnApplicationBootstrap, OnModuleDestroy
@@ -84,15 +75,9 @@ export class MetricsCollectorService
         'paused',
       );
       for (const [state, count] of Object.entries(counts)) {
-        this.metrics.queueJobs
-          .labels({ queue: name, state })
-          .set(count as number);
+        this.metrics.queueJobs.labels({ queue: name, state }).set(count);
       }
 
-      // Lag = age of the oldest waiting job. `getWaiting(0, 0)` returns
-      // the head of the priority-ordered waiting list, which gives the
-      // correct "oldest" when no priorities are used and a useful proxy
-      // when they are.
       const waiting = await queue.getWaiting(0, 0);
       const head = waiting[0];
       const lagSec = head ? (Date.now() - head.timestamp) / 1000 : 0;
@@ -110,9 +95,6 @@ export class MetricsCollectorService
       .addGroupBy('k.status')
       .getRawMany<{ provider: string; status: ApiKeyStatus; count: string }>();
 
-    // Reset to zero first so a status that drops to 0 doesn't keep its
-    // old gauge value. (Prom client gauges keep last-set values until
-    // explicitly cleared.)
     for (const status of Object.values(ApiKeyStatus)) {
       const seenProviders = new Set(rows.map((r) => r.provider));
       for (const provider of seenProviders) {

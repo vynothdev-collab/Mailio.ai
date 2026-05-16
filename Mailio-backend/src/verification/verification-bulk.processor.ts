@@ -3,10 +3,7 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Job, RateLimitError, WorkerOptions } from 'bullmq';
 import { VerificationResult } from '../common/types/verification-result.enum';
 import { DbWriteService } from '../db-write/db-write.service';
-import {
-  BatchFailureRow,
-  BatchSuccessRow,
-} from '../db-write/db-write.types';
+import { BatchFailureRow, BatchSuccessRow } from '../db-write/db-write.types';
 import { DlqService } from '../dlq/dlq.service';
 import { EmailsService } from '../emails/emails.service';
 import { ClaimedEmailRow } from '../emails/emails.service';
@@ -42,18 +39,7 @@ interface PerEmailFailure {
   err: Error;
 }
 
-/**
- * Bounded-concurrency gate. Inlined to avoid pulling in p-limit, which
- * ships ESM-only in recent majors and complicates the current CJS build.
- *
- *   const limit = createLimiter(10);
- *   const results = await Promise.allSettled(
- *     items.map(it => limit(() => doWork(it))),
- *   );
- */
-function createLimiter(
-  max: number,
-): <T>(fn: () => Promise<T>) => Promise<T> {
+function createLimiter(max: number): <T>(fn: () => Promise<T>) => Promise<T> {
   let active = 0;
   const queue: Array<() => void> = [];
 
@@ -81,35 +67,9 @@ function createLimiter(
     });
 }
 
-/**
- * Consumes verify.bulk. Acts as a job-name dispatcher so a single worker
- * binding can serve BOTH the legacy per-email payload (`name === 'verify'`)
- * AND the new micro-batch payload (`name === 'verify.batch'`) while the
- * feature flag rollout is in progress.
- *
- *   name = 'verify'        →  delegate to VerificationBaseProcessor.process
- *                             (unchanged per-email semantics)
- *   name = 'verify.batch'  →  processBatch() — claims N rows, runs Ninja
- *                             calls in bounded parallel, enqueues a single
- *                             db.write batch job
- *
- * Concurrency is the OUTER worker count (how many batches in flight at
- * once). Each batch runs up to BATCH_INNER_CONCURRENCY Ninja calls in
- * parallel internally. Effective fan-out into KeyPool is therefore
- * concurrency × BATCH_INNER_CONCURRENCY — but KeyPool's token bucket
- * still bounds RPS to the provider's true ceiling.
- *
- * Default outer concurrency 8 + inner 10 = 80 fan-out target, which
- * covers most realistic key configurations (3 keys × 30 RPS × 1.5 s
- * latency ≈ 135 concurrent calls; raise BATCH_INNER_CONCURRENCY for
- * heavier provider budgets).
- */
 @Injectable()
 @Processor(VERIFY_BULK_QUEUE, {
   concurrency: parseInt(process.env.VERIFY_BULK_CONCURRENCY ?? '8', 10),
-  // Must be larger than the worst-case batch runtime, otherwise BullMQ
-  // marks the job stalled and re-delivers it. 60s comfortably covers
-  // batch_size=100 × 1.5s latency / inner_concurrency=10 ≈ 15s real.
   lockDuration: 60_000,
   stalledInterval: 30_000,
   drainDelay: 5,
@@ -138,12 +98,6 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
     return VERIFY_BULK_QUEUE;
   }
 
-  /**
-   * Dispatcher. The base class's process() is the legacy per-email path;
-   * batch payloads route through processBatch(). One processor on the
-   * queue means there's no race — every job is consumed by exactly the
-   * right code path based on its name.
-   */
   async process(
     job: Job<EmailVerificationJobPayload | EmailBatchJobPayload>,
   ): Promise<void> {
@@ -153,20 +107,6 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
     return super.process(job as Job<EmailVerificationJobPayload>);
   }
 
-  /**
-   * Micro-batch path. Steps:
-   *   1. tryClaimMany — one UPDATE locks all still-claimable rows.
-   *   2. Promise.allSettled + inner limiter — verify in bounded parallel.
-   *   3. Enqueue one db.write batch with successes.
-   *   4. Decide:
-   *        any rate-limit  → release failed slice + worker.rateLimit + throw
-   *        all succeeded   → ACK
-   *        partial failure → if not final attempt: release failed slice +
-   *                          throw AggregateError so BullMQ retries ONLY
-   *                          the unfinished emails (successes already
-   *                          persisted; tryClaimMany skips them next time)
-   *        final attempt   → enqueue db.write failure-batch + DLQ each
-   */
   private async processBatch(job: Job<EmailBatchJobPayload>): Promise<void> {
     const { batchId, userId, listId, emailIds } = job.data;
     const startMs = Date.now();
@@ -243,12 +183,6 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
     if (failures.length === 0) return;
 
     if (rateLimitRetryMs !== null) {
-      // Partial rate-limit: release the failed slice and let BullMQ
-      // retry just this batch on its normal short backoff. We
-      // INTENTIONALLY do NOT call worker.rateLimit() here — that pauses
-      // every concurrent slot in the worker (16 batches frozen for one
-      // 429), which produced a "stop-and-go" verification pattern. Other
-      // batches still have valid tokens; let them keep working.
       await this.emailsService.releaseClaimMany(
         failures.map((f) => f.email.id),
       );
@@ -318,15 +252,6 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
   private async verifyOneForBatch(
     email: ClaimedEmailRow,
   ): Promise<PerEmailSuccess> {
-    // Inline-wait on rate-limit instead of failing the batch. The token
-    // bucket refills in ~175ms (57 tokens / 10s), so waiting in-place is
-    // *far* cheaper than throwing → releasing claims → BullMQ exponential
-    // backoff (which used to add 2s+ of dead time for a 175ms refill).
-    //
-    // We still bail with a ProviderError after MAX_ACQUIRE_WAIT_MS so a
-    // truly stuck pool (all keys disabled / snapshot empty) doesn't pin
-    // the worker forever — that case becomes a real batch failure and
-    // surfaces through normal retry semantics.
     const MAX_ACQUIRE_WAIT_MS = 30_000;
     const waitStart = Date.now();
     let slot = await this.keyPool.acquireKey(MAILTESTER_PROVIDER);

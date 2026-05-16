@@ -13,23 +13,6 @@ import {
   VerificationService,
 } from './verification.service';
 
-/**
- * Aging promoter for the verify.bulk queue.
- *
- * The bulk priority scheme (verification.service.ts) anchors every new
- * upload at the current now-serving cursor, so concurrent uploads
- * interleave fairly. But a list whose jobs were enqueued long ago can
- * still get stuck behind newer traffic if the cursor advanced past their
- * priority band slowly — e.g. a small list enqueued during a brief lull
- * sits behind a much larger upload that arrived seconds later with
- * adjacent priorities.
- *
- * This guard scans the waiting set every 30s, groups jobs by listId,
- * and re-anchors any list whose oldest waiting job is > 3 minutes old
- * back onto the *current* now-serving cursor. We never demote: if a
- * job's priority is already lower (= higher BullMQ priority) than the
- * recomputed value, we leave it untouched.
- */
 @Injectable()
 export class StarvationGuard
   implements OnApplicationBootstrap, OnApplicationShutdown
@@ -38,20 +21,6 @@ export class StarvationGuard
   private timer: NodeJS.Timeout | null = null;
   private running = false;
 
-  // Aggressive defaults: when uploads arrive faster than verifications
-  // complete, the nowServing cursor doesn't advance between parses, so
-  // every fresh upload captures the SAME base priority. BullMQ then
-  // breaks the tie by FIFO — the user sees the newest list stuck at
-  // 0/0/0 in the UI while the queue chews through older identical-
-  // priority lists in upload order. A 15s threshold + 5s scan brings
-  // the re-anchor into the user's visible feedback window, restoring
-  // the "all my uploads are progressing together" UX without changing
-  // the cursor algebra itself.
-  //
-  // Override per environment via STARVATION_SCAN_INTERVAL_MS /
-  // STARVATION_THRESHOLD_MS — set the threshold higher on quiet
-  // long-batch deployments where shuffling priorities every 15s
-  // would just churn Redis.
   private readonly SCAN_INTERVAL_MS = parseInt(
     process.env.STARVATION_SCAN_INTERVAL_MS ?? '5000',
     10,

@@ -1,23 +1,10 @@
-import {
-  Injectable,
-  Logger,
-  OnApplicationBootstrap,
-} from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MailTesterService } from '../mailtester/mailtester.service';
 import { ApiKey, ApiKeyStatus } from './entities/api-key.entity';
 import { KeyPoolSync } from './key-pool.sync';
 
-/**
- * Backward-compat bootstrap: if the api_keys table is empty for a given
- * provider and the legacy env credential exists, insert it so the system
- * keeps working through the Phase 3 cutover without operator action.
- *
- * Idempotent — only inserts when the provider has zero rows of any
- * status, so subsequent boots don't recreate keys that were intentionally
- * deleted via the admin API.
- */
 @Injectable()
 export class EnvKeySeederService implements OnApplicationBootstrap {
   private readonly logger = new Logger(EnvKeySeederService.name);

@@ -39,7 +39,11 @@ export class EmailList {
   @Column({ type: 'varchar', length: 255 })
   name: string;
 
-  @Column({ type: 'enum', enum: EmailListStatus, default: EmailListStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: EmailListStatus,
+    default: EmailListStatus.PENDING,
+  })
   status: EmailListStatus;
 
   @Column({ name: 'total_count', type: 'int', default: 0 })
@@ -63,7 +67,12 @@ export class EmailList {
   @Column({ name: 'disposable_count', type: 'int', default: 0 })
   disposableCount: number;
 
-  @Column({ name: 'original_filename', type: 'varchar', length: 500, nullable: true })
+  @Column({
+    name: 'original_filename',
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+  })
   originalFilename: string | null;
 
   @Column({ name: 'started_at', type: 'timestamptz', nullable: true })
@@ -86,7 +95,12 @@ export class EmailList {
   @Column({ name: 'duplicates', type: 'int', default: 0 })
   duplicates: number;
 
-  @Column({ name: 'detected_column', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'detected_column',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   detectedColumn: string | null;
 
   // lazy relation — imported at runtime to avoid circular dep

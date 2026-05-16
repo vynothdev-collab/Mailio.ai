@@ -3,11 +3,6 @@ import { Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { CSV_PARSE_QUEUE, CsvParseJob } from './csv-parse.types';
 
-/**
- * Producer-side façade. Used by BulkVerifyController.upload(); jobId is
- * the listId so a re-submission of the same row (e.g. operator manually
- * re-enqueues) is collapsed.
- */
 @Injectable()
 export class CsvParseService {
   constructor(

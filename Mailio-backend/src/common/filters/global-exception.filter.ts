@@ -28,10 +28,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         : 'Internal server error';
 
     if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
-      // Print as much context as we have so the line is greppable in the
-      // terminal — without this a 500 just prints the bare exception
-      // object, which often hides the real cause behind a stringified
-      // "Internal server error".
       const err = exception as Error & {
         code?: string;
         detail?: string;
@@ -42,9 +38,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         `${request.method} ${request.url}\n` +
           `  name:   ${err?.name ?? 'unknown'}\n` +
           `  msg:    ${err?.message ?? exception}\n` +
-          (err?.code   ? `  code:   ${err.code}\n`   : '') +
+          (err?.code ? `  code:   ${err.code}\n` : '') +
           (err?.detail ? `  detail: ${err.detail}\n` : '') +
-          (err?.query  ? `  query:  ${err.query}\n`  : ''),
+          (err?.query ? `  query:  ${err.query}\n` : ''),
         err?.stack,
       );
     }
@@ -54,7 +50,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
       path: request.url,
       message:
-        typeof message === 'object' && 'message' in (message as object)
+        typeof message === 'object' && 'message' in message
           ? (message as { message: string }).message
           : message,
     });

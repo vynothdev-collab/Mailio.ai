@@ -39,13 +39,6 @@ export class EmailsService {
     return this.emailsRepo.save(email);
   }
 
-  /**
-   * Look up an email row.
-   * When `userId` is supplied (HTTP path) the row is scoped to that user so
-   * one user can't fetch another user's verification by guessing the UUID.
-   * The unscoped overload is retained for internal callers like the queue
-   * processor that already trust the job payload.
-   */
   async findById(id: string, userId?: string): Promise<Email> {
     const where: Record<string, unknown> = { id };
     if (userId) where.userId = userId;
@@ -75,16 +68,6 @@ export class EmailsService {
     await this.emailsRepo.update(id, { status, ...extra } as any);
   }
 
-  /**
-   * Atomic claim for the worker. Marks the email as PROCESSING for any
-   * status that isn't already COMPLETED — this lets BullMQ retries pick
-   * up emails that previously failed (status=FAILED) or got stuck mid-
-   * processing (status=PROCESSING from a crashed prior attempt).
-   *
-   * COMPLETED rows are NOT re-claimed — that protects against retries
-   * re-billing a successful verification (the saveResult conditional
-   * update is the second layer of that safety net).
-   */
   async tryClaim(id: string, bullJobId: string): Promise<Email | null> {
     const result = await this.emailsRepo
       .createQueryBuilder()
@@ -100,13 +83,6 @@ export class EmailsService {
     return this.emailsRepo.findOne({ where: { id } });
   }
 
-  /**
-   * Persist a verification result. Returns `true` only when this call
-   * actually moved the row from non-COMPLETED to COMPLETED — callers use
-   * that signal to decide whether to bump the list's per-result counters.
-   * If the row was already COMPLETED (e.g. retried job), returns false and
-   * leaves everything alone.
-   */
   async saveResult(
     id: string,
     data: {
@@ -134,15 +110,6 @@ export class EmailsService {
     return (result.affected ?? 0) > 0;
   }
 
-  /**
-   * Revert a PROCESSING claim back to QUEUED. Used when the worker grabbed
-   * the row but then couldn't proceed (e.g. global rate-limit denied the
-   * MailTester slot) — without this the next retry would see status=
-   * PROCESSING and silently skip the email forever.
-   *
-   * Only PROCESSING rows are touched. COMPLETED / FAILED rows are left
-   * alone so this is safe to call defensively.
-   */
   async releaseClaim(id: string): Promise<void> {
     await this.emailsRepo
       .createQueryBuilder()
@@ -169,29 +136,12 @@ export class EmailsService {
     return (result.affected ?? 0) > 0;
   }
 
-  // ── BATCH METHODS ─────────────────────────────────────────────────────
-  // Used by VerificationBatchProcessor + DbWriteProcessor batch handlers.
-  // Each replaces N per-row UPDATEs with a single set-based statement,
-  // reducing Postgres lock churn and round-trip cost. Idempotency rules
-  // are identical to the per-row variants (status != COMPLETED guard).
-
-  /**
-   * Atomic claim for a set of email ids. Returns ONLY the rows that
-   * actually transitioned to PROCESSING (already-COMPLETED rows are
-   * filtered out by the WHERE clause). One round trip; one row-level lock
-   * acquired per emailId in PG.
-   */
   async tryClaimMany(
     emailIds: string[],
     bullJobId: string,
   ): Promise<ClaimedEmailRow[]> {
     if (emailIds.length === 0) return [];
 
-    // Explicit ::emails_status_enum casts on every enum parameter — pg
-    // delivers $2/$4 as text, and Postgres won't implicit-cast text into
-    // an enum column (only string LITERALS auto-cast as "unknown" type).
-    // Without the cast you get: "column 'status' is of type
-    // emails_status_enum but expression is of type text".
     const rows: ClaimedEmailRow[] = await this.emailsRepo.manager.query(
       `UPDATE emails
           SET status = $2::emails_status_enum,
@@ -209,12 +159,6 @@ export class EmailsService {
     return rows;
   }
 
-  /**
-   * Revert PROCESSING → QUEUED for a set of rows. Used when the batch
-   * worker grabbed the rows but a downstream step (rate-limit, partial
-   * failure) means those specific emails must retry. COMPLETED / FAILED
-   * rows are left alone so this is safe to call defensively.
-   */
   async releaseClaimMany(emailIds: string[]): Promise<void> {
     if (emailIds.length === 0) return;
 
@@ -227,14 +171,6 @@ export class EmailsService {
     );
   }
 
-  /**
-   * Persist a batch of verification results in ONE UPDATE using UNNEST.
-   * Returns the rows that actually transitioned to COMPLETED so the
-   * caller can bump per-list counters exactly once per real transition.
-   *
-   * Postgres planner sees one query, one plan, one set of row locks —
-   * vs. N separate UPDATEs that each pay round-trip + plan cost.
-   */
   async saveResultsBatch(rows: BatchSuccessRow[]): Promise<TransitionedRow[]> {
     if (rows.length === 0) return [];
 
@@ -250,10 +186,6 @@ export class EmailsService {
     const durations = rows.map((r) => r.durationMs);
     const processed = rows.map((r) => r.processedAt);
 
-    // status + verification_result are PG enums. `u.result` arrives as text
-    // (from UNNEST(...::text[])), and pg won't implicit-cast text → enum.
-    // The string literal 'COMPLETED' would auto-cast as "unknown", but we
-    // keep an explicit cast for symmetry / readability.
     const transitioned: TransitionedRow[] = await this.emailsRepo.manager.query(
       `UPDATE emails AS e
           SET status              = 'COMPLETED'::emails_status_enum,
@@ -308,11 +240,6 @@ export class EmailsService {
     return transitioned;
   }
 
-  /**
-   * Batch counterpart to markFailed. Returns transitioned rows so the
-   * caller can bump per-list counters (failed emails count as UNKNOWN
-   * in the user-facing breakdown — matches the single-row failure path).
-   */
   async markFailedBatch(rows: BatchFailureRow[]): Promise<TransitionedRow[]> {
     if (rows.length === 0) return [];
 

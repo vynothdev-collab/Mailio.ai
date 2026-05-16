@@ -22,24 +22,6 @@ export interface AcquireOptions {
   cost?: number;
 }
 
-/**
- * Global, distributed token-bucket rate limiter backed by a single Redis
- * EVAL. Replaces the per-process `nextSlotAt` pacer and the BullMQ Worker
- * `limiter` option, both of which can only enforce limits within a single
- * Node process.
- *
- * Usage from a BullMQ processor:
- *
- *   const r = await limiter.acquire('mailtester', { max: 57, windowMs: 10000 });
- *   if (!r.granted) {
- *     await worker.rateLimit(r.retryAfterMs);
- *     throw new (await import('bullmq')).RateLimitError();
- *   }
- *   // proceed to call the third-party API
- *
- * The (max, windowMs) pair is passed per call so callers (KeyPool in
- * Phase 3) can change limits at runtime without restart.
- */
 @Injectable()
 export class RedisRateLimiter implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RedisRateLimiter.name);
@@ -69,13 +51,6 @@ export class RedisRateLimiter implements OnModuleInit, OnModuleDestroy {
     if (this.redis) await this.redis.quit().catch(() => undefined);
   }
 
-  /**
-   * Atomically attempt to consume `cost` tokens from the named bucket.
-   * The bucket holds `max` tokens and refills linearly over `windowMs`.
-   *
-   * @param key short name; the actual Redis key is `rl:{key}` so the
-   *            caller doesn't have to construct it.
-   */
   async acquire(key: string, opts: AcquireOptions): Promise<AcquireResult> {
     const cost = opts.cost ?? 1;
     const fullKey = `rl:${key}`;
@@ -96,13 +71,13 @@ export class RedisRateLimiter implements OnModuleInit, OnModuleDestroy {
           ...(args as any),
         )) as [number, number];
       } else {
-        raw = (await this.evalAndCache(fullKey, args)) as [number, number];
+        raw = await this.evalAndCache(fullKey, args);
       }
     } catch (e) {
       // NOSCRIPT — Redis flushed scripts (e.g. after a failover). Re-load.
       if ((e as Error).message.includes('NOSCRIPT')) {
         this.scriptSha = null;
-        raw = (await this.evalAndCache(fullKey, args)) as [number, number];
+        raw = await this.evalAndCache(fullKey, args);
       } else {
         throw e;
       }

@@ -20,9 +20,6 @@ const ADMIN_KEYS_ROUTE = 'admin/keys';
 const ADMIN_DLQ_ROUTE = 'admin/dlq';
 const ADMIN_METRICS_ROUTE = 'admin/metrics';
 
-// Surface every queue in the Bull Board so operators can inspect lag,
-// active jobs, retries, etc., from one place. Adding a new queue is just
-// a new register + forFeature pair below.
 const MONITORED_QUEUES = [
   VERIFY_HIGH_QUEUE,
   VERIFY_BULK_QUEUE,

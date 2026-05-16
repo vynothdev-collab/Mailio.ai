@@ -14,16 +14,6 @@ import { KeyPoolSync } from './key-pool.sync';
 const HEALTH_LOCK_KEY = 'mailio:singleton:key-health';
 const HEALTH_LOCK_TTL_SEC = 15;
 
-/**
- * Singleton background task: every TICK_MS, flips expired-cooldown keys
- * back to ACTIVE and publishes a refresh event so all workers pick up the
- * change. Uses a Redis SET NX EX lock so only ONE process across the
- * cluster runs the work at a time — losing the lock is fine, another
- * instance will run the next tick.
- *
- * Intentionally separate from KeyPoolSync so its failure mode (e.g. a DB
- * blip) doesn't poison the hot snapshot.
- */
 @Injectable()
 export class KeyHealthService
   implements OnApplicationBootstrap, OnModuleDestroy
@@ -87,7 +77,11 @@ export class KeyHealthService
       await this.repo
         .createQueryBuilder()
         .update(ApiKey)
-        .set({ status: ApiKeyStatus.ACTIVE, cooldownUntil: null, failureCount: 0 })
+        .set({
+          status: ApiKeyStatus.ACTIVE,
+          cooldownUntil: null,
+          failureCount: 0,
+        })
         .whereInIds(expired.map((e) => e.id))
         .execute();
 

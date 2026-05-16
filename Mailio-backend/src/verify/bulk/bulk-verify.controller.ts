@@ -38,7 +38,10 @@ const JOB_SCHEMA = {
   properties: {
     id: { type: 'string', format: 'uuid' },
     name: { type: 'string', example: 'leads-2024-q1.csv' },
-    status: { type: 'string', enum: ['pending', 'processing', 'completed', 'failed'] },
+    status: {
+      type: 'string',
+      enum: ['pending', 'processing', 'completed', 'failed'],
+    },
     totalCount: { type: 'number', example: 5000 },
     processedCount: { type: 'number', example: 1200 },
     validCount: { type: 'number', example: 900 },
@@ -64,7 +67,11 @@ export class BulkVerifyController {
       type: 'object',
       required: ['file'],
       properties: {
-        file: { type: 'string', format: 'binary', description: 'CSV or TXT file (max 50 MB)' },
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'CSV or TXT file (max 50 MB)',
+        },
       },
     },
   })
@@ -82,7 +89,10 @@ export class BulkVerifyController {
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'File missing or unsupported format' })
+  @ApiResponse({
+    status: 400,
+    description: 'File missing or unsupported format',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @UseInterceptors(
     FileInterceptor('file', {
@@ -91,27 +101,35 @@ export class BulkVerifyController {
         filename: (_req, _file, cb) => cb(null, `${uuidv4()}.tmp`),
       }),
       limits: {
-        fileSize: parseInt(process.env.UPLOAD_MAX_FILE_SIZE_MB ?? '50', 10) * 1024 * 1024,
+        fileSize:
+          parseInt(process.env.UPLOAD_MAX_FILE_SIZE_MB ?? '50', 10) *
+          1024 *
+          1024,
       },
       fileFilter: (_req, file, cb) => {
         const ext = path.extname(file.originalname).toLowerCase();
-        ['.csv', '.txt'].includes(ext)
-          ? cb(null, true)
-          : cb(new Error('Only .csv and .txt files are allowed'), false);
+        if (['.csv', '.txt'].includes(ext)) {
+          cb(null, true);
+        } else {
+          cb(new Error('Only .csv and .txt files are allowed'), false);
+        }
       },
     }),
   )
-  upload(
-    @CurrentUser() user: User,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
+  upload(@CurrentUser() user: User, @UploadedFile() file: Express.Multer.File) {
     return this.bulkVerifyService.upload(user, file.path, file.originalname);
   }
 
   // NOTE: named routes must come before :jobId to avoid shadowing
   @Get('active')
-  @ApiOperation({ summary: 'Get the currently active (processing) bulk job, or null' })
-  @ApiResponse({ status: 200, description: 'Active job or null', schema: { oneOf: [JOB_SCHEMA, { type: 'null' }] } })
+  @ApiOperation({
+    summary: 'Get the currently active (processing) bulk job, or null',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Active job or null',
+    schema: { oneOf: [JOB_SCHEMA, { type: 'null' }] },
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getActive(@CurrentUser() user: User) {
     return this.bulkVerifyService.getActive(user.id);
@@ -121,7 +139,11 @@ export class BulkVerifyController {
   @ApiOperation({ summary: 'List all bulk jobs for the current user' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiQuery({ name: 'status', required: false, description: 'all | pending | processing | completed | failed' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'all | pending | processing | completed | failed',
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated list of bulk jobs',
@@ -146,7 +168,9 @@ export class BulkVerifyController {
   }
 
   @Get('stats')
-  @ApiOperation({ summary: 'Aggregate bulk verification stats for current user' })
+  @ApiOperation({
+    summary: 'Aggregate bulk verification stats for current user',
+  })
   @ApiResponse({
     status: 200,
     description: 'Bulk stats with period-over-period changes',
@@ -175,7 +199,10 @@ export class BulkVerifyController {
       type: 'object',
       properties: {
         jobId: { type: 'string', format: 'uuid' },
-        status: { type: 'string', enum: ['pending', 'processing', 'completed', 'failed'] },
+        status: {
+          type: 'string',
+          enum: ['pending', 'processing', 'completed', 'failed'],
+        },
         totalCount: { type: 'number', example: 5000 },
         processedCount: { type: 'number', example: 1200 },
         percentage: { type: 'number', example: 24 },
@@ -190,7 +217,9 @@ export class BulkVerifyController {
   }
 
   @Get('breakdown')
-  @ApiOperation({ summary: 'Aggregate breakdown across ALL bulk verifications for the user' })
+  @ApiOperation({
+    summary: 'Aggregate breakdown across ALL bulk verifications for the user',
+  })
   @ApiResponse({
     status: 200,
     description: 'Aggregated valid / invalid / risky / unknown counts',
@@ -219,7 +248,9 @@ export class BulkVerifyController {
   }
 
   @Get(':jobId/breakdown')
-  @ApiOperation({ summary: 'Result breakdown (pie chart data) for a completed bulk job' })
+  @ApiOperation({
+    summary: 'Result breakdown (pie chart data) for a completed bulk job',
+  })
   @ApiParam({ name: 'jobId', description: 'Email list UUID' })
   @ApiResponse({
     status: 200,
@@ -252,10 +283,24 @@ export class BulkVerifyController {
   @Get(':jobId/download')
   @ApiOperation({ summary: 'Stream bulk job results as CSV or JSON' })
   @ApiParam({ name: 'jobId', description: 'Email list UUID' })
-  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'json'], description: 'Default: csv' })
-  @ApiQuery({ name: 'type', required: false, enum: ['verified', 'full'], description: 'verified = completed rows only; full = all rows. Default: full' })
+  @ApiQuery({
+    name: 'format',
+    required: false,
+    enum: ['csv', 'json'],
+    description: 'Default: csv',
+  })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    enum: ['verified', 'full'],
+    description:
+      'verified = completed rows only; full = all rows. Default: full',
+  })
   @ApiProduces('text/csv', 'application/json')
-  @ApiResponse({ status: 200, description: 'File stream — Content-Type matches format param' })
+  @ApiResponse({
+    status: 200,
+    description: 'File stream — Content-Type matches format param',
+  })
   @ApiResponse({ status: 404, description: 'Job not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async download(
@@ -265,7 +310,13 @@ export class BulkVerifyController {
     @Query('format') format: 'csv' | 'json' = 'csv',
     @Query('type') type: 'verified' | 'full' = 'full',
   ) {
-    await this.bulkVerifyService.streamDownload(jobId, user.id, res, format, type);
+    await this.bulkVerifyService.streamDownload(
+      jobId,
+      user.id,
+      res,
+      format,
+      type,
+    );
   }
 
   @Post(':jobId/retry')

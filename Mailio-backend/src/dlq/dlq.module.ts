@@ -10,15 +10,6 @@ import {
 import { DlqService } from './dlq.service';
 import { DlqJob } from './entities/dlq-job.entity';
 
-/**
- * Global because every processor's onFailed handler may want to push to
- * DLQ regardless of which module hosts the processor. Importing globally
- * costs ~nothing (no controllers, one service) and saves wiring DlqModule
- * into half a dozen places.
- *
- * Registers the four producer queues we know how to retry into. New
- * queues need a new @InjectQueue line in DlqService.
- */
 @Global()
 @Module({
   imports: [

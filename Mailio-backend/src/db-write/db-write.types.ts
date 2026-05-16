@@ -2,21 +2,6 @@ import { VerificationResult } from '../common/types/verification-result.enum';
 
 export const DB_WRITE_QUEUE = 'db.write';
 
-/**
- * Funnels both happy and final-failure paths through one queue so that the
- * verification worker's `process()` is purely:
- *
- *     claim → call provider → enqueue db.write → ACK
- *
- * The DB writer owns email row mutation, list-counter increments, gateway
- * emits, and the bulk "now-serving" advance. If Postgres is unavailable,
- * jobs back up in `db.write` and the rate-limited provider is left alone.
- *
- * Per-email kinds ('success' / 'failure') are retained for the verify.high
- * single-verify path and for rollback compatibility. The batch kinds
- * ('success-batch' / 'failure-batch') carry N rows in one job and are
- * emitted by the new VerificationBatchProcessor.
- */
 export type DbWriteJob =
   | DbWriteSuccessJob
   | DbWriteFailureJob
@@ -54,11 +39,6 @@ export interface DbWriteFailureJob {
   errorMessage: string;
 }
 
-/**
- * One row inside a success batch. Mirrors DbWriteSuccessJob fields minus
- * the per-row routing data (userId / listId / kind) which are common to
- * the whole batch.
- */
 export interface BatchSuccessRow {
   emailId: string;
   emailAddress: string;

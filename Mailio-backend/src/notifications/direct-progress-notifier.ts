@@ -2,11 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { VerificationGateway } from '../verification/verification.gateway';
 import { ProgressNotifier } from './progress-notifier';
 
-/**
- * Used when the producer (worker) and the gateway live in the same process —
- * either the monolith bootstrap (main.ts) or while we incrementally migrate
- * to split deployments. Just forwards to the gateway directly; no Redis hop.
- */
 @Injectable()
 export class DirectProgressNotifier extends ProgressNotifier {
   private readonly logger = new Logger(DirectProgressNotifier.name);

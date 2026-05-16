@@ -21,21 +21,6 @@ import {
   DbWriteSuccessJob,
 } from './db-write.types';
 
-/**
- * Persists verification outcomes and fans out progress notifications.
- *
- * Runs in the same worker process as VerificationProcessor today; it could
- * be moved to a dedicated `mailio-db-writer` PM2 app later for independent
- * scaling. Concurrency is intentionally higher than the verification
- * worker — DB writes are cheap, and queueing up many of them lets Postgres
- * pipeline efficiently.
- *
- * Idempotency: `EmailsService.saveResult` / `markFailed` are conditional
- * on `status != COMPLETED` / `status != FAILED`, returning a boolean so we
- * only bump list counters when the row actually transitioned. Combined
- * with the BullMQ `jobId` dedupe in DbWriteService, a retried delivery is
- * harmless.
- */
 @Processor(DB_WRITE_QUEUE, {
   concurrency: parseInt(process.env.DB_WRITE_CONCURRENCY ?? '16', 10),
 })
@@ -54,11 +39,6 @@ export class DbWriteProcessor extends WorkerHost {
     super();
   }
 
-  /**
-   * Terminal-failure path for the DB writer. db.write retries 10× by
-   * default, so reaching here means Postgres or downstream code has been
-   * unhealthy for a sustained window — operator action required.
-   */
   @OnWorkerEvent('failed')
   async onFailed(job: Job<DbWriteJob>, err: Error): Promise<void> {
     const attemptsMade = job.attemptsMade ?? 0;
@@ -77,9 +57,7 @@ export class DbWriteProcessor extends WorkerHost {
         errorMessage: err.message,
         attempts: attemptsMade,
       });
-      this.metrics?.dlqEntries
-        .labels({ source_queue: DB_WRITE_QUEUE })
-        .inc();
+      this.metrics?.dlqEntries.labels({ source_queue: DB_WRITE_QUEUE }).inc();
     } catch (e) {
       this.logger.warn(`DLQ push failed: ${(e as Error).message}`);
     }
@@ -128,8 +106,6 @@ export class DbWriteProcessor extends WorkerHost {
       processedAt: new Date(d.processedAt),
     });
 
-    // Only bump counters / advance now-serving on the FIRST time we
-    // persist this email — a redelivered db.write must not double-count.
     if (d.listId && transitioned) {
       await this.bumpListAndEmit(d.listId, d.result, d.disposable);
       await this.advanceBulkCursor();
@@ -171,11 +147,6 @@ export class DbWriteProcessor extends WorkerHost {
     }
   }
 
-  /**
-   * Increment the list's per-result counters atomically and push a progress
-   * event. Gateway emits are best-effort — wrap so a socket failure can't
-   * cause this job to retry (which would silently double-count).
-   */
   private async bumpListAndEmit(
     listId: string,
     result: VerificationResult,
@@ -187,9 +158,6 @@ export class DbWriteProcessor extends WorkerHost {
         result,
         disposable,
       );
-      // Route through ProgressThrottler so per-email completions on the
-      // legacy path coalesce to ≤1 WebSocket emit / sec / list — same
-      // back-pressure guarantee the batch path gets for free.
       this.throttler.schedule(listId, snap);
     } catch (e) {
       this.logger.error(
@@ -205,16 +173,6 @@ export class DbWriteProcessor extends WorkerHost {
       this.logger.warn(`advanceNowServing failed: ${(e as Error).message}`);
     }
   }
-
-  // ── BATCH HANDLERS ───────────────────────────────────────────────────
-  // Each batch handler collapses the per-email side effects (DB write +
-  // list-counter bump + cursor advance + WS emit) of an entire batch into
-  // a small fixed number of operations:
-  //
-  //   1. ONE saveResultsBatch / markFailedBatch (UNNEST UPDATE).
-  //   2. ONE incrementProcessedBatch per listId (typically one).
-  //   3. ONE INCRBY for the fairness cursor.
-  //   4. AT MOST ONE WS emit per list per second (via ProgressThrottler).
 
   private async handleSuccessBatch(d: DbWriteSuccessBatchJob): Promise<void> {
     const transitioned = await this.emailsService.saveResultsBatch(d.rows);
@@ -246,9 +204,6 @@ export class DbWriteProcessor extends WorkerHost {
 
     await this.advanceBulkCursorBy(transitioned.length);
 
-    // Single-verify echo. Bulk uploads almost never carry single-verify
-    // rows, but the legacy single-verify path could in principle land
-    // here if a caller migrates it later — keep parity with handleSuccess.
     if (d.rows.some((r) => r.isSingleVerify)) {
       const transitionedIds = new Set(transitioned.map((t) => t.emailId));
       for (const r of d.rows) {
@@ -278,8 +233,6 @@ export class DbWriteProcessor extends WorkerHost {
       if (!t.listId) continue;
       const cur = byList.get(t.listId) ?? this.blankDeltas();
       cur.processed++;
-      // Failed emails are surfaced as UNKNOWN in user-facing counters —
-      // matches handleFailure() (single-row path).
       cur.unknown++;
       byList.set(t.listId, cur);
     }
@@ -300,9 +253,6 @@ export class DbWriteProcessor extends WorkerHost {
 
     await this.advanceBulkCursorBy(transitioned.length);
 
-    // One aggregate failure event per batch — the throttler is for
-    // progress only, so this goes direct. Volume is bounded by retry
-    // policy (~one terminal failure batch per upload at worst).
     this.notifier.emitJobFailed(d.listId, {
       listId: d.listId,
       batchId: d.batchId,

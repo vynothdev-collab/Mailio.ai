@@ -8,18 +8,6 @@ import { CsvParseProcessor } from './csv-parse.processor';
 import { CsvParseService } from './csv-parse.service';
 import { CSV_PARSE_QUEUE } from './csv-parse.types';
 
-/**
- * Producer + consumer for the csv.parse queue.
- *
- * Producer (CsvParseService) is needed in the API process so uploads can
- * enqueue. Consumer (CsvParseProcessor) belongs in the worker process —
- * because it does streaming disk I/O, it benefits from running in its
- * own Node process with bounded concurrency (default 2 per worker).
- *
- * Importing this module everywhere is safe: the processor only binds in
- * processes that actually load it; the registerQueue producer side is
- * idempotent.
- */
 @Module({
   imports: [
     BullModule.registerQueue({

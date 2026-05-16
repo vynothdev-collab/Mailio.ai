@@ -11,8 +11,5 @@ export default new DataSource({
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   migrationsTableName: 'typeorm_migrations',
-  // Per-migration transactions so individual migrations can opt out via
-  // `transaction = false` (required for CREATE INDEX CONCURRENTLY in the
-  // performance-indexes migration).
   migrationsTransactionMode: 'each',
 });

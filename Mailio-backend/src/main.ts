@@ -28,8 +28,8 @@ async function bootstrap() {
     .setTitle('Mailio.ai API')
     .setDescription(
       'Email verification SaaS — single-address and bulk list verification powered by MailTester Ninja.\n\n' +
-      '**Auth:** All protected routes require `Authorization: Bearer <accessToken>`.\n\n' +
-      'Use `POST /auth/login` or `POST /auth/signup` to obtain tokens.',
+        '**Auth:** All protected routes require `Authorization: Bearer <accessToken>`.\n\n' +
+        'Use `POST /auth/login` or `POST /auth/signup` to obtain tokens.',
     )
     .setVersion('1.0')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })

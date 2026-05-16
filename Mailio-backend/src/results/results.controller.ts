@@ -30,28 +30,32 @@ export class ResultsController {
     summary:
       'Unified results: paginated rows + aggregate stats in one round-trip',
   })
-  @ApiQuery({ name: 'page',   required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit',  required: false, type: Number, example: 10 })
-  @ApiQuery({ name: 'type',   required: false, enum: ['all', 'single', 'bulk'] })
-  @ApiQuery({ name: 'status', required: false, enum: ['all', 'valid', 'invalid', 'risky'] })
-  @ApiQuery({ name: 'query',  required: false, type: String })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'type', required: false, enum: ['all', 'single', 'bulk'] })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['all', 'valid', 'invalid', 'risky'],
+  })
+  @ApiQuery({ name: 'query', required: false, type: String })
   @ApiResponse({
     status: 200,
     description: 'Results payload',
     schema: {
       type: 'object',
       properties: {
-        data:  { type: 'array' },
+        data: { type: 'array' },
         total: { type: 'number' },
-        page:  { type: 'number' },
+        page: { type: 'number' },
         limit: { type: 'number' },
         stats: {
           type: 'object',
           properties: {
-            total:   { type: 'number' },
-            valid:   { type: 'number' },
+            total: { type: 'number' },
+            valid: { type: 'number' },
             invalid: { type: 'number' },
-            risky:   { type: 'number' },
+            risky: { type: 'number' },
           },
         },
       },
@@ -59,12 +63,19 @@ export class ResultsController {
   })
   getResults(
     @CurrentUser() user: User,
-    @Query('page',  new ParseIntPipe({ optional: true })) page  = 1,
+    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 10,
-    @Query('type')   type:   ResultType   = 'all',
+    @Query('type') type: ResultType = 'all',
     @Query('status') status: ResultStatus = 'all',
-    @Query('query')  query?: string,
+    @Query('query') query?: string,
   ) {
-    return this.resultsService.getResults(user.id, page, limit, type, status, query);
+    return this.resultsService.getResults(
+      user.id,
+      page,
+      limit,
+      type,
+      status,
+      query,
+    );
   }
 }
