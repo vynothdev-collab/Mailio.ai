@@ -261,7 +261,20 @@ export class KeyPoolService {
       process.env.KEY_TRANSIENT_COOLDOWN_MS ?? '60000',
       10,
     );
-    const RATE_LIMIT_COOLDOWN_MS = retryAfterMs ?? 30000;
+    // When Ninja returns 429 without a Retry-After header (the common
+    // case under bursty load), the previous 30000ms default cooldown
+    // froze the only key for half a minute and produced an obvious
+    // "verification stops, then resumes" pattern in the UI. The Redis
+    // token bucket is the real budget enforcer; a brief 2000ms cooldown
+    // is enough to absorb a transient burst without stalling the whole
+    // pipeline. Override with KEY_RATE_LIMIT_COOLDOWN_MS if a particular
+    // provider truly requires longer.
+    const DEFAULT_RATE_LIMIT_COOLDOWN_MS = parseInt(
+      process.env.KEY_RATE_LIMIT_COOLDOWN_MS ?? '2000',
+      10,
+    );
+    const RATE_LIMIT_COOLDOWN_MS =
+      retryAfterMs ?? DEFAULT_RATE_LIMIT_COOLDOWN_MS;
 
     const update: Partial<ApiKey> = { lastError: message };
 

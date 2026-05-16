@@ -243,10 +243,15 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
     if (failures.length === 0) return;
 
     if (rateLimitRetryMs !== null) {
+      // Partial rate-limit: release the failed slice and let BullMQ
+      // retry just this batch on its normal short backoff. We
+      // INTENTIONALLY do NOT call worker.rateLimit() here — that pauses
+      // every concurrent slot in the worker (16 batches frozen for one
+      // 429), which produced a "stop-and-go" verification pattern. Other
+      // batches still have valid tokens; let them keep working.
       await this.emailsService.releaseClaimMany(
         failures.map((f) => f.email.id),
       );
-      await this.worker.rateLimit(rateLimitRetryMs);
       this.metrics?.batchPartialFailures
         ?.labels({ reason: 'rate-limit' })
         .inc(failures.length);
@@ -313,25 +318,42 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
   private async verifyOneForBatch(
     email: ClaimedEmailRow,
   ): Promise<PerEmailSuccess> {
-    const slot = await this.keyPool.acquireKey(MAILTESTER_PROVIDER);
-    if (!slot.ok) {
-      // Surfaced via batchPartialFailures{reason="rate-limit"} metric
-      // in processBatch. Log at warn so a debug session can see WHY
-      // every email in a batch is "rate-limited" — usually the real
-      // reason is KeyPool empty, not a true 429 from Ninja.
+    // Inline-wait on rate-limit instead of failing the batch. The token
+    // bucket refills in ~175ms (57 tokens / 10s), so waiting in-place is
+    // *far* cheaper than throwing → releasing claims → BullMQ exponential
+    // backoff (which used to add 2s+ of dead time for a 175ms refill).
+    //
+    // We still bail with a ProviderError after MAX_ACQUIRE_WAIT_MS so a
+    // truly stuck pool (all keys disabled / snapshot empty) doesn't pin
+    // the worker forever — that case becomes a real batch failure and
+    // surfaces through normal retry semantics.
+    const MAX_ACQUIRE_WAIT_MS = 30_000;
+    const waitStart = Date.now();
+    let slot = await this.keyPool.acquireKey(MAILTESTER_PROVIDER);
+    while (!slot.ok) {
       const snapshot = this.keyPool.getSnapshot(MAILTESTER_PROVIDER);
-      this.batchLogger.warn(
-        `KeyPool denied acquire for ${MAILTESTER_PROVIDER} ` +
-          `(email=${email.id}, retryAfterMs=${slot.retryAfterMs}, ` +
-          `keysInSnapshot=${snapshot.length})`,
-      );
-      throw new ProviderError(
-        'rate-limit',
-        snapshot.length === 0
-          ? 'KeyPool snapshot is empty — no api_keys configured'
-          : 'KeyPool all keys cooled down / rate-limited',
-        slot.retryAfterMs,
-      );
+      if (snapshot.length === 0) {
+        throw new ProviderError(
+          'rate-limit',
+          'KeyPool snapshot is empty — no api_keys configured',
+          slot.retryAfterMs,
+        );
+      }
+      if (Date.now() - waitStart >= MAX_ACQUIRE_WAIT_MS) {
+        this.batchLogger.warn(
+          `KeyPool acquire timeout for ${MAILTESTER_PROVIDER} ` +
+            `(email=${email.id}, waited=${Date.now() - waitStart}ms, ` +
+            `keysInSnapshot=${snapshot.length})`,
+        );
+        throw new ProviderError(
+          'rate-limit',
+          'KeyPool all keys cooled down / rate-limited',
+          slot.retryAfterMs,
+        );
+      }
+      const sleepMs = Math.min(slot.retryAfterMs || 50, 1000);
+      await new Promise((r) => setTimeout(r, sleepMs));
+      slot = await this.keyPool.acquireKey(MAILTESTER_PROVIDER);
     }
     this.batchLogger.debug(
       `→ Ninja verify ${email.address} (keyId=${slot.key.id})`,

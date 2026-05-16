@@ -197,7 +197,13 @@ export class VerificationService {
           // BullMQ disallows ":" in custom jobIds (Redis key separator).
           jobId: `bulk-batch-${batchId}`,
           attempts: 5,
-          backoff: { type: 'exponential', delay: 2000 },
+          // Rate-limit pauses are handled inline inside verifyOneForBatch
+          // (it sleeps for the bucket's retryAfterMs and retries the
+          // acquire). Batch-level retries are therefore only for genuine
+          // transient errors (network blips, 5xx) — a short 250ms initial
+          // delay is plenty; the old 2000ms compounded into 30+ seconds
+          // of dead time per retry chain.
+          backoff: { type: 'exponential', delay: 250 },
           removeOnComplete: { age: 3600, count: 1000 },
           removeOnFail: { age: 86400, count: 5000 },
         },
