@@ -1,0 +1,317 @@
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Between, Repository } from 'typeorm';
+import { CsvParseService } from '../../csv-parse/csv-parse.service';
+import { EmailListsService } from '../../email-lists/email-lists.service';
+import {
+  EmailList,
+  EmailListParseStatus,
+  EmailListStatus,
+} from '../../email-lists/entities/email-list.entity';
+import { Email, EmailStatus } from '../../emails/entities/email.entity';
+import { User } from '../../users/entities/user.entity';
+import { VerificationService } from '../../verification/verification.service';
+
+const PLAN_LIMITS: Record<string, number> = {
+  PRO: 10_000,
+  ULTIMATE: 100_000,
+};
+
+const CHART_COLORS = {
+  valid: '#22c55e',
+  invalid: '#ef4444',
+  risky: '#f59e0b',
+  disposable: '#8b5cf6',
+};
+
+@Injectable()
+export class BulkVerifyService {
+  constructor(
+    @InjectRepository(EmailList)
+    private readonly listsRepo: Repository<EmailList>,
+    @InjectRepository(Email)
+    private readonly emailsRepo: Repository<Email>,
+    private readonly emailListsService: EmailListsService,
+    private readonly verificationService: VerificationService,
+    private readonly csvParse: CsvParseService,
+  ) {}
+
+  /**
+   * Phase-5 upload path: returns immediately with the listId. The actual
+   * file is parsed by the csv.parse worker, which inserts emails in
+   * streaming batches and enqueues verify jobs as it goes. The UI polls
+   * /verify/bulk/:jobId/progress (or subscribes to the socket) for status.
+   *
+   * No CSV touching happens here — Multer has already written the upload
+   * to disk; we just record metadata and hand the path off to the worker.
+   */
+  async upload(user: User, filePath: string, originalFilename: string) {
+    const name = originalFilename.replace(/\.[^.]+$/, '');
+
+    const list = await this.listsRepo.save(
+      this.listsRepo.create({
+        userId: user.id,
+        name,
+        originalFilename,
+        // Verification is gated behind parsing; we set the row's overall
+        // status to PENDING until the parser flips it to PROCESSING.
+        status: EmailListStatus.PENDING,
+        parseStatus: EmailListParseStatus.PENDING,
+        totalCount: 0,
+      }),
+    );
+
+    await this.csvParse.enqueue({
+      listId: list.id,
+      userId: user.id,
+      plan: user.plan,
+      filePath,
+      originalFilename,
+    });
+
+    return {
+      jobId: list.id,
+      fileName: originalFilename,
+      // totalCount populates after the parser finishes. UI shows
+      // "parsing…" while parseStatus is PENDING/PARSING.
+      parseStatus: list.parseStatus,
+      status: list.status,
+    };
+  }
+
+  async getActive(userId: string) {
+    const list = await this.emailListsService.findActiveJob(userId);
+    if (!list) return null;
+    return this.toActiveJob(list);
+  }
+
+  async getProgress(jobId: string, userId: string) {
+    const list = await this.emailListsService.findById(jobId, userId);
+    const etaSeconds = this.calcEta(list);
+
+    return {
+      progress: list.totalCount > 0 ? Math.round((list.processedCount / list.totalCount) * 100) : 0,
+      processedCount: list.processedCount,
+      totalCount: list.totalCount,
+      etaSeconds,
+      valid: list.validCount,
+      invalid: list.invalidCount,
+      risky: list.riskyCount,
+      disposable: list.disposableCount,
+    };
+  }
+
+  async getJobs(userId: string, page: number, limit: number, status?: string) {
+    const statusFilter = status && status !== 'all'
+      ? (status.toUpperCase() as EmailListStatus)
+      : undefined;
+
+    const [items, total] = await this.emailListsService.findByUser(
+      userId, page, limit, statusFilter,
+    );
+
+    const data = items.map((l) => ({
+      jobId: l.id,
+      fileName: l.originalFilename ?? l.name,
+      status: l.status.toLowerCase(),
+      totalEmails: l.totalCount,
+      processedCount: l.processedCount,
+      valid: l.validCount,
+      invalid: l.invalidCount,
+      risky: l.riskyCount,
+      disposable: l.disposableCount,
+      createdAt: l.createdAt,
+      completedAt: l.status === EmailListStatus.COMPLETED ? l.updatedAt : null,
+    }));
+
+    return { data, total, page, limit };
+  }
+
+  async getStats(userId: string) {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const startOfYesterday = new Date(startOfToday);
+    startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+
+    // Pull every list once and bucket in JS — cheaper than N round-trips and
+    // these tables are user-scoped so volumes stay manageable.
+    const allLists = await this.listsRepo.find({
+      where: { userId },
+      select: ['id', 'status', 'totalCount', 'processedCount', 'createdAt'],
+    });
+
+    const todayLists     = allLists.filter((l) => l.createdAt >= startOfToday);
+    const yesterdayLists = allLists.filter(
+      (l) => l.createdAt >= startOfYesterday && l.createdAt < startOfToday,
+    );
+
+    const completedJobs = allLists.filter((l) => l.status === EmailListStatus.COMPLETED).length;
+    const completedYesterday = yesterdayLists.filter(
+      (l) => l.status === EmailListStatus.COMPLETED,
+    ).length;
+
+    const activeList = await this.emailListsService.findActiveJob(userId);
+
+    // Average response time today vs yesterday — derived from the email rows.
+    const [todayEmails, yesterdayEmails, allEmails] = await Promise.all([
+      this.emailsRepo.find({
+        where: { userId, isSingleVerify: false, createdAt: Between(startOfToday, new Date()) },
+        select: ['durationMs'],
+      }),
+      this.emailsRepo.find({
+        where: { userId, isSingleVerify: false, createdAt: Between(startOfYesterday, startOfToday) },
+        select: ['durationMs'],
+      }),
+      this.emailsRepo.find({
+        where: { userId, isSingleVerify: false },
+        select: ['durationMs'],
+      }),
+    ]);
+
+    const avgMs = (rows: { durationMs: number | null }[]): number => {
+      const ds = rows.map((r) => r.durationMs).filter((d): d is number => d != null);
+      return ds.length > 0 ? Math.round(ds.reduce((a, b) => a + b, 0) / ds.length) : 0;
+    };
+
+    const avgResponseMs      = avgMs(allEmails);
+    const avgResponseToday   = avgMs(todayEmails);
+    const avgResponseYday    = avgMs(yesterdayEmails);
+
+    return {
+      filesToday: todayLists.length,
+      currentJobEmails: activeList?.totalCount ?? 0,
+      completedJobs,
+      apiUsage: allEmails.length,
+      avgResponseMs,
+      changes: {
+        filesToday:    this.pctChange(todayLists.length,    yesterdayLists.length),
+        completedJobs: this.pctChange(completedJobs,        completedYesterday),
+        // For latency, smaller is better — show the absolute ms delta.
+        avgResponseMs: this.msDelta(avgResponseToday, avgResponseYday),
+      },
+    };
+  }
+
+  /** Format two counters as e.g. "+25%", "-40%", "+0%". */
+  private pctChange(current: number, previous: number): string {
+    if (previous === 0) {
+      return current > 0 ? '+100%' : '+0%';
+    }
+    const pct = Math.round(((current - previous) / previous) * 100);
+    return `${pct >= 0 ? '+' : ''}${pct}%`;
+  }
+
+  /** Format two ms values as e.g. "-120ms" / "+0ms". */
+  private msDelta(current: number, previous: number): string {
+    const delta = current - previous;
+    return `${delta >= 0 ? '+' : ''}${delta}ms`;
+  }
+
+  /**
+   * Aggregate Valid + Invalid + Risky counts across every bulk-verified email
+   * for the user (excludes single verifications). Powers the right-side donut
+   * on the Bulk Verify page.
+   */
+  async getAggregateBreakdown(userId: string) {
+    const rows = await this.emailsRepo.find({
+      where: { userId, isSingleVerify: false },
+      select: ['verificationResult'],
+    });
+
+    let valid = 0;
+    let invalid = 0;
+    let risky = 0;
+    for (const r of rows) {
+      if (r.verificationResult === 'VALID') valid++;
+      else if (r.verificationResult === 'INVALID') invalid++;
+      else if (r.verificationResult === 'RISKY') risky++;
+    }
+
+    const total = valid + invalid + risky;
+    const pct = (n: number) =>
+      total > 0 ? Math.round((n / total) * 1000) / 10 : 0;
+
+    return {
+      total,
+      data: [
+        { name: 'Valid',   value: valid,   percentage: pct(valid),   color: CHART_COLORS.valid },
+        { name: 'Invalid', value: invalid, percentage: pct(invalid), color: CHART_COLORS.invalid },
+        { name: 'Risky',   value: risky,   percentage: pct(risky),   color: CHART_COLORS.risky },
+      ],
+    };
+  }
+
+  async getBreakdown(jobId: string, userId: string) {
+    const list = await this.emailListsService.findById(jobId, userId);
+    const total = list.processedCount;
+
+    const pct = (n: number) =>
+      total > 0 ? Math.round((n / total) * 1000) / 10 : 0;
+
+    return {
+      data: [
+        { name: 'Valid', value: list.validCount, percentage: pct(list.validCount), color: CHART_COLORS.valid },
+        { name: 'Invalid', value: list.invalidCount, percentage: pct(list.invalidCount), color: CHART_COLORS.invalid },
+        { name: 'Risky', value: list.riskyCount, percentage: pct(list.riskyCount), color: CHART_COLORS.risky },
+        { name: 'Disposable', value: list.disposableCount, percentage: pct(list.disposableCount), color: CHART_COLORS.disposable },
+      ],
+      total,
+    };
+  }
+
+  async streamDownload(
+    jobId: string,
+    userId: string,
+    res: import('express').Response,
+    format: 'csv' | 'json',
+    type: 'verified' | 'full',
+  ) {
+    return this.emailListsService.streamDownload(jobId, userId, res, format, type);
+  }
+
+  async retry(jobId: string, userId: string) {
+    const { requeuedCount } = await this.emailListsService.retryFailed(jobId, userId);
+
+    if (requeuedCount > 0) {
+      const failedEmails = await this.emailsRepo.find({
+        where: { listId: jobId, status: EmailStatus.QUEUED },
+        select: ['id'],
+      });
+      await this.verificationService.enqueueBulk(
+        failedEmails.map((e) => e.id),
+        userId,
+        jobId,
+      );
+    }
+
+    return { jobId, status: 'queued', requeuedCount };
+  }
+
+  private toActiveJob(list: EmailList) {
+    return {
+      jobId: list.id,
+      fileName: list.originalFilename ?? list.name,
+      progress: list.totalCount > 0 ? Math.round((list.processedCount / list.totalCount) * 100) : 0,
+      processedCount: list.processedCount,
+      totalCount: list.totalCount,
+      etaSeconds: this.calcEta(list),
+      startedAt: list.startedAt,
+      valid: list.validCount,
+      invalid: list.invalidCount,
+      risky: list.riskyCount,
+      disposable: list.disposableCount,
+    };
+  }
+
+  private calcEta(list: EmailList): number {
+    const remaining = list.totalCount - list.processedCount;
+    if (remaining <= 0) return 0;
+    if (list.startedAt && list.processedCount > 0) {
+      const elapsedSec = (Date.now() - list.startedAt.getTime()) / 1000;
+      const rate = list.processedCount / elapsedSec;
+      if (rate > 0) return Math.round(remaining / rate);
+    }
+    // fallback: use API rate (11/10s = 1.1/s)
+    return Math.round(remaining / 1.1);
+  }
+}
