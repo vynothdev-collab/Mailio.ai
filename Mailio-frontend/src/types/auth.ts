@@ -4,11 +4,17 @@ interface AuthUser {
   email:     string;
   plan:      string;
   avatarUrl?: string | null;
-  provider?: "LOCAL" | "GOOGLE";
+  provider?: "LOCAL" | "GOOGLE" | "LINKEDIN";
 }
 
 export interface GoogleLoginPayload {
   idToken: string;
+  remember?: boolean;
+}
+
+export interface LinkedinLoginPayload {
+  code: string;
+  redirectUri: string;
   remember?: boolean;
 }
 

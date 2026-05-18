@@ -12,6 +12,7 @@ import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { User } from '../users/entities/user.entity';
 import { AuthService } from './auth.service';
 import { GoogleLoginDto } from './dto/google-login.dto';
+import { LinkedinLoginDto } from './dto/linkedin-login.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignupDto } from './dto/signup.dto';
@@ -87,6 +88,29 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid Google credential' })
   googleLogin(@Body() dto: GoogleLoginDto) {
     return this.authService.loginWithGoogle(dto.idToken, dto.remember ?? false);
+  }
+
+  @Post('linkedin/callback')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Exchange a LinkedIn authorization code for a session',
+  })
+  @ApiBody({ type: LinkedinLoginDto })
+  @ApiResponse({
+    status: 200,
+    description: 'LinkedIn login successful — returns tokens and profile',
+    schema: AUTH_RESPONSE,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid LinkedIn authorization code',
+  })
+  linkedinCallback(@Body() dto: LinkedinLoginDto) {
+    return this.authService.loginWithLinkedin(
+      dto.code,
+      dto.redirectUri,
+      dto.remember ?? false,
+    );
   }
 
   @Post('logout')

@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { authService } from "@/src/services/authService";
 import { useAuth } from "@/src/hooks/useAuth";
 import { clearSession } from "@/src/utils/storage";
+import {
+  beginLinkedinAuth,
+  getLinkedinConfig,
+} from "@/src/features/auth/lib/linkedin";
 import type { ApiError } from "@/src/types/auth";
 
 const GoogleIcon = () => (
@@ -56,7 +60,13 @@ export function SocialAuthButtons({ remember = false, disabled = false }: Social
   };
 
   const handleLinkedinClick = () => {
-    toast.info("LinkedIn sign-in is coming soon.");
+    const config = getLinkedinConfig();
+    if (!config) {
+      toast.error("LinkedIn sign-in is not configured.");
+      return;
+    }
+    clearSession();
+    beginLinkedinAuth(config);
   };
 
   const isDisabled = disabled || pending;

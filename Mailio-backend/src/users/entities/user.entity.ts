@@ -15,6 +15,7 @@ export enum Plan {
 export enum AuthProvider {
   LOCAL = 'LOCAL',
   GOOGLE = 'GOOGLE',
+  LINKEDIN = 'LINKEDIN',
 }
 
 @Entity('users')

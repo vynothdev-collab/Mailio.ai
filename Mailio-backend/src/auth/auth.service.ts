@@ -6,6 +6,7 @@ import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { SignupDto } from './dto/signup.dto';
 import { GoogleTokenVerifierService } from './google-token-verifier.service';
+import { LinkedinAuthService } from './linkedin-auth.service';
 
 @Injectable()
 export class AuthService {
@@ -14,6 +15,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly googleVerifier: GoogleTokenVerifierService,
+    private readonly linkedinAuth: LinkedinAuthService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User | null> {
@@ -40,6 +42,20 @@ export class AuthService {
   async loginWithGoogle(idToken: string, remember = false) {
     const identity = await this.googleVerifier.verify(idToken);
     const user = await this.usersService.findOrCreateFromGoogle({
+      providerId: identity.providerId,
+      email: identity.email,
+      name: identity.name,
+      avatarUrl: identity.avatarUrl,
+    });
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account is disabled');
+    }
+    return this.issueSession(user, remember);
+  }
+
+  async loginWithLinkedin(code: string, redirectUri: string, remember = false) {
+    const identity = await this.linkedinAuth.authenticate(code, redirectUri);
+    const user = await this.usersService.findOrCreateFromLinkedin({
       providerId: identity.providerId,
       email: identity.email,
       name: identity.name,

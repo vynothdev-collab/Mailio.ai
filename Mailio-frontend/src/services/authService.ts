@@ -3,6 +3,7 @@ import { STORAGE_KEYS, clearSession, getItem, setItem } from "@/src/utils/storag
 import type {
   AuthResponse,
   GoogleLoginPayload,
+  LinkedinLoginPayload,
   LoginPayload,
   RefreshPayload,
   RefreshResponse,
@@ -29,6 +30,16 @@ export const authService = {
 
   async googleLogin(payload: GoogleLoginPayload): Promise<AuthResponse> {
     const { data } = await api.post<AuthResponse>("/auth/google", payload, { _skipAuth: true });
+    persistSession(data);
+    return data;
+  },
+
+  async linkedinLogin(payload: LinkedinLoginPayload): Promise<AuthResponse> {
+    const { data } = await api.post<AuthResponse>(
+      "/auth/linkedin/callback",
+      payload,
+      { _skipAuth: true },
+    );
     persistSession(data);
     return data;
   },

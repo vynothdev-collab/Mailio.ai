@@ -3,12 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthProvider, User } from './entities/user.entity';
 
-export interface GoogleProfile {
+export interface OAuthProfile {
   email: string;
   name: string;
   providerId: string;
   avatarUrl: string | null;
 }
+
+export type GoogleProfile = OAuthProfile;
+export type LinkedinProfile = OAuthProfile;
 
 export interface UserStats {
   totalEmails: number;
@@ -48,8 +51,19 @@ export class UsersService {
   }
 
   async findOrCreateFromGoogle(profile: GoogleProfile): Promise<User> {
+    return this.findOrCreateFromOAuth(AuthProvider.GOOGLE, profile);
+  }
+
+  async findOrCreateFromLinkedin(profile: LinkedinProfile): Promise<User> {
+    return this.findOrCreateFromOAuth(AuthProvider.LINKEDIN, profile);
+  }
+
+  private async findOrCreateFromOAuth(
+    provider: AuthProvider,
+    profile: OAuthProfile,
+  ): Promise<User> {
     const byProvider = await this.usersRepo.findOne({
-      where: { provider: AuthProvider.GOOGLE, providerId: profile.providerId },
+      where: { provider, providerId: profile.providerId },
     });
     if (byProvider) {
       return this.touchProfile(byProvider, profile);
@@ -57,7 +71,7 @@ export class UsersService {
 
     const byEmail = await this.findByEmail(profile.email);
     if (byEmail) {
-      byEmail.provider = AuthProvider.GOOGLE;
+      byEmail.provider = provider;
       byEmail.providerId = profile.providerId;
       byEmail.avatarUrl = profile.avatarUrl ?? byEmail.avatarUrl;
       byEmail.name = byEmail.name || profile.name;
@@ -68,14 +82,14 @@ export class UsersService {
       email: profile.email,
       name: profile.name,
       avatarUrl: profile.avatarUrl,
-      provider: AuthProvider.GOOGLE,
+      provider,
       providerId: profile.providerId,
       passwordHash: null,
     });
     return this.usersRepo.save(created);
   }
 
-  private async touchProfile(user: User, profile: GoogleProfile): Promise<User> {
+  private async touchProfile(user: User, profile: OAuthProfile): Promise<User> {
     const nameChanged = profile.name && user.name !== profile.name;
     const avatarChanged = profile.avatarUrl && user.avatarUrl !== profile.avatarUrl;
     if (!nameChanged && !avatarChanged) return user;
