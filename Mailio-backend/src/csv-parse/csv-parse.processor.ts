@@ -61,8 +61,6 @@ export class CsvParseProcessor extends WorkerHost {
   async process(job: Job<CsvParseJob>): Promise<void> {
     const { listId, userId, filePath, originalFilename } = job.data;
 
-    // Flip the list into PARSING so the UI can show a distinct state and
-    // a duplicate enqueue (rare; jobId-deduped) becomes a no-op.
     await this.listsRepo.update(listId, {
       parseStatus: EmailListParseStatus.PARSING,
       startedAt: new Date(),
@@ -90,8 +88,6 @@ export class CsvParseProcessor extends WorkerHost {
         }),
       );
 
-      // Pause/resume the parser stream so we don't accumulate unbounded
-      // rows in memory while the DB flush is running.
       const flushIfFull = async (): Promise<void> => {
         if (buffer.length < this.BATCH) return;
         parser.pause();
@@ -114,7 +110,6 @@ export class CsvParseProcessor extends WorkerHost {
         }
       };
 
-      // Promisify the stream so we can await inside the data handler.
       await new Promise<void>((resolve, reject) => {
         parser.on('data', (row: string[]) => {
           void (async () => {
@@ -147,7 +142,6 @@ export class CsvParseProcessor extends WorkerHost {
         parser.on('error', reject);
       });
 
-      // Final flush of whatever's left in the buffer.
       if (buffer.length > 0) {
         const ids = await this.insertBatch(userId, listId, buffer);
         await this.enqueueVerifyBatch(
@@ -196,8 +190,6 @@ export class CsvParseProcessor extends WorkerHost {
       await this.listsRepo.update(listId, {
         parseStatus: EmailListParseStatus.FAILED,
         parseError: msg,
-        // Don't blow away rows already inserted — leave whatever made it
-        // through so the user can re-run / partial-retry.
         totalCount: inserted,
         duplicates,
         detectedColumn,

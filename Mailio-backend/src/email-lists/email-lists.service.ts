@@ -20,7 +20,6 @@ interface ParseResult {
   detectedColumn: string;
 }
 
-/** Per-result deltas for a single batch grouped by listId. */
 export interface ListDeltas {
   processed: number;
   valid: number;
@@ -262,7 +261,6 @@ export class EmailListsService {
       .whereInIds(ids)
       .execute();
 
-    // Reset list counters for failed jobs
     const failedCount = ids.length;
     await this.listsRepo.update(listId, {
       processedCount: list.processedCount - failedCount,
@@ -303,8 +301,8 @@ export class EmailListsService {
       return 'unknown';
     };
 
-    // Pull user + domain from the original MailTester response. Fall back to
-    // parsing the address itself when the raw payload is missing those fields.
+    
+    
     type Report = {
       email: string;
       user: string;
@@ -327,7 +325,7 @@ export class EmailListsService {
       };
     };
 
-    // Sort: valid first, then risky, then invalid, then unknown.
+    
     const STATUS_ORDER: Record<string, number> = {
       valid: 0,
       risky: 1,
@@ -341,8 +339,8 @@ export class EmailListsService {
           (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99),
       );
 
-    // Use the original uploaded filename so downloads round-trip nicely
-    // (`leads.csv` → `leads.csv`). Fall back to the list ID if absent.
+    
+    
     const baseName = (list.originalFilename ?? `bulk-${listId}`).replace(
       /\.[^.]+$/,
       '',
@@ -357,7 +355,7 @@ export class EmailListsService {
       res.end(JSON.stringify(report));
     } else {
       res.setHeader('Content-Type', 'text/csv');
-      // Quote fields so commas inside `user` (e.g. "Doe, John") don't break the CSV.
+      
       const escape = (v: string): string => `"${v.replace(/"/g, '""')}"`;
       const lines = ['email,user,domain,status'];
       for (const r of report) {
@@ -395,12 +393,12 @@ export class EmailListsService {
       parser.on('data', (row: string[]) => {
         const raw = (row[0] ?? '').trim().toLowerCase();
 
-        // Detect if first row is a header
+        
         if (isFirstRow) {
           isFirstRow = false;
           if (!this.looksLikeEmail(raw)) {
             detectedColumn = raw || 'email';
-            return; // skip header row
+            return; 
           }
         }
 

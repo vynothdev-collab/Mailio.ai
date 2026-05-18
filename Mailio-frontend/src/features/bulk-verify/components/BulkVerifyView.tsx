@@ -20,9 +20,6 @@ const JOBS_PAGE_SIZE = 10;
 
 export function BulkVerifyView() {
   const [stats,      setStats]      = useState<BulkStatsDto | null>(null);
-  // Active job is still tracked internally so we can subscribe to live
-  // progress and trigger a refetch on completion — even though the card
-  // itself was removed from the layout.
   const [active,     setActive]     = useState<BulkActiveJobDto | null>(null);
   const [jobs,       setJobs]       = useState<BulkJobDto[]>([]);
   const [jobsTotal,  setJobsTotal]  = useState(0);
@@ -53,7 +50,6 @@ export function BulkVerifyView() {
     }
   }, [jobsPage]);
 
-  // After a new upload, jump back to page 1 so the fresh job is visible.
   const refetchAfterChange = useCallback(() => {
     setJobsPage(1);
     return refetch(1);
@@ -61,32 +57,12 @@ export function BulkVerifyView() {
 
   useEffect(() => {
     const controller = new AbortController();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refetch(jobsPage, controller.signal);
     return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobsPage]);
 
-  // Subscribe to the live socket stream for the running job — we don't render
-  // the active card anymore but we still want to refetch when the job ends so
-  // the breakdown + jobs table update without a manual reload.
   useJobProgress(active?.jobId, refetchAfterChange);
 
-  // Polling fallback for in-flight jobs. We only poll when the user
-  // actually has work in progress — concretely:
-  //
-  //   1. The latest row in the Recent Verifications table is `pending`
-  //      or `processing`. If the most recent upload is already
-  //      `completed` / `failed`, the user isn't waiting on anything and
-  //      there's nothing to refresh on a timer.
-  //   2. AND the backend's /verify/bulk/active still returns a job
-  //      (defensive — stops polling immediately when getActive returns
-  //      null even if the table snapshot hasn't refreshed yet).
-  //   3. AND the active job hasn't already hit 100 % processed (cuts
-  //      the polling the instant the counters catch up, even before the
-  //      backend flips the status).
-  //
-  // Any of those false → no polling, no network noise.
   const latestJob = jobs[0];
   const latestIsInFlight =
     latestJob?.status === 'pending' || latestJob?.status === 'processing';

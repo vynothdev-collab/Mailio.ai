@@ -28,7 +28,6 @@ export function ProfileForm() {
       <CardContent className="pt-3 space-y-5">
         <h2 className="text-sm font-semibold">Profile</h2>
 
-        {/* Avatar */}
         <div className="flex items-center gap-4">
           <div className="relative">
             <div className="flex h-16 w-16 items-center justify-center rounded-full gradient-brand text-white text-lg font-bold select-none">
@@ -55,7 +54,6 @@ export function ProfileForm() {
           </div>
         </div>
 
-        {/* Fields */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             { label: "Full Name",  key: "fullName" as const,  placeholder: "Your full name"  },

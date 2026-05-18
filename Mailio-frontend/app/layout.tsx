@@ -30,8 +30,6 @@ export default function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable} h-full`}
     >
       <body className="h-full antialiased">
-        {/* AuthProvider lives at the root so /users/me runs once per page
-            load, never on route changes. */}
         <AuthProvider>{children}</AuthProvider>
         <Toaster position="bottom-right" richColors />
       </body>

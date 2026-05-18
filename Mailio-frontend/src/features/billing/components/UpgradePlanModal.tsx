@@ -24,8 +24,6 @@ interface Props {
 
 type Step = "select" | "confirm";
 
-// ── Step 1 — Plan selection ────────────────────────────────────────────────
-
 function StepSelect({
   currentPlanId,
   cycle,
@@ -50,7 +48,6 @@ function StepSelect({
         </DialogDescription>
       </DialogHeader>
 
-      {/* Cycle toggle */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
           {(["monthly", "annual"] as BillingCycle[]).map((c) => (
@@ -80,7 +77,6 @@ function StepSelect({
         )}
       </div>
 
-      {/* Plan cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {PLANS.map((plan) => {
           const isCurrent    = plan.id === currentPlanId;
@@ -161,8 +157,6 @@ function StepSelect({
   );
 }
 
-// ── Step 2 — Order confirmation ────────────────────────────────────────────
-
 function StepConfirm({
   plan,
   cycle,
@@ -180,7 +174,6 @@ function StepConfirm({
   const exp        = `${String(expMonth).padStart(2, "0")}/${expYear}`;
   const brandLabel = brand === "visa" ? "Visa" : brand === "mastercard" ? "Mastercard" : "Card";
 
-  // Next billing date — same day next month / next year
   const next = new Date();
   cycle === "annual" ? next.setFullYear(next.getFullYear() + 1) : next.setMonth(next.getMonth() + 1);
   const nextDate = next.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -194,9 +187,7 @@ function StepConfirm({
         </DialogDescription>
       </DialogHeader>
 
-      {/* Order summary */}
       <div className="rounded-xl border border-border bg-muted/30 divide-y divide-border overflow-hidden">
-        {/* Plan row */}
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
@@ -215,7 +206,6 @@ function StepConfirm({
           </div>
         </div>
 
-        {/* Card row */}
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background">
@@ -231,7 +221,6 @@ function StepConfirm({
           </button>
         </div>
 
-        {/* Next billing row */}
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <CalendarClock size={13} />
@@ -241,7 +230,6 @@ function StepConfirm({
         </div>
       </div>
 
-      {/* Total */}
       <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3">
         <span className="text-sm font-semibold">
           {cycle === "annual" ? "Total charged today" : "Due today"}
@@ -249,7 +237,6 @@ function StepConfirm({
         <span className="text-lg font-bold tabular-nums">${billed}.00</span>
       </div>
 
-      {/* Actions */}
       <div className="flex flex-col-reverse sm:flex-row gap-2 pt-1">
         <button
           onClick={onBack}
@@ -269,8 +256,6 @@ function StepConfirm({
   );
 }
 
-// ── Modal root ─────────────────────────────────────────────────────────────
-
 export function UpgradePlanModal({ open, onClose, currentPlanId }: Props) {
   const [step,   setStep]   = useState<Step>("select");
   const [cycle,  setCycle]  = useState<BillingCycle>("monthly");
@@ -283,7 +268,6 @@ export function UpgradePlanModal({ open, onClose, currentPlanId }: Props) {
 
   function handleConfirm() {
     onClose();
-    // Reset for next open
     setTimeout(() => { setStep("select"); setSelected(null); }, 300);
     toast.success(`You're now on the ${selected?.name} Plan`, {
       description: "Your subscription has been updated successfully.",

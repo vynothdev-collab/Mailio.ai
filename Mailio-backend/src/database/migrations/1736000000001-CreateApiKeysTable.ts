@@ -1,21 +1,10 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Phase 3 — Key Pool registry. Each row represents one runtime-managed
- * credential against an external verification provider. The processor
- * acquires a key per call instead of using a single env-baked secret, so
- * keys can be added / disabled / rotated without redeploy.
- *
- * `key_value` holds the raw secret; if the deployment requires encryption
- * at rest, encrypt at the application layer before insert — the column is
- * intentionally `text` (no pgcrypto requirement).
- */
 export class CreateApiKeysTable1736000000001 implements MigrationInterface {
   name = 'CreateApiKeysTable1736000000001';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Idempotent — `synchronize: true` in dev may have already created
-    // either the type or the table from the entity definition.
+
     await queryRunner.query(`
       DO $$ BEGIN
         CREATE TYPE "api_key_status" AS ENUM ('ACTIVE', 'COOLDOWN', 'DISABLED');

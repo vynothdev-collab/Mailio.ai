@@ -1,13 +1,6 @@
-// Wire shapes for /verify/bulk/* endpoints.
-
 export type BulkJobStatus   = "pending" | "processing" | "completed" | "failed";
-export type BulkParseStatus = "PENDING" | "PARSING" | "PARSED" | "FAILED";
+type BulkParseStatus = "PENDING" | "PARSING" | "PARSED" | "FAILED";
 
-/**
- * The upload endpoint now returns immediately — CSV parsing happens in a
- * background worker. `totalEmails` / `duplicates` / `detectedColumn` arrive
- * later via /verify/bulk/:jobId/progress once `parseStatus === "PARSED"`.
- */
 export interface BulkUploadResponse {
   jobId:       string;
   fileName:    string;
@@ -83,8 +76,6 @@ export interface BulkBreakdownDto {
   }[];
   total: number;
 }
-
-// ── WebSocket payloads ─────────────────────────────────────────────────────
 
 export interface ProgressEvent {
   listId:    string;

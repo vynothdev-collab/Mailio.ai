@@ -1,9 +1,5 @@
 "use client";
 
-// Recent verifications table — backed by GET /dashboard/recent-verifications.
-// Self-fetches with internal pagination so the parent dashboard view doesn't
-// need to thread page state through props.
-
 import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, FileX, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -20,8 +16,6 @@ import type {
   RecentVerificationStatus,
 } from "@/src/types/dashboard";
 import type { ApiError } from "@/src/types/auth";
-
-// ── Status / risk styling ──────────────────────────────────────────────────
 
 const STATUS_STYLE: Record<RecentVerificationStatus, { label: string; className: string; dot: string }> = {
   valid:      { label: "Valid",      className: "bg-emerald-50 text-emerald-700 border-emerald-100", dot: "bg-emerald-500" },
@@ -82,8 +76,6 @@ function formatDateTime(iso: string): string {
   });
 }
 
-// ── Empty state ────────────────────────────────────────────────────────────
-
 function EmptyState() {
   return (
     <TableRow>
@@ -98,12 +90,9 @@ function EmptyState() {
   );
 }
 
-// ── Table ──────────────────────────────────────────────────────────────────
-
 const DEFAULT_LIMIT = 10;
 
 interface RecentVerificationsTableProps {
-  /** Override page size if needed; defaults to 10. */
   limit?: number;
 }
 
@@ -144,7 +133,6 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
 
   return (
     <Card className="overflow-hidden gap-0 py-0">
-      {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">Recent Verifications</h2>
@@ -189,7 +177,6 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
         </TableBody>
       </Table>
 
-      {/* Pagination footer */}
       <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
         <p className="text-xs text-muted-foreground tabular-nums">
           {total === 0

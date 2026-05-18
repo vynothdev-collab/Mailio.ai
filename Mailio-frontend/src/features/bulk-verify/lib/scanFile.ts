@@ -1,9 +1,3 @@
-// Client-side scan of a CSV/TXT email file.
-//
-// Splits on newlines, then on common delimiters (`,`, `;`, `\t`) so a CSV with
-// extra columns (name, company, …) is still readable. Each cell is trimmed and
-// classified as a valid email, an invalid token, an empty cell, or a header.
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface FileScanResult {
@@ -12,11 +6,9 @@ export interface FileScanResult {
   invalidEntries: { row: number; value: string }[];
   duplicates:    number;
   detectedColumn: string | null;
-  /** True when the first non-empty row had no email-shaped cell. */
   hasHeaderRow:  boolean;
 }
 
-/** Strip surrounding quotes a CSV exporter may have wrapped a cell in. */
 function unquote(s: string): string {
   return s.replace(/^"(.*)"$/, "$1").trim();
 }
@@ -49,13 +41,11 @@ export async function scanEmailFile(file: File): Promise<FileScanResult> {
     const cells = splitRow(raw);
     result.totalRows++;
 
-    // First non-empty row: detect header vs. data.
     if (firstNonEmpty) {
       firstNonEmpty = false;
       const emailCellIdx = cells.findIndex((c) => EMAIL_RE.test(c.toLowerCase()));
 
       if (emailCellIdx === -1) {
-        // No email in row 1 → treat as header.
         result.hasHeaderRow = true;
         const headerIdx = cells.findIndex((c) => /e?-?mail/i.test(c));
         emailColIdx = headerIdx === -1 ? 0 : headerIdx;
@@ -63,7 +53,6 @@ export async function scanEmailFile(file: File): Promise<FileScanResult> {
         continue;
       }
 
-      // Row 1 is data. Lock onto whichever column had the email.
       emailColIdx = emailCellIdx;
       result.detectedColumn = `column ${emailCellIdx + 1}`;
     }

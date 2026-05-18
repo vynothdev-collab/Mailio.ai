@@ -13,8 +13,6 @@ async function bootstrap() {
 
   app.use(helmet());
   app.enableCors({
-    // Expose Content-Disposition so the browser can read the server-supplied
-    // filename when downloading bulk results.
     exposedHeaders: ['Content-Disposition'],
   });
 

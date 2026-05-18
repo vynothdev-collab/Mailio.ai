@@ -13,16 +13,12 @@ const STATS = [
   { value: "10,000+", label: "Teams worldwide"       },
 ] as const;
 
-// ── Left branding panel ────────────────────────────────────────────────────
-
 function BrandPanel() {
   return (
     <div className="relative hidden lg:flex lg:w-[52%] flex-col justify-between overflow-hidden bg-[#0f172a] px-12 py-10 text-white">
-      {/* Gradient orbs */}
       <div className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-brand-600/30 blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 right-0 h-72 w-72 rounded-full bg-violet-600/20 blur-3xl" />
 
-      {/* Logo */}
       <Link href="/" className="relative flex items-center gap-2.5 w-fit">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl gradient-brand shadow-lg">
           <Zap size={18} className="text-white" />
@@ -32,7 +28,6 @@ function BrandPanel() {
         </span>
       </Link>
 
-      {/* Headline */}
       <div className="relative space-y-8">
         <div className="space-y-4">
           <div className="inline-flex items-center gap-2 rounded-full border border-brand-400/30 bg-brand-500/10 px-3 py-1">
@@ -51,9 +46,8 @@ function BrandPanel() {
           </p>
         </div>
 
-        {/* Features */}
         <ul className="space-y-3">
-          {FEATURES.map(({ icon: Icon, text }) => (
+          {FEATURES.map(({ text }) => (
             <li key={text} className="flex items-start gap-3">
               <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-500/20">
                 <CheckCircle2 size={13} className="text-brand-400" />
@@ -63,7 +57,6 @@ function BrandPanel() {
           ))}
         </ul>
 
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-4 border-t border-white/10 pt-8">
           {STATS.map(({ value, label }) => (
             <div key={label}>
@@ -74,7 +67,6 @@ function BrandPanel() {
         </div>
       </div>
 
-      {/* Testimonial */}
       <blockquote className="relative rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
         <p className="text-sm text-slate-300 leading-relaxed">
           &ldquo;Mailio.ai cut our bounce rate from 8% down to 0.4% overnight. Our deliverability has never been better.&rdquo;
@@ -93,8 +85,6 @@ function BrandPanel() {
   );
 }
 
-// ── Shell wrapper ──────────────────────────────────────────────────────────
-
 interface AuthShellProps {
   children: React.ReactNode;
 }
@@ -104,9 +94,7 @@ export function AuthShell({ children }: AuthShellProps) {
     <div className="flex h-full min-h-screen">
       <BrandPanel />
 
-      {/* Right: form panel */}
       <div className="flex flex-1 flex-col items-center justify-center bg-canvas px-6 py-12 lg:px-16">
-        {/* Mobile logo */}
         <Link href="/" className="mb-10 flex items-center gap-2 lg:hidden">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-brand">
             <Zap size={15} className="text-white" />

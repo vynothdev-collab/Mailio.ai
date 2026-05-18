@@ -35,7 +35,6 @@ export abstract class VerificationBaseProcessor extends WorkerHost {
     super();
   }
 
-  /** Subclasses override so the DLQ row carries the right source_queue. */
   protected abstract sourceQueueName(): string;
 
   private recordProviderOutcome(
@@ -76,8 +75,6 @@ export abstract class VerificationBaseProcessor extends WorkerHost {
       await this.worker.rateLimit(slot.retryAfterMs);
       throw new RateLimitError();
     }
-    // Debug-level so it doesn't spam in steady state, but flips on with
-    // LOG_LEVEL=debug so you can confirm Ninja is actually being called.
     this.logger.debug(
       `→ Ninja verify ${email.address} (jobId=${job.id}, keyId=${slot.key.id})`,
     );

@@ -15,8 +15,6 @@ import { clearSession } from "@/src/utils/storage";
 import type { ApiError } from "@/src/types/auth";
 import type { SignupFormData } from "../types";
 
-// ── Password strength indicator ────────────────────────────────────────────
-
 function PasswordStrength({ password }: { password: string }) {
   if (!password) return null;
 
@@ -28,11 +26,9 @@ function PasswordStrength({ password }: { password: string }) {
 
   const score = checks.filter((c) => c.pass).length;
   const colors = ["bg-destructive", "bg-amber-400", "bg-amber-400", "bg-emerald-500"];
-  const labels = ["", "Weak", "Fair", "Strong"];
 
   return (
     <div className="space-y-2">
-      {/* Bar */}
       <div className="flex gap-1">
         {checks.map((_, i) => (
           <div
@@ -44,7 +40,6 @@ function PasswordStrength({ password }: { password: string }) {
           />
         ))}
       </div>
-      {/* Checks */}
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         {checks.map(({ label, pass }) => (
           <span
@@ -62,8 +57,6 @@ function PasswordStrength({ password }: { password: string }) {
     </div>
   );
 }
-
-// ── Signup form ────────────────────────────────────────────────────────────
 
 const GoogleIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
@@ -98,7 +91,6 @@ export function SignupForm() {
 
   const onSubmit = async (data: SignupFormData) => {
     setSubmitState("loading");
-    // Scrub any prior identity from this tab before authenticating the new one.
     clearSession();
     try {
       const res = await authService.signup({
@@ -107,13 +99,11 @@ export function SignupForm() {
         password: data.password,
       });
 
-      // Repopulate global user state without waiting for a remount.
       await refreshUser();
 
       toast.success(`Welcome, ${res.user.name.split(" ")[0]}! Account created.`);
       router.push("/dashboard");
     } catch (err) {
-      // Errors are normalized to { status, message } by the response interceptor.
       const apiErr = err as ApiError;
       toast.error(apiErr?.message ?? "Signup failed. Please try again.");
       setSubmitState("idle");
@@ -122,7 +112,6 @@ export function SignupForm() {
 
   return (
     <div className="space-y-6">
-      {/* Heading */}
       <div className="space-y-1.5">
         <h2 className="text-2xl font-bold tracking-tight">Create your account</h2>
         <p className="text-sm text-muted-foreground">
@@ -130,7 +119,6 @@ export function SignupForm() {
         </p>
       </div>
 
-      {/* Social */}
       <div className="flex gap-3">
         <Button type="button" variant="outline" className="flex-1 gap-2 h-10 font-medium">
           <GoogleIcon /> Google
@@ -140,16 +128,13 @@ export function SignupForm() {
         </Button>
       </div>
 
-      {/* Divider */}
       <div className="relative flex items-center gap-3">
         <div className="flex-1 border-t border-border" />
         <span className="text-xs text-muted-foreground">or sign up with email</span>
         <div className="flex-1 border-t border-border" />
       </div>
 
-      {/* Form */}
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-        {/* Full name */}
         <div className="space-y-1.5">
           <label htmlFor="signup-name" className="text-sm font-medium">Full name</label>
           <div className="relative">
@@ -172,7 +157,6 @@ export function SignupForm() {
           )}
         </div>
 
-        {/* Email */}
         <div className="space-y-1.5">
           <label htmlFor="signup-email" className="text-sm font-medium">Work email</label>
           <div className="relative">
@@ -195,7 +179,6 @@ export function SignupForm() {
           )}
         </div>
 
-        {/* Password */}
         <div className="space-y-1.5">
           <label htmlFor="signup-password" className="text-sm font-medium">Password</label>
           <div className="relative">
@@ -227,7 +210,6 @@ export function SignupForm() {
           }
         </div>
 
-        {/* Confirm password */}
         <div className="space-y-1.5">
           <label htmlFor="signup-confirm" className="text-sm font-medium">Confirm password</label>
           <div className="relative">
@@ -258,7 +240,6 @@ export function SignupForm() {
           )}
         </div>
 
-        {/* Terms */}
         <div className="space-y-1">
           <label className="flex items-start gap-2.5 cursor-pointer select-none">
             <input
@@ -278,7 +259,6 @@ export function SignupForm() {
           )}
         </div>
 
-        {/* Submit */}
         <Button
           type="submit"
           size="lg"
@@ -293,7 +273,6 @@ export function SignupForm() {
         </Button>
       </form>
 
-      {/* Login link */}
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
         <Link href="/login" className="font-semibold text-primary hover:underline">

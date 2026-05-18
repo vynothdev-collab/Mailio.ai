@@ -48,7 +48,6 @@ export class MetricsCollectorService
 
   onApplicationBootstrap(): void {
     this.timer = setInterval(() => void this.tick(), this.TICK_MS);
-    // Kick once at boot so the first scrape isn't all zeros.
     void this.tick();
   }
 

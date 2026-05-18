@@ -14,7 +14,7 @@ export interface DbWriteSuccessJob {
   userId: string;
   listId: string | null;
   isSingleVerify: boolean;
-  /** Key id of the credential that produced this result (audit / metrics). */
+  
   providerKeyId: string;
   result: VerificationResult;
   score: number;
@@ -25,8 +25,8 @@ export interface DbWriteSuccessJob {
   freeProvider: boolean;
   apiRawResponse: Record<string, unknown>;
   durationMs: number;
-  processedAt: string; // ISO so the payload survives JSON round-tripping
-  /** Echo of provider response fields needed for the WebSocket single-result emit. */
+  processedAt: string; 
+  
   emailAddress: string;
 }
 

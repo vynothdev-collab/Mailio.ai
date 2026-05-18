@@ -1,11 +1,11 @@
 export interface Plan {
   id:           string;
   name:         string;
-  monthlyPrice: number | null;   // null = custom/contact
+  monthlyPrice: number | null;   
   annualPrice:  number | null;
   description:  string;
   features:     string[];
-  highlighted:  boolean;         // "most popular"
+  highlighted:  boolean;         
 }
 
 export const PLANS: Plan[] = [

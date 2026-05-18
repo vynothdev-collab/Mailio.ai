@@ -103,7 +103,6 @@ export class EmailList {
   })
   detectedColumn: string | null;
 
-  // lazy relation — imported at runtime to avoid circular dep
   @OneToMany('Email', 'list')
   emails: any[];
 

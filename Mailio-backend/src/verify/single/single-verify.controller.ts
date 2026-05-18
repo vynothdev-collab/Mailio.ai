@@ -77,7 +77,6 @@ export class SingleVerifyController {
     return this.singleVerifyService.verifySingle(dto.email, user.id);
   }
 
-  // NOTE: 'recent' and 'stats' must be declared BEFORE ':id' to avoid route shadowing
   @Get('recent')
   @ApiOperation({ summary: 'Paginated history of single verifications' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })

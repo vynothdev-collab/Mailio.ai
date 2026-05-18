@@ -1,21 +1,10 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Phase 5 — email_lists rows now go through an asynchronous parse stage
- * before any verify jobs are enqueued. The upload endpoint returns the
- * jobId immediately with parse_status = PENDING; the csv.parse worker
- * flips it to PARSING during the stream, then to PARSED on completion (or
- * FAILED on error). UI uses this to show "Parsing…" vs "Verifying…".
- *
- * quota_truncated flags lists where the parser stopped inserting before
- * reaching EOF because the user's monthly plan limit was exhausted.
- */
 export class AddListParseStatus1736000000002 implements MigrationInterface {
   name = 'AddListParseStatus1736000000002';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Idempotent — `synchronize: true` in dev may have already created
-    // the type and/or some columns from the entity definition.
+    
     await queryRunner.query(`
       DO $$ BEGIN
         CREATE TYPE "email_list_parse_status" AS ENUM

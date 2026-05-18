@@ -9,7 +9,6 @@ import { Email, EmailStatus } from '../emails/entities/email.entity';
 import { VerificationResult } from '../common/types/verification-result.enum';
 import { Plan } from '../users/entities/user.entity';
 
-// Per-user monthly quotas are disabled. Sentinel keeps client math sane.
 const UNLIMITED = 1_000_000_000;
 const PLAN_LIMITS: Record<Plan, number> = {
   [Plan.PRO]: UNLIMITED,

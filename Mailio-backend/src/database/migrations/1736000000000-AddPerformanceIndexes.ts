@@ -1,15 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Phase 0 — adds indexes covering the hot query paths identified in the audit:
- *   - emails(user_id, created_at desc)         dashboard / usage
- *   - emails(list_id, status)                  bulk progress + result export
- *   - emails(user_id, is_single_verify, status) results listing
- *   - email_lists(user_id, status, created_at desc) lists view
- *
- * Uses CREATE INDEX CONCURRENTLY so it is safe on a populated table. This
- * requires the migration to run outside of a transaction.
- */
 export class AddPerformanceIndexes1736000000000 implements MigrationInterface {
   name = 'AddPerformanceIndexes1736000000000';
   transaction = false as const;

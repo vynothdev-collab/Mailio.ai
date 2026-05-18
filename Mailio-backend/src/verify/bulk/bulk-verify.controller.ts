@@ -120,7 +120,6 @@ export class BulkVerifyController {
     return this.bulkVerifyService.upload(user, file.path, file.originalname);
   }
 
-  // NOTE: named routes must come before :jobId to avoid shadowing
   @Get('active')
   @ApiOperation({
     summary: 'Get the currently active (processing) bulk job, or null',

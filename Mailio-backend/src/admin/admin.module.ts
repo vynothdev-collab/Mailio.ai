@@ -44,7 +44,7 @@ const MONITORED_QUEUES = [
 })
 export class AdminModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    // Bull Board, keys CRUD, and DLQ CRUD all share the same gate.
+    
     consumer
       .apply(basicAuthMiddleware)
       .forRoutes(

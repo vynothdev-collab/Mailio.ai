@@ -13,8 +13,6 @@ import {
   RawMailTesterResponse,
 } from './interfaces/mailtester-response.interface';
 
-// Common free-mailbox providers — used to set the `free` flag locally,
-// since the real API doesn't surface this.
 const FREE_PROVIDERS = new Set([
   'gmail.com',
   'googlemail.com',
@@ -40,7 +38,6 @@ const FREE_PROVIDERS = new Set([
   'yandex.ru',
 ]);
 
-// Common disposable domains. Tiny list — extend as needed.
 const DISPOSABLE_DOMAINS = new Set([
   'mailinator.com',
   'tempmail.com',
@@ -69,7 +66,7 @@ export class MailTesterService implements EmailVerificationProvider {
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly config: ConfigService,
+    config: ConfigService,
   ) {
     this.baseUrl = config.get<string>(
       'MAILTESTER_BASE_URL',
@@ -79,7 +76,6 @@ export class MailTesterService implements EmailVerificationProvider {
     this.timeout = config.get<number>('MAILTESTER_TIMEOUT_MS', 30000);
   }
 
-  /** Exposed so the KeyPool seeder can decide whether to seed a row. */
   getFallbackKey(): string {
     return this.fallbackKey;
   }
@@ -156,8 +152,6 @@ export class MailTesterService implements EmailVerificationProvider {
     let mx_found = !!raw.mx;
     let catch_all: boolean | null = false;
 
-    // `mb` (unverifiable) always maps to risky regardless of message —
-    // covers timeouts, ambiguous SMTP responses, etc.
     if (code === 'mb') {
       result = 'risky';
       catch_all = null;
@@ -187,12 +181,10 @@ export class MailTesterService implements EmailVerificationProvider {
           mx_found = false;
           break;
         case 'Timeout':
-          // Treat timeouts as risky too — same outcome class as `mb`.
           result = 'risky';
           catch_all = null;
           break;
         default:
-          // Fall back to the code if the message is unfamiliar.
           if (code === 'ok') {
             result = 'valid';
             smtp_check = true;
@@ -224,7 +216,6 @@ export class MailTesterService implements EmailVerificationProvider {
     };
   }
 
-  /** Heuristic 0–100 score so downstream confidence calculations have a value. */
   private scoreFor(
     result: MailTesterResponse['result'],
     flags: { catch_all: boolean | null; disposable: boolean },

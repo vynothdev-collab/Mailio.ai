@@ -1,15 +1,10 @@
-// Results service — wraps GET /results.
-//
-// Returns paginated rows + aggregate stats in a single call so the Results
-// page doesn't have to hit two endpoints (or compute stats client-side).
-
 import { api } from "./api";
 import type { BulkJobDto } from "@/src/types/bulk";
 
-export type ResultsRowStatus = "valid" | "invalid" | "risky";
-export type ResultsRiskLevel = "low" | "medium" | "high" | null;
-export type ResultsTypeFilter   = "all" | "single" | "bulk";
-export type ResultsStatusFilter = "all" | ResultsRowStatus;
+type ResultsRowStatus = "valid" | "invalid" | "risky";
+type ResultsRiskLevel = "low" | "medium" | "high" | null;
+type ResultsTypeFilter   = "all" | "single" | "bulk";
+type ResultsStatusFilter = "all" | ResultsRowStatus;
 
 export interface ResultsRow {
   id:         string;
@@ -36,7 +31,7 @@ export interface ResultsResponse {
   stats: ResultsStats;
 }
 
-export interface ResultsParams {
+interface ResultsParams {
   page?:   number;
   limit?:  number;
   type?:   ResultsTypeFilter;
@@ -55,7 +50,6 @@ export const resultsService = {
         limit:  params.limit  ?? 10,
         type:   params.type   ?? "all",
         status: params.status ?? "all",
-        // Skip empty query so the backend's no-op branch kicks in cleanly.
         ...(params.query ? { query: params.query } : {}),
       },
       signal,

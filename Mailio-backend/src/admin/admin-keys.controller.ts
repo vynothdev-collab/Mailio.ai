@@ -78,8 +78,7 @@ export class AdminKeysController {
         monthlyQuota: String(dto.monthlyQuota),
       }),
     });
-    // Clearing a cooldown explicitly: setting status back to ACTIVE wipes
-    // the timer so operators can manually un-cooldown a key.
+    
     if (dto.status === ApiKeyStatus.ACTIVE) {
       row.cooldownUntil = null;
       row.failureCount = 0;
@@ -91,7 +90,7 @@ export class AdminKeysController {
     return this.redact(saved);
   }
 
-  /** Soft-delete: flip to DISABLED so audit history is preserved. */
+  
   @Delete(':id')
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     const row = await this.repo.findOne({ where: { id } });

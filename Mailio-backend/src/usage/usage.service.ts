@@ -5,8 +5,6 @@ import { EmailList } from '../email-lists/entities/email-list.entity';
 import { Email, EmailStatus } from '../emails/entities/email.entity';
 import { Plan } from '../users/entities/user.entity';
 
-// Per-user monthly quotas are disabled. A large sentinel keeps any
-// remaining client-side math (percentage, remaining) well-defined.
 const UNLIMITED = 1_000_000_000;
 const PLAN_LIMITS: Record<Plan, number> = {
   [Plan.PRO]: UNLIMITED,
@@ -73,8 +71,6 @@ export class UsageService {
       select: ['createdAt', 'isSingleVerify'],
     });
 
-    // Build a date → bucket map seeded with every day in range so the chart
-    // doesn't skip empty days.
     const days = this.daysBetween(since, new Date());
     const map = new Map<
       string,
@@ -177,7 +173,6 @@ export class UsageService {
   }
 
   private formatLabel(key: string): string {
-    // "2026-05-09" → "May 9"
     const [, m, d] = key.split('-').map(Number);
     const months = [
       'Jan',

@@ -63,8 +63,6 @@ export class KeyPoolSync implements OnApplicationBootstrap, OnModuleDestroy {
       } catch {
         return;
       }
-      // For any event type, reload — simpler than diffing and the
-      // snapshot is small. If a provider was named, only reload that one.
       const provider = evt.type === 'refresh' ? evt.provider : undefined;
       void this.reloadAll(provider);
     });
@@ -97,8 +95,6 @@ export class KeyPoolSync implements OnApplicationBootstrap, OnModuleDestroy {
       byProvider.set(r.provider, list);
     }
 
-    // Deterministic order: oldest first so admin-added keys ride toward
-    // the tail; the localCursor in KeyPoolService scrambles per-call.
     for (const [prov, list] of byProvider) {
       list.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
       this.pool.setSnapshot(
@@ -116,7 +112,6 @@ export class KeyPoolSync implements OnApplicationBootstrap, OnModuleDestroy {
       );
     }
 
-    // If a provider previously had keys but no longer does, clear it.
     if (!provider) {
       const allProviders = new Set(rows.map((r) => r.provider));
       for (const known of [...this.pool['snapshot'].keys()]) {
@@ -145,7 +140,6 @@ export class KeyPoolSync implements OnApplicationBootstrap, OnModuleDestroy {
     }
   }
 
-  /** Fan-out a cache-invalidation. Called by admin API + KeyHealthService. */
   async publish(evt: KeyPoolEvent): Promise<void> {
     if (!this.publisher) return;
     try {

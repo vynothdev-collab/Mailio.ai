@@ -1,17 +1,3 @@
-/**
- * PM2 deployment config.
- *
- *   API   → cluster mode (multiple Node processes share the listening port).
- *   Worker → fork mode. NEVER cluster: BullMQ Workers must not share Redis
- *            blocking connections across cluster children. Scale workers by
- *            increasing `instances` (fork) or by deploying more containers.
- *
- * Run `pm2 start ecosystem.config.js` to launch both.
- *
- * Until Phase 2 (global Redis limiter) lands, KEEP `worker.instances = 1`.
- * Each worker still enforces the 57/10s ceiling per-process, so running
- * more than one concurrently will overshoot the third-party API.
- */
 module.exports = {
   apps: [
     {

@@ -20,7 +20,6 @@ export class ProviderError extends Error {
 }
 
 export interface EmailVerificationProvider {
-  /** Stable name used in the `provider` column of `api_keys`. */
   readonly name: string;
 
   verify(email: string, keyValue: string): Promise<MailTesterResponse>;

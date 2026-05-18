@@ -1,10 +1,3 @@
-// Authenticated file download helper.
-//
-// Backend download endpoints sit behind JwtAuthGuard, which only reads the
-// Bearer token from the Authorization header. Plain `<a href>` links can't
-// carry headers, so we fetch via the shared axios instance (which injects
-// the token) and trigger a browser download from the resulting blob.
-
 import { api } from "@/src/services/api";
 
 export async function downloadFile(
@@ -13,7 +6,6 @@ export async function downloadFile(
 ): Promise<void> {
   const response = await api.get(url, { responseType: "blob" });
 
-  // Try to honour the server-supplied filename (Content-Disposition: attachment; filename="…")
   const disposition = response.headers?.["content-disposition"] as string | undefined;
   const match = disposition?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
   const filename = match?.[1] ?? fallbackFilename;

@@ -26,7 +26,6 @@ export function UsageView() {
   useEffect(() => {
     const controller = new AbortController();
     (async () => {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(true);
       try {
         const [q, b, c] = await Promise.all([

@@ -61,7 +61,6 @@ function StatTile({ tile }: { tile: Tile }) {
 }
 
 interface Props {
-  /** Bumped by the parent on each successful verification to trigger a refetch. */
   refreshKey?: number;
 }
 
@@ -72,7 +71,6 @@ export function VerificationSummaryCard({ refreshKey = 0 }: Props) {
 
   useEffect(() => {
     const controller = new AbortController();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     verificationService
       .getStats(controller.signal)

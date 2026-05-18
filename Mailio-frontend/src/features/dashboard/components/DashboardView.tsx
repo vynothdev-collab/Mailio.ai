@@ -40,16 +40,13 @@ export function DashboardView() {
 
   return (
     <div className="space-y-5">
-      {/* Stat cards */}
       <StatsGrid stats={stats} loading={false} />
 
-      {/* Middle row: Bulk | Single */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <BulkVerifyCard onUploaded={refresh} />
         <SingleVerifyCard onVerified={refresh} />
       </div>
 
-      {/* Bottom row: Results overview | Recent table */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <ResultsOverview data={chartData} total={chartTotal} />
         <div className="lg:col-span-2">

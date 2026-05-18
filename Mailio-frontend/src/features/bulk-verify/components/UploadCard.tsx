@@ -104,14 +104,10 @@ export function UploadCard({ onUploaded }: Props) {
     setUploadPct(0);
     try {
       const result = await bulkVerifyService.upload(file, setUploadPct);
-      // Backend now parses asynchronously — totalEmails arrives later via
-      // /verify/bulk/:jobId/progress. Use the client-side scan total as a
-      // best-effort hint in the toast.
       toast.success(
         `Queued ${scan.validEmails.length.toLocaleString()} emails — parsing on the server…`,
       );
       onUploaded(result);
-      // Clear the file panel — the active job card now represents the upload.
       reset();
     } catch (err) {
       const apiErr = err as ApiError;

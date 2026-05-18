@@ -9,7 +9,6 @@ export const metadata: Metadata = {
 export default function DashboardPage() {
   return (
     <>
-      {/* Page header */}
       <div className="mb-6">
         <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
           Email Verification Dashboard

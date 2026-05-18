@@ -21,7 +21,6 @@ export class NotificationsModule {
       };
     }
 
-    // 'direct' and 'subscriber' both need the gateway in-process.
     const providers = [
       DirectProgressNotifier,
       { provide: ProgressNotifier, useExisting: DirectProgressNotifier },

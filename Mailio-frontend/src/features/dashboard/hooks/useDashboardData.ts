@@ -15,9 +15,6 @@ export function useDashboardData(): UseDashboardDataResult {
   const [data,    setData]    = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
-  // Prevents subsequent refreshes from flipping loading=true, which would
-  // remount the dashboard children and wipe their local state (e.g. the
-  // "last upload" panel inside BulkVerifyCard).
   const hasLoadedOnce = useRef(false);
 
   const load = useCallback(async (signal?: AbortSignal) => {

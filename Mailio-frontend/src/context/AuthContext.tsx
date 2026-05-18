@@ -1,6 +1,5 @@
 "use client";
 
-
 import {
   createContext,
   useCallback,
@@ -19,15 +18,11 @@ import { STORAGE_KEYS, clearSession, getItem } from "@/src/utils/storage";
 
 interface AuthContextValue {
   user:             UserProfile | null;
-  /** True while a /users/me request is in flight. */
   loading:          boolean;
-  /** True once the initial bootstrap has resolved (success or failure). */
   isInitialized:    boolean;
   error:            string | null;
   isAuthenticated:  boolean;
-  /** Force a re-fetch of /users/me — call after login, profile update, etc. */
   refresh:          () => Promise<UserProfile | null>;
-  /** Calls /auth/logout, clears state + storage, redirects to /login. */
   logout:           () => Promise<void>;
 }
 
@@ -44,15 +39,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [error,         setError]         = useState<string | null>(null);
 
-  // Strict-mode-safe init guard — survives the second effect invocation that
-  // React 19 fires in development.
   const bootstrappedRef = useRef(false);
-  // Coalesces concurrent refresh() callers onto a single in-flight request.
   const inFlightRef     = useRef<Promise<UserProfile | null> | null>(null);
 
-  /** Load /users/me. Returns null when there's no token to use. */
   const refresh = useCallback(async (): Promise<UserProfile | null> => {
-    // Reuse any in-flight request so two callers can't trigger two API hits.
     if (inFlightRef.current) return inFlightRef.current;
 
     if (!getItem(STORAGE_KEYS.accessToken)) {
@@ -71,8 +61,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(profile);
         return profile;
       } catch (err) {
-        // 401 → api.ts already triggers refresh-or-redirect; we just mirror
-        // the error message in context for any UI that wants to surface it.
+
         const apiErr = err as ApiError;
         setError(apiErr?.message ?? "Failed to load user profile.");
         setUser(null);
@@ -98,17 +87,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [router]);
 
-  // Bootstrap exactly once per page load. The ref guard short-circuits the
-  // second effect invocation that React Strict Mode fires in development.
   useEffect(() => {
     if (bootstrappedRef.current) return;
     bootstrappedRef.current = true;
     void refresh();
   }, [refresh]);
 
-  // Defensive guard against any residual cross-tab token state (e.g. tokens
-  // written by an older build that used localStorage). If a foreign tab
-  // mutates our auth keys, scrub local state and bounce to login.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const authKeys = new Set<string>(Object.values(STORAGE_KEYS));

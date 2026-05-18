@@ -35,7 +35,6 @@ function formatVerifiedAt(iso: string): string {
     : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-/** Last-verification panel — only shown after the user submits the form on this card. */
 function LastVerificationPanel({
   result,
   onDismiss,

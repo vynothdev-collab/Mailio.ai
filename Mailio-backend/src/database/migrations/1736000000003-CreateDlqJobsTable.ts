@@ -1,23 +1,10 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Phase 7 — Dead Letter Queue. Records every job that exhausts its
- * BullMQ retry budget across the verify.*, db.write, and csv.parse
- * queues. Postgres-backed (rather than another Redis queue) so:
- *
- *   - retention is permanent and cheap
- *   - operators can filter by source queue, user, time, error class
- *   - "retry" is one INSERT back onto the source queue + one UPDATE here
- *
- * payload is JSONB so we can preserve the full original job data and
- * re-enqueue it later without knowing each queue's schema at the DB level.
- */
 export class CreateDlqJobsTable1736000000003 implements MigrationInterface {
   name = 'CreateDlqJobsTable1736000000003';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Idempotent — `synchronize: true` in dev may have already created
-    // either the type or the table from the entity definition.
+    
     await queryRunner.query(`
       DO $$ BEGIN
         CREATE TYPE "dlq_status" AS ENUM ('PENDING', 'RETRIED', 'DISCARDED');

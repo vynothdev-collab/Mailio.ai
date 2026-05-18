@@ -171,7 +171,6 @@ export function RecentBulkVerificationsTable({
           </table>
         </div>
 
-        {/* Pagination footer */}
         <div className="flex items-center justify-between gap-3 pt-1">
           <p className="text-xs text-muted-foreground tabular-nums">
             {total === 0

@@ -16,7 +16,6 @@ interface StatCardProps {
 export const StatCard = memo(({ stat }: StatCardProps) => {
   const Icon     = ICON_MAP[stat.iconName] ?? Mail;
   const isUp     = stat.change > 0;
-  const isDown   = stat.change < 0;
   const isNeutral = stat.change === 0;
 
   return (
@@ -42,7 +41,6 @@ export const StatCard = memo(({ stat }: StatCardProps) => {
           </div>
         </div>
 
-        {/* Change indicator — hidden when no period label is supplied. */}
         {stat.changePeriod && (
           <div className="mt-3 flex items-center gap-1.5">
             <span className={cn(

@@ -1,6 +1,3 @@
-// Bulk verification service — wraps /verify/bulk/* endpoints.
-// File uploads use multipart/form-data; everything else is JSON.
-
 import { api } from "./api";
 import { downloadFile } from "@/src/lib/download";
 import type {
@@ -15,7 +12,6 @@ import type {
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 export const bulkVerifyService = {
-  /** POST /verify/bulk/upload — multipart file upload. */
   async upload(
     file: File,
     onProgress?: (pct: number) => void,
@@ -71,16 +67,11 @@ export const bulkVerifyService = {
     return data;
   },
 
-  /** Aggregate Valid + Invalid counts across ALL bulk verifications for the user. */
   async getAggregateBreakdown(signal?: AbortSignal): Promise<BulkBreakdownDto> {
     const { data } = await api.get<BulkBreakdownDto>("/verify/bulk/breakdown", { signal });
     return data;
   },
 
-  /**
-   * Fetch the per-row results for a job as JSON — same payload the JSON
-   * download writes to disk, but returned in-memory for previewing in a modal.
-   */
   async getResultRows(
     jobId: string,
     signal?: AbortSignal,
@@ -99,11 +90,6 @@ export const bulkVerifyService = {
     return data;
   },
 
-  /**
-   * Trigger an authenticated download of the bulk job results.
-   * If `fallbackName` (typically the original uploaded filename) is provided,
-   * it's used when the server doesn't expose Content-Disposition.
-   */
   async download(
     jobId: string,
     format: "csv" | "json" = "csv",
@@ -118,5 +104,4 @@ export const bulkVerifyService = {
   },
 };
 
-// Suppress "BASE_URL declared but not used" — kept for parity with other services.
 void BASE_URL;

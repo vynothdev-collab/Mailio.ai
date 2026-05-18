@@ -10,11 +10,6 @@ import {
 export const VERIFY_HIGH_QUEUE = 'verify.high';
 export const VERIFY_BULK_QUEUE = 'verify.bulk';
 
-/**
- * @deprecated use VERIFY_HIGH_QUEUE / VERIFY_BULK_QUEUE. Retained only so
- * older imports keep compiling during cutover — points to the bulk queue
- * because that's where the bulk processor's BullMQ events live.
- */
 export const VERIFICATION_QUEUE = VERIFY_BULK_QUEUE;
 
 const SINGLE_PRIORITY = 1;
@@ -43,7 +38,6 @@ export class VerificationService {
     await this.highQueue.add(
       'verify',
       { emailId, userId },
-      // BullMQ disallows ":" in custom jobIds (it's the Redis key separator).
       { priority: SINGLE_PRIORITY, jobId: `single-${emailId}` },
     );
   }
@@ -98,8 +92,6 @@ export class VerificationService {
     if (emailIds.length === 0) return;
 
     const size = Math.max(1, Math.min(batchSize, MAX_BULK_BATCH_SIZE));
-    // Anchor at queue tail (cursor + waiting) so concurrent uploads don't
-    // collide on the same priority band. See getEnqueueAnchor docstring.
     const base = await this.getEnqueueAnchor();
     const totalBatches = Math.ceil(emailIds.length / size);
 
@@ -125,7 +117,6 @@ export class VerificationService {
         data: { batchId, userId, listId, emailIds: slice },
         opts: {
           priority: BULK_BASE_PRIORITY + base + emailOffset,
-          // BullMQ disallows ":" in custom jobIds (Redis key separator).
           jobId: `bulk-batch-${batchId}`,
           attempts: 5,
           backoff: { type: 'exponential', delay: 250 },
@@ -154,8 +145,6 @@ export class VerificationService {
       const waiting = await this.bulkQueue.getWaitingCount();
       return cursor + waiting;
     } catch {
-      // Redis blip — fall back to the bare cursor. Worst case is the
-      // FIFO collision this method exists to avoid; correctness intact.
       return cursor;
     }
   }

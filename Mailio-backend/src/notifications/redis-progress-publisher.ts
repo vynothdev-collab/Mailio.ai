@@ -51,7 +51,7 @@ export class RedisProgressPublisher
   }
 
   emitProgress(
-    listId: string,
+    _listId: string,
     payload: { listId: string; processed: number; total: number; pct: number },
   ): void {
     this.publish({ kind: 'progress', ...payload });

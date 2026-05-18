@@ -21,8 +21,6 @@ import { MailTesterService } from './mailtester.service';
             10,
           ),
         }),
-        // Same agent on the http side for hypothetical non-TLS deployments
-        // (staging proxies, etc.) — costs nothing if unused.
         httpAgent: new http.Agent({
           keepAlive: true,
           keepAliveMsecs: 30_000,

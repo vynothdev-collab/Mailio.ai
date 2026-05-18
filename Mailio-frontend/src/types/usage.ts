@@ -1,5 +1,3 @@
-// Wire shapes for /usage/* endpoints.
-
 export type UsagePeriod = "7d" | "14d" | "30d";
 export type UsageType   = "all" | "single" | "bulk";
 

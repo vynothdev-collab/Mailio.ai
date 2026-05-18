@@ -1,9 +1,5 @@
 "use client";
 
-// Notification bell — currently disabled (no data source). The dropdown,
-// unread badge, and mock list have been removed; the icon remains as a
-// visual placeholder so the navbar layout stays consistent.
-
 import { Bell } from "lucide-react";
 
 export function NotificationDropdown() {

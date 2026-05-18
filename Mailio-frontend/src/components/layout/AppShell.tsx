@@ -8,11 +8,6 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
-// AuthProvider used to live here, but each protected route has its own
-// layout.tsx that wraps content in AppShell. Navigating between routes
-// remounted AppShell → AuthProvider → triggered /users/me on every nav.
-// The provider now lives in app/layout.tsx (root) so it survives all
-// navigations and fetches the user exactly once per page load.
 export function AppShell({ children }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const openMobile  = useCallback(() => setMobileOpen(true),  []);

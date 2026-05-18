@@ -61,7 +61,7 @@ export class KeyHealthService
       HEALTH_LOCK_TTL_SEC,
       'NX',
     );
-    if (acquired !== 'OK') return; // another process is running this tick
+    if (acquired !== 'OK') return; 
 
     try {
       const now = new Date();
@@ -86,7 +86,6 @@ export class KeyHealthService
         .execute();
 
       this.logger.log(`Restored ${expired.length} key(s) from cooldown`);
-      // One refresh per affected provider so other workers reload only what changed.
       const providers = new Set(expired.map((e) => e.provider));
       for (const p of providers) {
         await this.sync.publish({ type: 'refresh', provider: p });

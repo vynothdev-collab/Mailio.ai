@@ -8,7 +8,7 @@ export interface PlanQuota {
 }
 
 export interface DailyUsage {
-  date:    string;   // "May 1"
+  date:    string;   
   single:  number;
   bulk:    number;
 }
@@ -16,7 +16,7 @@ export interface DailyUsage {
 export interface UsageLogEntry {
   id:         string;
   type:       UsageEventType;
-  label:      string;   // email for single, file name for bulk
+  label:      string;   
   credits:    number;
   occurredAt: string;
 }

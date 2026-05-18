@@ -1,9 +1,5 @@
 "use client";
 
-// Live profile card backed by /users/me via AuthContext.
-// Shows name, email, plan, active status, created/updated timestamps,
-// and a logout action.
-
 import { LogOut, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

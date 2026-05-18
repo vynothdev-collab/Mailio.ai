@@ -18,13 +18,11 @@ function SingleVerifyContent() {
 
   const handleVerify = async (email: string) => {
     await verify(email);
-    // Bump so the table + summary refetch from the server.
     setRefreshKey((k) => k + 1);
   };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-      {/* ── Left / main column ── */}
       <div className="lg:col-span-2 space-y-4">
         <EmailInputCard onVerify={handleVerify} isLoading={isLoading} />
 
@@ -38,7 +36,6 @@ function SingleVerifyContent() {
         <RecentSingleVerificationsTable refreshKey={refreshKey} optimistic={recent} />
       </div>
 
-      {/* ── Right sidebar ── */}
       <div className="space-y-4">
         <VerificationSummaryCard refreshKey={refreshKey} />
         <ProTipCard />
@@ -48,7 +45,6 @@ function SingleVerifyContent() {
 }
 
 export function SingleVerifyView() {
-  // Provider scoped to this route; AppShell-wide auth still wraps everything.
   return (
     <VerificationProvider>
       <SingleVerifyContent />

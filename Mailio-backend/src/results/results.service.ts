@@ -132,8 +132,6 @@ export class ResultsService {
     for (const l of bulkLists) {
       valid += l.validCount;
       invalid += l.invalidCount;
-      // Risky tile rolls up RISKY + UNKNOWN buckets from bulk lists for
-      // consistency with how singles are bucketed above.
       risky += l.riskyCount + l.unknownCount;
     }
 
@@ -175,7 +173,7 @@ export class ResultsService {
   private mapEmailStatus(r: VerificationResult | null): RowStatus {
     if (r === VerificationResult.VALID) return 'valid';
     if (r === VerificationResult.INVALID) return 'invalid';
-    return 'risky'; // RISKY + UNKNOWN both surface as risky
+    return 'risky';
   }
 
   private toRisk(r: VerificationResult | null): RiskLevel {
@@ -188,6 +186,6 @@ export class ResultsService {
   private mapBulkStatus(s: EmailListStatus): RowStatus {
     if (s === EmailListStatus.COMPLETED) return 'valid';
     if (s === EmailListStatus.FAILED) return 'invalid';
-    return 'risky'; // PENDING + PROCESSING
+    return 'risky';
   }
 }

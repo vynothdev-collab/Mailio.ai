@@ -11,8 +11,6 @@ import type { ApiError } from "@/src/types/auth";
 import { MobileMenuButton } from "./Sidebar";
 import { NotificationDropdown } from "./NotificationDropdown";
 
-// ── Avatar dropdown ────────────────────────────────────────────────────────
-
 function AvatarDropdown() {
   const { user, logout } = useAuth();
   const [open, setOpen]           = useState(false);
@@ -31,7 +29,6 @@ function AvatarDropdown() {
     if (loggingOut) return;
     setLogout(true);
     try {
-      // Context handles /auth/logout, storage clear, and redirect.
       await logout();
       toast.success("You've been signed out.");
     } catch (err) {
@@ -43,7 +40,6 @@ function AvatarDropdown() {
     }
   }
 
-  // Two-letter initials, e.g. "Digvijay A" → "DA".
   const initials =
     (user?.name ?? "?")
       .split(/\s+/)
@@ -106,8 +102,6 @@ function AvatarDropdown() {
   );
 }
 
-// ── Navbar ────────────────────────────────────────────────────────────────
-
 interface NavbarProps {
   onMenuClick: () => void;
 }
@@ -115,12 +109,10 @@ interface NavbarProps {
 export function Navbar({ onMenuClick }: NavbarProps) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 lg:px-6">
-      {/* Left */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <MobileMenuButton onClick={onMenuClick} />
       </div>
 
-      {/* Right */}
       <div className="flex items-center gap-2 shrink-0">
         <NotificationDropdown />
         <AvatarDropdown />

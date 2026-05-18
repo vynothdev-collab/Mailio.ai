@@ -1,4 +1,3 @@
-// Re-export shadcn Skeleton + compose dashboard-specific loading states.
 export { Skeleton } from "@/components/ui/skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/src/lib/utils";
@@ -15,18 +14,6 @@ export function StatCardSkeleton() {
         <Skeleton className="h-10 w-10 rounded-xl" />
       </div>
     </div>
-  );
-}
-
-export function TableRowSkeleton() {
-  return (
-    <tr>
-      {Array.from({ length: 7 }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
-          <Skeleton className="h-4 w-full" />
-        </td>
-      ))}
-    </tr>
   );
 }
 

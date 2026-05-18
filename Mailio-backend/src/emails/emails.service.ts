@@ -5,7 +5,6 @@ import { VerificationResult } from '../common/types/verification-result.enum';
 import { BatchFailureRow, BatchSuccessRow } from '../db-write/db-write.types';
 import { Email, EmailStatus } from './entities/email.entity';
 
-/** Minimal projection returned by tryClaimMany — only what the worker needs. */
 export interface ClaimedEmailRow {
   id: string;
   address: string;
@@ -14,7 +13,6 @@ export interface ClaimedEmailRow {
   isSingleVerify: boolean;
 }
 
-/** Projection returned by saveResultsBatch / markFailedBatch. */
 export interface TransitionedRow {
   emailId: string;
   listId: string | null;

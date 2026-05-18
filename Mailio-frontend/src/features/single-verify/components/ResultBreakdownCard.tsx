@@ -9,7 +9,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
   CheckCircle2, XCircle, Globe, Mail, AlertCircle, Trash2, Server, Info,
 };
 
-// Default icon picked from the check `key` when the API doesn't send one.
 const KEY_ICON: Record<string, React.ElementType> = {
   format:        CheckCircle2,
   mx:            Server,

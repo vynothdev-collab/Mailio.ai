@@ -72,12 +72,10 @@ export function PasswordSecurityCard() {
           <p className="text-xs text-muted-foreground mt-0.5">Update your password and two-factor authentication.</p>
         </div>
 
-        {/* Password fields */}
         <div className="space-y-3">
           <PasswordInput label="Current Password" value={current} onChange={setCurrent} />
           <PasswordInput label="New Password"     value={next}    onChange={setNext}    placeholder="Min. 6 characters" />
 
-          {/* Strength bar */}
           {next.length > 0 && (
             <div className="space-y-1">
               <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
@@ -103,10 +101,8 @@ export function PasswordSecurityCard() {
           </Button>
         </div>
 
-        {/* Divider */}
         <div className="border-t border-border" />
 
-        {/* 2FA */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">

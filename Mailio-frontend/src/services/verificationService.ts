@@ -1,6 +1,3 @@
-// Verification service — wraps /verify/single/* endpoints.
-// Components stay free of axios + URL details and get a typed response.
-
 import { api } from "./api";
 import { downloadFile } from "@/src/lib/download";
 import type { VerificationResponse } from "@/src/types/verification";
@@ -13,7 +10,7 @@ export interface SingleRecentItem {
   verifiedAt: string;
 }
 
-export interface SingleRecentResponse {
+interface SingleRecentResponse {
   data:  SingleRecentItem[];
   total: number;
   page:  number;
@@ -33,13 +30,11 @@ export interface SingleStatsDto {
 }
 
 export const verificationService = {
-  /** POST /verify/single — synchronous single email verification. */
   async verifySingleEmail(email: string): Promise<VerificationResponse> {
     const { data } = await api.post<VerificationResponse>("/verify/single", { email });
     return data;
   },
 
-  /** GET /verify/single/recent — paginated history. */
   async getRecent(
     page = 1,
     limit = 50,
@@ -52,13 +47,11 @@ export const verificationService = {
     return data;
   },
 
-  /** GET /verify/single/stats */
   async getStats(signal?: AbortSignal): Promise<SingleStatsDto> {
     const { data } = await api.get<SingleStatsDto>("/verify/single/stats", { signal });
     return data;
   },
 
-  /** Trigger an authenticated CSV download for a single verification. */
   async download(id: string): Promise<void> {
     await downloadFile(`/verify/single/${id}/download`, `verification-${id}.csv`);
   },

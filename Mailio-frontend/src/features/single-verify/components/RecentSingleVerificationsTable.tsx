@@ -64,9 +64,7 @@ function fromApi(item: SingleRecentItem): RecentVerification {
 }
 
 interface Props {
-  /** Bumped by parent on each successful verify so the table refetches. */
   refreshKey?: number;
-  /** In-memory rows from VerificationContext, shown only on the first page. */
   optimistic?: RecentVerification[];
 }
 
@@ -77,12 +75,10 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
 
-  // Reset to page 1 whenever the parent triggers a refresh (e.g. new verify).
   useEffect(() => { setPage(1); }, [refreshKey]);
 
   useEffect(() => {
     const controller = new AbortController();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     verificationService
       .getRecent(page, PAGE_SIZE, controller.signal)
@@ -100,8 +96,6 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
     return () => controller.abort();
   }, [page, refreshKey]);
 
-  // Optimistic rows from the in-memory context only make sense on page 1
-  // (the latest verification belongs at the top of the list).
   const merged = useMemo(() => {
     if (page !== 1) return rows;
     const seen = new Set<string>();
@@ -169,7 +163,6 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
         </TableBody>
       </Table>
 
-      {/* Pagination footer */}
       <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
         <p className="text-xs text-muted-foreground tabular-nums">
           {total === 0

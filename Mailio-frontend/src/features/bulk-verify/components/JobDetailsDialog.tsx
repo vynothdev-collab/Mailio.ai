@@ -32,7 +32,6 @@ const PAGE_SIZE = 10;
 
 interface Props {
   job:          BulkJobDto | null;
-  /** Receives `false` when user closes; parent clears the selected job. */
   onOpenChange: (open: boolean) => void;
 }
 
@@ -42,7 +41,6 @@ export function JobDetailsDialog({ job, onOpenChange }: Props) {
   const [error,   setError]   = useState<string | null>(null);
   const [page,    setPage]    = useState(1);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!job) {
       setRows(null);
@@ -133,7 +131,6 @@ export function JobDetailsDialog({ job, onOpenChange }: Props) {
           </table>
         </div>
 
-        {/* Pagination */}
         <div className="flex items-center justify-between gap-3 pt-1">
           <p className="text-xs text-muted-foreground tabular-nums">
             {total === 0

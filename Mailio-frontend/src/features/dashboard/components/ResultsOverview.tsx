@@ -18,7 +18,6 @@ export function ResultsOverview({ data, total }: ResultsOverviewProps) {
       <CardContent className="space-y-4">
         <DonutChart data={data} total={total} />
 
-        {/* Legend */}
         <ul className="space-y-2" role="list" aria-label="Chart legend">
           {data.map((item) => {
             const numPct = ((item.value / total) * 100).toFixed(1);

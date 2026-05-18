@@ -1,25 +1,19 @@
-// ── Enums ──────────────────────────────────────────────────────────────────
-
 export type VerificationStatus = "processing" | "completed" | "failed" | "queued";
-
-// ── Stat card ──────────────────────────────────────────────────────────────
 
 export interface StatItem {
   id: string;
   label: string;
   value: string;
-  change: number;        // positive = up, negative = down, 0 = neutral
+  change: number;        
   changePeriod: string;
-  iconName: string;      // Lucide icon component name
-  iconColor: string;     // Tailwind text class
-  iconBgColor: string;   // Tailwind bg class
+  iconName: string;      
+  iconColor: string;     
+  iconBgColor: string;   
 }
-
-// ── Active verification job ────────────────────────────────────────────────
 
 export interface ActiveVerification {
   fileName: string;
-  progress: number;       // 0–100
+  progress: number;       
   processedCount: number;
   totalCount: number;
   etaSeconds: number;
@@ -29,8 +23,6 @@ export interface ActiveVerification {
   risky: number;
   disposable: number;
 }
-
-// ── Verification history record ────────────────────────────────────────────
 
 export interface VerificationRecord {
   id: string;
@@ -45,16 +37,12 @@ export interface VerificationRecord {
   completedAt: string | null;
 }
 
-// ── Chart ──────────────────────────────────────────────────────────────────
-
 export interface ChartDataPoint {
   name: string;
   value: number;
   percentage: string;
   color: string;
 }
-
-// ── Aggregated dashboard data ──────────────────────────────────────────────
 
 export interface DashboardData {
   stats: StatItem[];
@@ -64,16 +52,12 @@ export interface DashboardData {
   chartTotal: number;
 }
 
-// ── Nav ────────────────────────────────────────────────────────────────────
-
 export interface NavItem {
   id: string;
   label: string;
   href: string;
   iconName: string;
 }
-
-// ── Usage bar ─────────────────────────────────────────────────────────────
 
 export interface UsageInfo {
   used: number;

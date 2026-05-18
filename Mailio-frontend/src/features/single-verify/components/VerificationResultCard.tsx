@@ -25,7 +25,6 @@ export function VerificationResultCard({ result }: VerificationResultCardProps) 
   return (
     <Card>
       <CardContent className="pt-2 space-y-3">
-        {/* Header row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold">Verification Result</h2>
@@ -40,7 +39,6 @@ export function VerificationResultCard({ result }: VerificationResultCardProps) 
           </span>
         </div>
 
-        {/* Result body */}
         <div className="rounded-xl border border-border bg-muted/20 p-4">
           <div className="flex items-start gap-4">
             <div className={cn(

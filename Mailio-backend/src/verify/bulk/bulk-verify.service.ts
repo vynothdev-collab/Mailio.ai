@@ -39,8 +39,6 @@ export class BulkVerifyService {
         userId: user.id,
         name,
         originalFilename,
-        // Verification is gated behind parsing; we set the row's overall
-        // status to PENDING until the parser flips it to PROCESSING.
         status: EmailListStatus.PENDING,
         parseStatus: EmailListParseStatus.PENDING,
         totalCount: 0,
@@ -58,8 +56,6 @@ export class BulkVerifyService {
     return {
       jobId: list.id,
       fileName: originalFilename,
-      // totalCount populates after the parser finishes. UI shows
-      // "parsing…" while parseStatus is PENDING/PARSING.
       parseStatus: list.parseStatus,
       status: list.status,
     };
@@ -126,8 +122,6 @@ export class BulkVerifyService {
     const startOfYesterday = new Date(startOfToday);
     startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
-    // Pull every list once and bucket in JS — cheaper than N round-trips and
-    // these tables are user-scoped so volumes stay manageable.
     const allLists = await this.listsRepo.find({
       where: { userId },
       select: ['id', 'status', 'totalCount', 'processedCount', 'createdAt'],
@@ -147,7 +141,6 @@ export class BulkVerifyService {
 
     const activeList = await this.emailListsService.findActiveJob(userId);
 
-    // Average response time today vs yesterday — derived from the email rows.
     const [todayEmails, yesterdayEmails, allEmails] = await Promise.all([
       this.emailsRepo.find({
         where: {
@@ -193,13 +186,11 @@ export class BulkVerifyService {
       changes: {
         filesToday: this.pctChange(todayLists.length, yesterdayLists.length),
         completedJobs: this.pctChange(completedJobs, completedYesterday),
-        // For latency, smaller is better — show the absolute ms delta.
         avgResponseMs: this.msDelta(avgResponseToday, avgResponseYday),
       },
     };
   }
 
-  /** Format two counters as e.g. "+25%", "-40%", "+0%". */
   private pctChange(current: number, previous: number): string {
     if (previous === 0) {
       return current > 0 ? '+100%' : '+0%';
@@ -208,7 +199,6 @@ export class BulkVerifyService {
     return `${pct >= 0 ? '+' : ''}${pct}%`;
   }
 
-  /** Format two ms values as e.g. "-120ms" / "+0ms". */
   private msDelta(current: number, previous: number): string {
     const delta = current - previous;
     return `${delta >= 0 ? '+' : ''}${delta}ms`;
@@ -360,7 +350,6 @@ export class BulkVerifyService {
       const rate = list.processedCount / elapsedSec;
       if (rate > 0) return Math.round(remaining / rate);
     }
-    // fallback: use API rate (11/10s = 1.1/s)
     return Math.round(remaining / 1.1);
   }
 }

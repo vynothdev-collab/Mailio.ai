@@ -12,7 +12,6 @@ import { TOKEN_BUCKET_LUA } from './token-bucket.lua';
 
 export interface AcquireResult {
   granted: boolean;
-  /** Milliseconds the caller should wait before retrying. 0 if granted. */
   retryAfterMs: number;
 }
 
@@ -74,7 +73,6 @@ export class RedisRateLimiter implements OnModuleInit, OnModuleDestroy {
         raw = await this.evalAndCache(fullKey, args);
       }
     } catch (e) {
-      // NOSCRIPT — Redis flushed scripts (e.g. after a failover). Re-load.
       if ((e as Error).message.includes('NOSCRIPT')) {
         this.scriptSha = null;
         raw = await this.evalAndCache(fullKey, args);
@@ -105,8 +103,6 @@ export class RedisRateLimiter implements OnModuleInit, OnModuleDestroy {
       fullKey,
       ...(args as any),
     )) as [number, number];
-    // Cache the SHA for subsequent calls (much faster than re-sending the
-    // script body each time).
     try {
       this.scriptSha = (await this.redis.script(
         'LOAD',

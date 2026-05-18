@@ -16,16 +16,13 @@ export interface SavedPaymentMethod {
   id:        string;
   type:      PaymentType;
   isDefault: boolean;
-  // card fields
   brand?:    CardBrand;
   last4?:    string;
   expMonth?: number;
   expYear?:  number;
-  // paypal field
   email?:    string;
 }
 
-/** @deprecated use SavedPaymentMethod */
 export interface PaymentMethod {
   brand:    CardBrand;
   last4:    string;

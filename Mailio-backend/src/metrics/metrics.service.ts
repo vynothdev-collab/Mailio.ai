@@ -103,19 +103,16 @@ export class MetricsService implements OnModuleInit {
   });
 
   onModuleInit(): void {
-    // Default node/process/heap metrics. Cheap, useful for capacity work.
     collectDefaultMetrics({
       register: this.registry,
       prefix: 'mailio_node_',
     });
   }
 
-  /** Used by the /metrics controller; returns the Prometheus text format. */
   async render(): Promise<string> {
     return this.registry.metrics();
   }
 
-  /** Content-type the /metrics endpoint should advertise. */
   get contentType(): string {
     return this.registry.contentType;
   }

@@ -40,7 +40,6 @@ export class StarvationGuard
     this.timer = setInterval(() => {
       void this.scan();
     }, this.SCAN_INTERVAL_MS);
-    // Don't keep the event loop alive solely for this guard.
     this.timer.unref?.();
     this.logger.log(
       `Starvation guard armed (scan=${this.SCAN_INTERVAL_MS}ms, threshold=${this.STARVATION_THRESHOLD_MS}ms)`,
@@ -93,7 +92,6 @@ export class StarvationGuard
       }
       if (starved.length === 0) return;
 
-      // Most-starved list first → gets the lowest (= best) priority band.
       starved.sort((a, b) => a.oldest - b.oldest);
 
       const base = await this.verificationService.getNowServing();
@@ -111,8 +109,6 @@ export class StarvationGuard
               await job.changePriority({ priority: newPriority });
               promotedInList++;
             } catch (err) {
-              // Job may have transitioned out of 'waiting' between fetch
-              // and update — that's fine, just skip it.
               this.logger.debug(
                 `changePriority skipped for job ${job.id}: ${(err as Error).message}`,
               );

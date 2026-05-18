@@ -1,9 +1,5 @@
 "use client";
 
-// Tracks recently-verified emails across the single-verify view.
-// State lives in memory + sessionStorage (per-tab) so it survives soft route
-// changes but is scoped to a single browser tab and a single signed-in user.
-
 import {
   createContext,
   useCallback,
@@ -24,15 +20,12 @@ const storageKeyFor = (userId: string | null) =>
 
 interface VerificationContextValue {
   recent:    RecentVerification[];
-  /** Add a verification result to the head of the list. */
   push:      (result: VerificationResult) => void;
-  /** Wipe local history (used when switching accounts, etc.). */
   clear:     () => void;
 }
 
 const VerificationContext = createContext<VerificationContextValue | null>(null);
 
-/** Map a VerificationResult → the compact row shape used by the table. */
 function toRecent(result: VerificationResult): RecentVerification {
   const risk: RecentVerification["risk"] =
     result.status === "valid"     ? "low"
@@ -54,8 +47,6 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
   const userId = user?.id ?? null;
   const [recent, setRecent] = useState<RecentVerification[]>([]);
 
-  // Re-hydrate when the signed-in user changes — never leak one user's
-  // history into another user's view inside the same tab.
   useEffect(() => {
     const key = storageKeyFor(userId);
     if (typeof window === "undefined" || !key) {
@@ -85,7 +76,6 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
     (result: VerificationResult) => {
       const record = toRecent(result);
       setRecent((prev) => {
-        // De-dupe by id so re-verifying the same email replaces the row.
         const filtered = prev.filter((r) => r.id !== record.id);
         const next = [record, ...filtered].slice(0, MAX_RECORDS);
         const key = storageKeyFor(userId);

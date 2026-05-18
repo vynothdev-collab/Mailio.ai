@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  CreditCard, Trash2, Star, Plus, X,
+  CreditCard, Trash2, X,
   CheckCircle2, ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -19,8 +19,6 @@ import { cn } from "@/src/lib/utils";
 import { MOCK_SAVED_METHODS } from "../mock";
 import type { SavedPaymentMethod, CardBrand, PaymentType } from "../types";
 
-// ── Brand helpers ──────────────────────────────────────────────────────────
-
 const BRAND_LABEL: Record<CardBrand, string> = {
   visa: "Visa", mastercard: "Mastercard", amex: "Amex", other: "Card",
 };
@@ -29,8 +27,6 @@ const BRAND_COLOR: Record<CardBrand, string> = {
   visa: "text-blue-600", mastercard: "text-red-500",
   amex: "text-sky-600",  other: "text-muted-foreground",
 };
-
-// ── Add method tiles ───────────────────────────────────────────────────────
 
 interface AddTile {
   type:     PaymentType;
@@ -85,8 +81,6 @@ const ADD_TILES: AddTile[] = [
     available: false,
   },
 ];
-
-// ── Card form ──────────────────────────────────────────────────────────────
 
 function formatCardNumber(val: string) {
   return val.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
@@ -181,8 +175,6 @@ function CardForm({ onCancel, onSave }: CardFormProps) {
   );
 }
 
-// ── Modal ──────────────────────────────────────────────────────────────────
-
 interface Props { open: boolean; onClose: () => void; }
 
 export function PaymentMethodsModal({ open, onClose }: Props) {
@@ -244,7 +236,6 @@ export function PaymentMethodsModal({ open, onClose }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        {/* Saved methods */}
         {methods.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -253,7 +244,6 @@ export function PaymentMethodsModal({ open, onClose }: Props) {
             <div className="divide-y divide-border rounded-xl border border-border overflow-hidden">
               {methods.map((m) => (
                 <div key={m.id} className="flex items-center gap-3 px-3 py-3 bg-card hover:bg-muted/20 transition-colors">
-                  {/* Icon */}
                   <div className="flex h-9 w-12 shrink-0 items-center justify-center rounded-md border border-border bg-background">
                     {m.type === "card"
                       ? <CreditCard size={16} className={BRAND_COLOR[m.brand ?? "other"]} />
@@ -263,13 +253,11 @@ export function PaymentMethodsModal({ open, onClose }: Props) {
                     }
                   </div>
 
-                  {/* Details */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{methodLabel(m)}</p>
                     <p className="text-xs text-muted-foreground">{methodSub(m)}</p>
                   </div>
 
-                  {/* Default badge / actions */}
                   <div className="flex items-center gap-1.5 shrink-0">
                     {m.isDefault ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
@@ -300,13 +288,11 @@ export function PaymentMethodsModal({ open, onClose }: Props) {
           </div>
         )}
 
-        {/* Add new section */}
         <div className="space-y-2">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Add New Method
           </p>
 
-          {/* Inline card form */}
           {addingType === "card" ? (
             <CardForm onCancel={() => setAddingType(null)} onSave={handleSaveCard} />
           ) : (

@@ -71,7 +71,6 @@ export class AuthService {
   private signRefreshToken(user: User, remember: boolean): string {
     return this.jwtService.sign(
       { sub: user.id, type: 'refresh' },
-      // remember=true → persistent (30 days); else single-day session.
       { expiresIn: remember ? '30d' : '1d' },
     );
   }

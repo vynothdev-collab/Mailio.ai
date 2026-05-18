@@ -45,8 +45,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
   TrendingUp, CreditCard, Settings,
 };
 
-// ── Nav link ───────────────────────────────────────────────────────────────
-
 interface NavLinkProps {
   item: NavItem;
   isActive: boolean;
@@ -76,8 +74,6 @@ const NavLink = memo(({ item, isActive, collapsed }: NavLinkProps) => {
 });
 NavLink.displayName = "NavLink";
 
-// ── Sidebar ────────────────────────────────────────────────────────────────
-
 interface SidebarProps {
   mobileOpen: boolean;
   onMobileClose: () => void;
@@ -90,7 +86,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
   const content = (
     <div className="flex h-full flex-col">
-      {/* Logo row */}
+      
       <div className={cn(
         "flex items-center border-b border-border px-4 py-4",
         collapsed ? "justify-center" : "justify-between"
@@ -109,7 +105,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           </Link>
         )}
 
-        {/* Desktop collapse toggle */}
+        
         <Button
           variant="ghost"
           size="icon-xs"
@@ -120,7 +116,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </Button>
 
-        {/* Mobile close */}
+        
         <Button
           variant="ghost"
           size="icon-xs"
@@ -132,7 +128,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         </Button>
       </div>
 
-      {/* Nav */}
+      
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5" aria-label="Main navigation">
         {NAV_ITEMS.map((item) => (
           <NavLink
@@ -149,7 +145,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
   return (
     <>
-      {/* Desktop */}
+      
       <aside className={cn(
         "hidden lg:flex flex-col h-full border-r border-border bg-card transition-all duration-300 shrink-0",
         collapsed ? "w-16" : "w-60"
@@ -157,7 +153,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         {content}
       </aside>
 
-      {/* Mobile overlay */}
+      
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden" aria-hidden="true">
           <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={onMobileClose} />
@@ -169,8 +165,6 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     </>
   );
 }
-
-// ── Mobile menu button ─────────────────────────────────────────────────────
 
 export function MobileMenuButton({ onClick }: { onClick: () => void }) {
   return (

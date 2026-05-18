@@ -10,7 +10,6 @@ export class CsvParseService {
   ) {}
 
   async enqueue(job: CsvParseJob): Promise<void> {
-    // BullMQ disallows ":" in custom jobIds (it's the Redis key separator).
     await this.queue.add('parse', job, { jobId: `parse-${job.listId}` });
   }
 }

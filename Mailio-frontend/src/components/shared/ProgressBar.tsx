@@ -1,12 +1,8 @@
-// Gradient progress bar using @base-ui/react/progress primitives.
-// shadcn's Progress is also re-exported for standard (non-gradient) use cases.
 import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
 import { cn } from "@/src/lib/utils";
 
-export { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
-
 interface ProgressBarProps {
-  value: number;          // 0–100
+  value: number;          
   className?: string;
   trackClassName?: string;
   fillClassName?: string;
@@ -15,7 +11,6 @@ interface ProgressBarProps {
 
 const sizeMap = { xs: "h-1", sm: "h-1.5", md: "h-2.5" };
 
-/** Gradient progress bar that plugs into base-ui's accessible Root context. */
 export function ProgressBar({
   value,
   className,

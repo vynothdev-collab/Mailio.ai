@@ -236,8 +236,6 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
       return;
     }
 
-    // Non-final: release the failed slice so the BullMQ retry re-claims
-    // only them; throw so BullMQ schedules the retry per backoff policy.
     await this.emailsService.releaseClaimMany(failures.map((f) => f.email.id));
     this.metrics?.batchPartialFailures
       ?.labels({ reason: 'retry' })
@@ -248,7 +246,6 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
     );
   }
 
-  /** Per-email verification with full KeyPool reporting and metrics. */
   private async verifyOneForBatch(
     email: ClaimedEmailRow,
   ): Promise<PerEmailSuccess> {

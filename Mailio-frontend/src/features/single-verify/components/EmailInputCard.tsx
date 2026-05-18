@@ -28,7 +28,6 @@ export function EmailInputCard({ onVerify, isLoading }: EmailInputCardProps) {
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="flex gap-2">
-            {/* Input */}
             <div className="relative flex-1">
               <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <Input
@@ -56,7 +55,6 @@ export function EmailInputCard({ onVerify, isLoading }: EmailInputCardProps) {
               )}
             </div>
 
-            {/* CTA */}
             <Button
               type="submit"
               disabled={isLoading}
@@ -75,7 +73,6 @@ export function EmailInputCard({ onVerify, isLoading }: EmailInputCardProps) {
           )}
         </form>
 
-        {/* Footer row */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             <span>Checks performed:</span>

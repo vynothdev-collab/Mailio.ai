@@ -1,5 +1,3 @@
-// Usage service — wraps /usage/* endpoints.
-
 import { api } from "./api";
 import type {
   UsageBreakdownDto,

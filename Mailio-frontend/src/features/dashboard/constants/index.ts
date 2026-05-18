@@ -1,7 +1,5 @@
 import type { NavItem, UsageInfo, VerificationStatus } from "../types";
 
-// ── Navigation ─────────────────────────────────────────────────────────────
-
 export const NAV_ITEMS: NavItem[] = [
   { id: "dashboard",     label: "Dashboard",     href: "/dashboard",     iconName: "LayoutDashboard" },
   { id: "single-verify", label: "Single Verify", href: "/single-verify", iconName: "Mail" },
@@ -11,8 +9,6 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "billing",       label: "Billing",       href: "/billing",       iconName: "CreditCard" },
   { id: "settings",      label: "Settings",      href: "/settings",      iconName: "Settings" },
 ];
-
-// ── Status badge config ────────────────────────────────────────────────────
 
 export const STATUS_CONFIG: Record<
   VerificationStatus,
@@ -40,16 +36,12 @@ export const STATUS_CONFIG: Record<
   },
 };
 
-// ── Chart / results colors ─────────────────────────────────────────────────
-
 export const CHART_COLORS = {
   valid:       "#10b981",
   invalid:     "#ef4444",
   risky:       "#f59e0b",
   disposable:  "#8b5cf6",
 } as const;
-
-// ── Active verification summary row config ─────────────────────────────────
 
 export const SUMMARY_CONFIG = [
   { key: "valid"      as const, label: "Valid",       textColor: "text-emerald-600", bgColor: "bg-emerald-50" },
@@ -58,15 +50,11 @@ export const SUMMARY_CONFIG = [
   { key: "disposable" as const, label: "Disposable",  textColor: "text-violet-600",  bgColor: "bg-violet-50"  },
 ] as const;
 
-// ── Plan usage ─────────────────────────────────────────────────────────────
-
 export const USAGE_INFO: UsageInfo = {
   used:  8_240,
   total: 10_000,
   plan:  "Pro Plan",
 };
-
-// ── Upload constraints ─────────────────────────────────────────────────────
 
 export const UPLOAD_CONFIG = {
   acceptedFormats: [".csv", ".txt"],

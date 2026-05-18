@@ -17,7 +17,6 @@ export type AcquireOutcome =
   | { ok: true; key: AcquiredKey }
   | { ok: false; retryAfterMs: number };
 
-/** In-memory snapshot row used by the hot-path selector. */
 interface KeyState {
   id: string;
   provider: string;
@@ -26,17 +25,15 @@ interface KeyState {
   weight: number;
   rlMax: number;
   rlWindowMs: number;
-  cooldownUntil: number; // epoch ms, 0 if none
+  cooldownUntil: number; 
 }
 
 @Injectable()
 export class KeyPoolService {
   private readonly logger = new Logger(KeyPoolService.name);
 
-  /** provider -> ordered key snapshot. Written by KeyPoolSync. */
   private snapshot = new Map<string, KeyState[]>();
 
-  /** Local round-robin tie-breaker when multiple keys are usable. */
   private localCursor = 0;
 
   constructor(
@@ -45,7 +42,6 @@ export class KeyPoolService {
     private readonly limiter: RedisRateLimiter,
   ) {}
 
-  /** Called by KeyPoolSync after each DB reload. */
   setSnapshot(provider: string, keys: KeyState[]): void {
     this.snapshot.set(provider, keys);
   }
@@ -61,8 +57,6 @@ export class KeyPoolService {
       return { ok: false, retryAfterMs: 5000 };
     }
 
-    // Build the candidate list, replicating each key by its weight so a
-    // key with weight=3 gets 3× the round-robin slots of a weight=1 key.
     const candidates: KeyState[] = [];
     for (const k of all) {
       if (k.status !== ApiKeyStatus.ACTIVE) continue;
@@ -71,7 +65,7 @@ export class KeyPoolService {
       for (let i = 0; i < w; i++) candidates.push(k);
     }
     if (candidates.length === 0) {
-      // Everyone's in cooldown or disabled — wait for the soonest recovery.
+      
       const soonest = all
         .filter(
           (k) => k.status === ApiKeyStatus.ACTIVE && k.cooldownUntil > now,
@@ -86,8 +80,6 @@ export class KeyPoolService {
       };
     }
 
-    // Start from a rotating offset so concurrent acquirers don't all bang
-    // on the same key first.
     const start = this.localCursor++ % candidates.length;
 
     let minRetry = Number.MAX_SAFE_INTEGER;
@@ -210,7 +202,6 @@ export class KeyPoolService {
         break;
       }
       case 'bad-request':
-        // Not the key's fault; do nothing structural.
         break;
     }
 

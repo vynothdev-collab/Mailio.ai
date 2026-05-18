@@ -5,7 +5,6 @@ import { BillingHistoryTable } from "./BillingHistoryTable";
 export function BillingView() {
   return (
     <div className="space-y-4">
-      {/* Top row: plan + payment method */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
           <CurrentPlanCard />
@@ -15,7 +14,6 @@ export function BillingView() {
         </div>
       </div>
 
-      {/* Billing history */}
       <BillingHistoryTable />
     </div>
   );

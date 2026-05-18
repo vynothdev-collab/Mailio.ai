@@ -25,8 +25,6 @@ export function BulkVerifyCard({ onUploaded }: Props) {
   const [lastUpload, setLastUpload] = useState<BulkUploadResponse | null>(null);
   const [progress,   setProgress]   = useState<BulkProgressDto | null>(null);
 
-  // Poll the progress endpoint while the most-recent upload is still being
-  // processed. Stops automatically once processed >= total.
   useEffect(() => {
     if (!lastUpload?.jobId) return;
     let cancelled = false;
@@ -40,7 +38,6 @@ export function BulkVerifyCard({ onUploaded }: Props) {
           window.clearInterval(timer);
         }
       } catch {
-        // Transient — keep polling.
       }
     };
 
@@ -97,8 +94,6 @@ export function BulkVerifyCard({ onUploaded }: Props) {
     setUploadPct(0);
     try {
       const result = await bulkVerifyService.upload(file, setUploadPct);
-      // totalEmails is no longer returned synchronously — the parser runs
-      // in the background and the count populates via /progress polling.
       toast.success("File uploaded — parsing on the server…");
       setProgress(null);
       setLastUpload(result);
@@ -168,7 +163,6 @@ export function BulkVerifyCard({ onUploaded }: Props) {
                   <button
                     type="button"
                     onClick={(e) => {
-                      // Stop the surrounding <label> from opening the file picker.
                       e.preventDefault();
                       e.stopPropagation();
                       reset();
@@ -238,7 +232,6 @@ export function BulkVerifyCard({ onUploaded }: Props) {
                   </button>
                 </div>
                 {(() => {
-                  // Phase: parsing (no totalCount yet) → processing → completed.
                   const isParsing  = !progress || progress.totalCount === 0;
                   const isDone     = !isParsing && progress.processedCount >= progress.totalCount;
                   const label      = isDone ? "Completed" : isParsing ? "Parsing…" : "Processing";

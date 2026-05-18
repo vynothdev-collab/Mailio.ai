@@ -1,15 +1,12 @@
 "use client";
 
-// Subscribes to live progress events for a single bulk job (listId).
-// Emits the latest progress payload via state and signals a job-completion.
-
 import { useEffect, useState } from "react";
 import { getSocket } from "@/src/lib/socket";
 import type { ListStatusChangeEvent, ProgressEvent } from "@/src/types/bulk";
 
-export interface JobProgressState {
+interface JobProgressState {
   progress:  ProgressEvent | null;
-  status:    string | null;       // 'PROCESSING' | 'COMPLETED' | 'FAILED' | ...
+  status:    string | null;
 }
 
 export function useJobProgress(
@@ -25,7 +22,6 @@ export function useJobProgress(
     if (!listId) return;
     const socket = getSocket();
 
-    // Tell the server we want events for this list's room.
     socket.emit("join-list", { listId });
 
     const onProgress = (payload: ProgressEvent) => {

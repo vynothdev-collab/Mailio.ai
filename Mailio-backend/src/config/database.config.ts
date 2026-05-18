@@ -17,8 +17,7 @@ export default registerAs(
     extra: {
       max: parseInt(process.env.DB_POOL_MAX ?? '30', 10),
       min: parseInt(process.env.DB_POOL_MIN ?? '2', 10),
-      // pg-pool default idle is 10s; bump so workers waking from a
-      // brief idle period don't re-handshake to Postgres every time.
+      
       idleTimeoutMillis: parseInt(
         process.env.DB_POOL_IDLE_TIMEOUT_MS ?? '30000',
         10,

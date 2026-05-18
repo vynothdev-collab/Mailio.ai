@@ -1,17 +1,4 @@
-import type { ActiveVerification, VerificationRecord } from "../types";
-
-export const MOCK_ACTIVE_VERIFICATION: ActiveVerification = {
-  fileName:       "Spring Outreach List.csv",
-  progress:       72,
-  processedCount: 7_126,
-  totalCount:     10_000,
-  etaSeconds:     138,    // 2m 18s
-  startedAt:      "Today, 10:24 AM",
-  valid:          6_238,
-  invalid:        512,
-  risky:          276,
-  disposable:     100,
-};
+import type { VerificationRecord } from "../types";
 
 export const MOCK_RECENT_VERIFICATIONS: VerificationRecord[] = [
   {
