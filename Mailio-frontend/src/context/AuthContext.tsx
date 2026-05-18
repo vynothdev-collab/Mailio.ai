@@ -15,7 +15,7 @@ import { authService } from "@/src/services/authService";
 import { userService } from "@/src/services/userService";
 import type { ApiError } from "@/src/types/auth";
 import type { UserProfile } from "@/src/types/user";
-import { STORAGE_KEYS, getItem } from "@/src/utils/storage";
+import { STORAGE_KEYS, clearSession, getItem } from "@/src/utils/storage";
 
 interface AuthContextValue {
   user:             UserProfile | null;
@@ -93,6 +93,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await authService.logout();
     } finally {
       setUser(null);
+      setError(null);
       router.push("/login");
     }
   }, [router]);
@@ -104,6 +105,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
     bootstrappedRef.current = true;
     void refresh();
   }, [refresh]);
+
+  // Defensive guard against any residual cross-tab token state (e.g. tokens
+  // written by an older build that used localStorage). If a foreign tab
+  // mutates our auth keys, scrub local state and bounce to login.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const authKeys = new Set<string>(Object.values(STORAGE_KEYS));
+    const onStorage = (e: StorageEvent) => {
+      if (e.key && !authKeys.has(e.key)) return;
+      clearSession();
+      setUser(null);
+      if (!window.location.pathname.startsWith("/login")) {
+        window.location.assign("/login");
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({

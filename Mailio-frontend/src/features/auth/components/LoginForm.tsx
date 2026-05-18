@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/src/lib/utils";
 import { authService } from "@/src/services/authService";
 import { useAuth } from "@/src/hooks/useAuth";
+import { clearSession } from "@/src/utils/storage";
 import type { ApiError } from "@/src/types/auth";
 import type { LoginFormData } from "../types";
 
@@ -64,8 +65,9 @@ export function LoginForm() {
   const onSubmit = async (data: LoginFormData) => {
     setSubmitState("loading");
     setErrorMessage("");
+    // Scrub any prior identity from this tab before authenticating the new one.
+    clearSession();
     try {
-      // Service stores tokens in localStorage / sessionStorage based on `remember`.
       const res = await authService.login({
         email:    data.email,
         password: data.password,

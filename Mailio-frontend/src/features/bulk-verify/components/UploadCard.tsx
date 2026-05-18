@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import Image from "next/image";
 import {
   UploadCloud, FileText, X, CheckCircle2, Loader2,
   AlertTriangle,
@@ -126,11 +127,21 @@ export function UploadCard({ onUploaded }: Props) {
   return (
     <Card>
       <CardContent className="pt-2 space-y-4">
-        <div>
-          <h2 className="text-sm font-semibold">Upload Email List</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Upload a CSV or TXT file and we&apos;ll verify every email.
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold">Upload Email List</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Upload a CSV or TXT file and we&apos;ll verify every email.
+            </p>
+          </div>
+          <a
+            href="/sample-emails.csv"
+            download
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+          >
+            <Image src="/excel.svg" alt="" width={14} height={14} className="shrink-0" />
+            Sample CSV
+          </a>
         </div>
 
         <label

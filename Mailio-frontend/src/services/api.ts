@@ -24,7 +24,6 @@ import type {
 import {
   STORAGE_KEYS,
   clearSession,
-  getCurrentPersistence,
   getItem,
   setItem,
 } from "@/src/utils/storage";
@@ -86,8 +85,7 @@ async function performRefresh(refreshToken: string): Promise<string> {
     { _skipAuth: true } as AxiosRequestConfig, // don't recurse into refresh on 401
   );
 
-  // Persist the new access token into whichever store currently holds the session.
-  setItem(STORAGE_KEYS.accessToken, data.accessToken, getCurrentPersistence());
+  setItem(STORAGE_KEYS.accessToken, data.accessToken);
   return data.accessToken;
 }
 

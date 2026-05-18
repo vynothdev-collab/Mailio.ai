@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/src/lib/utils";
 import { authService } from "@/src/services/authService";
 import { useAuth } from "@/src/hooks/useAuth";
+import { clearSession } from "@/src/utils/storage";
 import type { ApiError } from "@/src/types/auth";
 import type { SignupFormData } from "../types";
 
@@ -97,8 +98,9 @@ export function SignupForm() {
 
   const onSubmit = async (data: SignupFormData) => {
     setSubmitState("loading");
+    // Scrub any prior identity from this tab before authenticating the new one.
+    clearSession();
     try {
-      // Hit /auth/signup — service persists tokens + user to localStorage.
       const res = await authService.signup({
         fullName: data.fullName,
         email:    data.email,

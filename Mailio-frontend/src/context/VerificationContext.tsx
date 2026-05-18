@@ -1,8 +1,8 @@
 "use client";
 
 // Tracks recently-verified emails across the single-verify view.
-// State lives in memory + sessionStorage so it survives soft route changes
-// but doesn't accumulate forever across days.
+// State lives in memory + sessionStorage (per-tab) so it survives soft route
+// changes but is scoped to a single browser tab and a single signed-in user.
 
 import {
   createContext,
@@ -13,10 +13,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useAuth } from "@/src/hooks/useAuth";
 import type { RecentVerification, VerificationResult } from "@/src/features/single-verify/types";
 
-const STORAGE_KEY = "mailio.recentSingleVerifications";
+const STORAGE_KEY_PREFIX = "mailio.recentSingleVerifications";
 const MAX_RECORDS = 20;
+
+const storageKeyFor = (userId: string | null) =>
+  userId ? `${STORAGE_KEY_PREFIX}::${userId}` : null;
 
 interface VerificationContextValue {
   recent:    RecentVerification[];
@@ -30,7 +34,6 @@ const VerificationContext = createContext<VerificationContextValue | null>(null)
 
 /** Map a VerificationResult → the compact row shape used by the table. */
 function toRecent(result: VerificationResult): RecentVerification {
-  // Risk derived from final status when the API doesn't surface one.
   const risk: RecentVerification["risk"] =
     result.status === "valid"     ? "low"
   : result.status === "risky"     ||
@@ -47,25 +50,36 @@ function toRecent(result: VerificationResult): RecentVerification {
 }
 
 export function VerificationProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [recent, setRecent] = useState<RecentVerification[]>([]);
 
-  // Hydrate from sessionStorage on mount.
+  // Re-hydrate when the signed-in user changes — never leak one user's
+  // history into another user's view inside the same tab.
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    const key = storageKeyFor(userId);
+    if (typeof window === "undefined" || !key) {
+      setRecent([]);
+      return;
+    }
     try {
-      const raw = window.sessionStorage.getItem(STORAGE_KEY);
-      if (raw) setRecent(JSON.parse(raw) as RecentVerification[]);
+      const raw = window.sessionStorage.getItem(key);
+      setRecent(raw ? (JSON.parse(raw) as RecentVerification[]) : []);
     } catch {
-      // Corrupt cache — ignore and start fresh.
+      setRecent([]);
     }
-  }, []);
+  }, [userId]);
 
-  const persist = useCallback((next: RecentVerification[]) => {
-    setRecent(next);
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    }
-  }, []);
+  const persist = useCallback(
+    (next: RecentVerification[]) => {
+      setRecent(next);
+      const key = storageKeyFor(userId);
+      if (typeof window !== "undefined" && key) {
+        window.sessionStorage.setItem(key, JSON.stringify(next));
+      }
+    },
+    [userId],
+  );
 
   const push = useCallback(
     (result: VerificationResult) => {
@@ -74,13 +88,14 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
         // De-dupe by id so re-verifying the same email replaces the row.
         const filtered = prev.filter((r) => r.id !== record.id);
         const next = [record, ...filtered].slice(0, MAX_RECORDS);
-        if (typeof window !== "undefined") {
-          window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        const key = storageKeyFor(userId);
+        if (typeof window !== "undefined" && key) {
+          window.sessionStorage.setItem(key, JSON.stringify(next));
         }
         return next;
       });
     },
-    [],
+    [userId],
   );
 
   const clear = useCallback(() => persist([]), [persist]);

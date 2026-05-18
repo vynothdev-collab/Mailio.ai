@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { UploadCloud, FileText, ShieldCheck, Loader2, X, CheckCircle2 } from "lucide-react";
+import Image from "next/image";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -114,10 +115,22 @@ export function BulkVerifyCard({ onUploaded }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Bulk Email Verification</CardTitle>
-        <CardDescription>
-          Upload a CSV or TXT file and we&apos;ll verify every email.
-        </CardDescription>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle>Bulk Email Verification</CardTitle>
+            <CardDescription>
+              Upload a CSV or TXT file and we&apos;ll verify every email.
+            </CardDescription>
+          </div>
+          <a
+            href="/sample-emails.csv"
+            download
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+          >
+            <Image src="/excel.svg" alt="" width={14} height={14} className="shrink-0" />
+            Sample CSV
+          </a>
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-3">
