@@ -2,6 +2,7 @@ import { api } from "./api";
 import { STORAGE_KEYS, clearSession, getItem, setItem } from "@/src/utils/storage";
 import type {
   AuthResponse,
+  GoogleLoginPayload,
   LoginPayload,
   RefreshPayload,
   RefreshResponse,
@@ -22,6 +23,12 @@ export const authService = {
 
   async login(payload: LoginPayload): Promise<AuthResponse> {
     const { data } = await api.post<AuthResponse>("/auth/login", payload, { _skipAuth: true });
+    persistSession(data);
+    return data;
+  },
+
+  async googleLogin(payload: GoogleLoginPayload): Promise<AuthResponse> {
+    const { data } = await api.post<AuthResponse>("/auth/google", payload, { _skipAuth: true });
     persistSession(data);
     return data;
   },

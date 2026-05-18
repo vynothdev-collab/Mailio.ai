@@ -1,7 +1,14 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from './entities/user.entity';
+import { AuthProvider, User } from './entities/user.entity';
+
+export interface GoogleProfile {
+  email: string;
+  name: string;
+  providerId: string;
+  avatarUrl: string | null;
+}
 
 export interface UserStats {
   totalEmails: number;
@@ -36,7 +43,44 @@ export class UsersService {
     if (existing) {
       throw new ConflictException('Email already registered');
     }
-    const user = this.usersRepo.create(data);
+    const user = this.usersRepo.create({ ...data, provider: AuthProvider.LOCAL });
+    return this.usersRepo.save(user);
+  }
+
+  async findOrCreateFromGoogle(profile: GoogleProfile): Promise<User> {
+    const byProvider = await this.usersRepo.findOne({
+      where: { provider: AuthProvider.GOOGLE, providerId: profile.providerId },
+    });
+    if (byProvider) {
+      return this.touchProfile(byProvider, profile);
+    }
+
+    const byEmail = await this.findByEmail(profile.email);
+    if (byEmail) {
+      byEmail.provider = AuthProvider.GOOGLE;
+      byEmail.providerId = profile.providerId;
+      byEmail.avatarUrl = profile.avatarUrl ?? byEmail.avatarUrl;
+      byEmail.name = byEmail.name || profile.name;
+      return this.usersRepo.save(byEmail);
+    }
+
+    const created = this.usersRepo.create({
+      email: profile.email,
+      name: profile.name,
+      avatarUrl: profile.avatarUrl,
+      provider: AuthProvider.GOOGLE,
+      providerId: profile.providerId,
+      passwordHash: null,
+    });
+    return this.usersRepo.save(created);
+  }
+
+  private async touchProfile(user: User, profile: GoogleProfile): Promise<User> {
+    const nameChanged = profile.name && user.name !== profile.name;
+    const avatarChanged = profile.avatarUrl && user.avatarUrl !== profile.avatarUrl;
+    if (!nameChanged && !avatarChanged) return user;
+    if (nameChanged) user.name = profile.name;
+    if (avatarChanged) user.avatarUrl = profile.avatarUrl;
     return this.usersRepo.save(user);
   }
 

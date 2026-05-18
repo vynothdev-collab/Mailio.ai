@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider } from "@/src/context/AuthContext";
+import { Providers } from "@/src/context/Providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -30,7 +30,7 @@ export default function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable} h-full`}
     >
       <body className="h-full antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <Providers>{children}</Providers>
         <Toaster position="bottom-right" richColors />
       </body>
     </html>

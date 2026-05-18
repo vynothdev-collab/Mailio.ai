@@ -1,8 +1,15 @@
 interface AuthUser {
-  id:    string;
-  name:  string;
-  email: string;
-  plan:  string;
+  id:        string;
+  name:      string;
+  email:     string;
+  plan:      string;
+  avatarUrl?: string | null;
+  provider?: "LOCAL" | "GOOGLE";
+}
+
+export interface GoogleLoginPayload {
+  idToken: string;
+  remember?: boolean;
 }
 
 export interface SignupPayload {
