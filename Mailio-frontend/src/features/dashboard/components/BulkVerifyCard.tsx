@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { UploadCloud, FileText, ShieldCheck, Loader2, X, CheckCircle2 } from "lucide-react";
-import Image from "next/image";
+import { FileText, Loader2, X, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -111,21 +110,14 @@ export function BulkVerifyCard({ onUploaded }: Props) {
     <Card>
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle>Bulk Email Verification</CardTitle>
-            <CardDescription>
-              Upload a CSV or TXT file and we&apos;ll verify every email.
-            </CardDescription>
-          </div>
-          <a
-            href="/sample-emails.csv"
-            download
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
-          >
-            <Image src="/excel.svg" alt="" width={14} height={14} className="shrink-0" />
-            Sample CSV
-          </a>
+          <CardTitle className="leading-tight">Bulk Email Verification</CardTitle>
+          <span className="inline-flex shrink-0 items-center rounded-full bg-[#E6EEFB] px-2.5 py-1 text-[11px] font-semibold text-[#0F5BFF]">
+            CSV / TXT
+          </span>
         </div>
+        <CardDescription className="mt-1">
+          Upload a list and we&apos;ll verify every address — SMTP, MX, syntax, and catch-all checks.
+        </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-3">
@@ -149,10 +141,14 @@ export function BulkVerifyCard({ onUploaded }: Props) {
             className="sr-only"
           />
           <div className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-            isDragging ? "bg-primary/10" : "bg-background border border-border",
+            "flex h-12 w-12 items-center justify-center rounded-xl transition-colors",
+            isDragging ? "bg-[#E6EEFB]" : "bg-white border border-[#DCE6F3]",
           )}>
-            <UploadCloud size={20} className={cn(isDragging ? "text-primary" : "text-muted-foreground")} />
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M17.5 12.5V15.8333C17.5 16.2754 17.3244 16.6993 17.0118 17.0118C16.6993 17.3244 16.2754 17.5 15.8333 17.5H4.16667C3.72464 17.5 3.30072 17.3244 2.98816 17.0118C2.67559 16.6993 2.5 16.2754 2.5 15.8333V12.5" stroke="#0F5BFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M14.1667 6.66667L10 2.5L5.83334 6.66667" stroke="#0F5BFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M10 2.5V12.5" stroke="#0F5BFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
 
           {file ? (
@@ -178,9 +174,9 @@ export function BulkVerifyCard({ onUploaded }: Props) {
             </>
           ) : (
             <>
-              <span className="text-sm font-medium">Drag &amp; drop your file here</span>
+              <span className="text-sm font-medium text-[#161514]">Drag &amp; drop your file here</span>
               <span className="text-xs text-muted-foreground">
-                {UPLOAD_CONFIG.acceptedFormats.join(" or ")} up to {UPLOAD_CONFIG.maxSizeMb}MB
+                or click to browse · {UPLOAD_CONFIG.acceptedFormats.join(" / ")} up to {UPLOAD_CONFIG.maxSizeMb}MB
               </span>
             </>
           )}
@@ -199,18 +195,29 @@ export function BulkVerifyCard({ onUploaded }: Props) {
         )}
 
         <Button
-          className="w-full gradient-accent border-0 text-white hover:opacity-90"
+          className="w-full rounded-full border-0 bg-[#7EA6FF] text-white hover:bg-[#6C97FB] h-11"
           disabled={!file || uploading}
           onClick={startUpload}
         >
-          {uploading
-            ? <><Loader2 size={14} className="animate-spin" /> Uploading…</>
-            : "Upload & Verify"}
+          {uploading ? (
+            <><Loader2 size={14} className="animate-spin" /> Uploading…</>
+          ) : (
+            <>
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+                <path d="M7.5 13.75C7.5 13.75 12.5 11.25 12.5 7.5V3.125L7.5 1.25L2.5 3.125V7.5C2.5 11.25 7.5 13.75 7.5 13.75Z" stroke="white" strokeWidth="1.375" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M5.625 7.5L6.875 8.75L9.375 6.25" stroke="white" strokeWidth="1.375" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Upload &amp; Verify
+            </>
+          )}
         </Button>
 
         <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-          <ShieldCheck size={12} />
-          Your data is secure and never shared.
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M9 5.5H3C2.44772 5.5 2 5.94772 2 6.5V9.5C2 10.0523 2.44772 10.5 3 10.5H9C9.55228 10.5 10 10.0523 10 9.5V6.5C10 5.94772 9.55228 5.5 9 5.5Z" stroke="#8B847A" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M4 5.5V4C4 3.46957 4.21071 2.96086 4.58579 2.58579C4.96086 2.21071 5.46957 2 6 2C6.53043 2 7.03914 2.21071 7.41421 2.58579C7.78929 2.96086 8 3.46957 8 4V5.5" stroke="#8B847A" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Your data is encrypted and never shared.
         </p>
 
         {lastUpload && (

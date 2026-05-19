@@ -124,10 +124,20 @@ export class SingleVerifyService {
     const validAll = allRows.filter(
       (e) => e.verificationResult === VerificationResult.VALID,
     ).length;
-    const successRate =
-      allRows.length > 0
-        ? Math.round((validAll / allRows.length) * 1000) / 10
-        : 0;
+    const invalidAll = allRows.filter(
+      (e) => e.verificationResult === VerificationResult.INVALID,
+    ).length;
+    const riskyAll = allRows.filter(
+      (e) => e.verificationResult === VerificationResult.RISKY,
+    ).length;
+
+    const pct = (n: number) =>
+      allRows.length > 0 ? Math.round((n / allRows.length) * 1000) / 10 : 0;
+
+    const successRate = pct(validAll);
+    const invalidRate = pct(invalidAll);
+    const riskRate = pct(riskyAll);
+
     const durations = allRows
       .filter((e) => e.durationMs != null)
       .map((e) => e.durationMs!);
@@ -145,6 +155,8 @@ export class SingleVerifyService {
     return {
       todayCount,
       successRate,
+      invalidRate,
+      riskRate,
       apiUsage: allRows.length,
       avgResponseMs,
       changes: {

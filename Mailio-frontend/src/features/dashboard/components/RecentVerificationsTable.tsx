@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  CalendarDays, ChevronLeft, ChevronRight, FileSpreadsheet, FileX,
-  Loader2, Mail, X,
+  CalendarDays, ChevronLeft, ChevronRight, FileX,
+  Loader2, X,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,17 @@ function TypeCell({ isBulk }: { isBulk: boolean }) {
   );
 }
 
+function initialsOf(label: string): string {
+  const cleaned = label.trim();
+  if (!cleaned) return "?";
+  const local = cleaned.includes("@") ? cleaned.split("@")[0] : cleaned;
+  const parts = local.split(/[._\s-]+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return cleaned.slice(0, 2).toUpperCase();
+}
+
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
@@ -85,10 +96,8 @@ type PeriodFilter = "all" | "today" | "week" | "custom";
 
 const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "all",       label: "All Status" },
-  { value: "queued",    label: "Queued" },
   { value: "pending",   label: "Pending" },
   { value: "completed", label: "Completed" },
-  { value: "failed",    label: "Failed" },
 ];
 
 const PERIOD_FILTERS: { value: PeriodFilter; label: string }[] = [
@@ -173,37 +182,21 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
 
   return (
     <Card className="overflow-hidden gap-0 py-0">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold">Recent Verifications</h2>
-          {loading && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
-        </div>
-        <a href="/results" className="text-xs font-semibold text-primary hover:underline">
-          View all
-        </a>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-b border-border">
-        <div className="inline-flex items-center gap-1 rounded-full bg-muted/60 p-0.5">
-          {STATUS_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => setStatusFilter(f.value)}
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                statusFilter === f.value
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
+      <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-bold text-[#111827]">Recent Verifications</h2>
+            {loading && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {total === 0
+              ? "No results yet"
+              : `${Math.min(data.length, limit)} of ${total.toLocaleString()} results · live feed`}
+          </p>
         </div>
 
         <div className="relative flex items-center gap-2" ref={customRef}>
-          <div className="inline-flex items-center gap-1 rounded-full bg-muted/60 p-0.5">
+          <div className="inline-flex items-center gap-1 rounded-full bg-[#EEF3FB] p-1">
             {PERIOD_FILTERS.map((f) => {
               const isActive = periodFilter === f.value;
               return (
@@ -220,13 +213,13 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
                     setPeriodFilter((prev) => (prev === f.value ? "all" : f.value));
                   }}
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                    "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-colors focus:outline-none",
                     isActive
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
+                      ? "bg-white text-[#111827] shadow-sm"
+                      : "text-[#8B847A] hover:text-[#111827]",
                   )}
                 >
-                  {f.value === "custom" && <CalendarDays size={12} />}
+                  {f.value === "custom" && <CalendarDays size={13} />}
                   {f.label}
                 </button>
               );
@@ -237,7 +230,7 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
             <div
               role="dialog"
               aria-label="Custom date range"
-              className="absolute right-0 top-full z-20 mt-2 w-72 rounded-xl border border-border bg-background p-4 shadow-lg"
+              className="absolute right-0 top-full z-20 mt-2 w-72 rounded-xl border border-[#DCE6F3] bg-white p-4 shadow-lg"
             >
               <div className="flex items-center justify-between pb-2">
                 <p className="text-sm font-semibold">Custom range</p>
@@ -308,20 +301,40 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
         </div>
       </div>
 
+      <div className="px-5 pb-4">
+        <div className="inline-flex flex-wrap items-center gap-1 rounded-full bg-[#EEF3FB] p-1">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => setStatusFilter(f.value)}
+              className={cn(
+                "rounded-full px-4 py-2 text-xs font-semibold transition-colors focus:outline-none",
+                statusFilter === f.value
+                  ? "bg-white text-[#111827] shadow-sm"
+                  : "text-[#8B847A] hover:text-[#111827]",
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="overflow-x-auto">
-        <Table>
+        <Table className="table-fixed w-full">
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="h-10 px-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <TableHead className="h-10 w-[40%] px-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Email / File
               </TableHead>
-              <TableHead className="h-10 w-24 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <TableHead className="h-10 w-[15%] text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Type
               </TableHead>
-              <TableHead className="h-10 w-32 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <TableHead className="h-10 w-[20%] text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Status
               </TableHead>
-              <TableHead className="h-10 w-40 px-5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <TableHead className="h-10 w-[25%] px-5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Verified At
               </TableHead>
             </TableRow>
@@ -344,15 +357,8 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
                 >
                   <TableCell className="py-3 px-5">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                        row.isBulk
-                          ? "bg-blue-50 text-blue-600"
-                          : "bg-slate-100 text-slate-600",
-                      )}>
-                        {row.isBulk
-                          ? <FileSpreadsheet size={14} />
-                          : <Mail size={14} />}
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#EEF3FB] text-[10px] font-semibold uppercase text-[#8B847A]">
+                        {initialsOf(row.label)}
                       </div>
                       <span
                         className="truncate text-sm font-medium text-foreground"
@@ -374,33 +380,32 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
         </Table>
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
-        <p className="text-xs text-muted-foreground tabular-nums">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#DCE6F3] px-5 py-3">
+        <p className="text-sm text-muted-foreground tabular-nums">
           {total === 0
             ? "No records"
-            : <>Showing <span className="font-medium text-foreground">{start}</span>–<span className="font-medium text-foreground">{end}</span> of <span className="font-medium text-foreground">{total}</span></>
+            : <>Showing <span className="font-semibold text-[#111827]">{start}-{end}</span> of <span className="font-semibold text-[#111827]">{total}</span></>
           }
         </p>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             disabled={!canPrev}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="gap-1 h-7 px-2 text-xs"
+            className="h-8 gap-1.5 rounded-full border-[#DCE6F3] bg-white px-3 text-xs font-medium text-[#161514] hover:bg-[#F4F8FF] disabled:opacity-50"
             aria-label="Previous page"
           >
             <ChevronLeft size={13} /> Prev
           </Button>
-          <span className="text-xs text-muted-foreground tabular-nums px-2">
-            Page <span className="font-medium text-foreground">{page}</span> / {totalPages}
+          <span className="text-sm text-muted-foreground tabular-nums px-1">
+            Page <span className="font-semibold text-[#111827]">{page}</span> / {totalPages}
           </span>
           <Button
-            variant="outline"
             size="sm"
             disabled={!canNext}
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            className="gap-1 h-7 px-2 text-xs"
+            className="h-8 gap-1.5 rounded-full bg-[#111827] px-4 text-xs font-semibold text-white hover:bg-[#000000] disabled:opacity-50"
             aria-label="Next page"
           >
             Next <ChevronRight size={13} />

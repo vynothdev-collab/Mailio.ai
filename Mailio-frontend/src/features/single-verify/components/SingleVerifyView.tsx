@@ -9,6 +9,7 @@ import { ResultBreakdownCard }             from "./ResultBreakdownCard";
 import { VerificationSummaryCard }         from "./VerificationSummaryCard";
 import { RecentSingleVerificationsTable }  from "./RecentSingleVerificationsTable";
 import { ProTipCard }                      from "./ProTipCard";
+import { PageHeader }                      from "@/src/components/layout/PageHeader";
 
 function SingleVerifyContent() {
   const { state, result, verify } = useSingleVerify();
@@ -22,23 +23,31 @@ function SingleVerifyContent() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-      <div className="lg:col-span-2 space-y-4">
-        <EmailInputCard onVerify={handleVerify} isLoading={isLoading} />
+    <div className="space-y-5">
+      <PageHeader
+        title="Single Email Verification"
+        subtitle="Verify one email address instantly to reduce bounce rates and improve deliverability."
+        onRefresh={() => setRefreshKey((k) => k + 1)}
+      />
 
-        {result && (
-          <>
-            <VerificationResultCard result={result} />
-            <ResultBreakdownCard checks={result.checks} />
-          </>
-        )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 space-y-4">
+          <EmailInputCard onVerify={handleVerify} isLoading={isLoading} />
 
-        <RecentSingleVerificationsTable refreshKey={refreshKey} optimistic={recent} />
-      </div>
+          {result && (
+            <>
+              <VerificationResultCard result={result} />
+              <ResultBreakdownCard checks={result.checks} />
+            </>
+          )}
 
-      <div className="space-y-4">
-        <VerificationSummaryCard refreshKey={refreshKey} />
-        <ProTipCard />
+          <RecentSingleVerificationsTable refreshKey={refreshKey} optimistic={recent} />
+        </div>
+
+        <div className="space-y-4">
+          <VerificationSummaryCard refreshKey={refreshKey} />
+          <ProTipCard />
+        </div>
       </div>
     </div>
   );

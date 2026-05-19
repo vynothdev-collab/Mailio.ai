@@ -7,6 +7,7 @@ import { BulkVerifyCard }             from "./BulkVerifyCard";
 import { SingleVerifyCard }           from "./SingleVerifyCard";
 import { ResultsOverview }            from "./ResultsOverview";
 import { RecentVerificationsTable }   from "./RecentVerificationsTable";
+import { PageHeader }                 from "@/src/components/layout/PageHeader";
 import { AlertCircle, RefreshCw }     from "lucide-react";
 
 function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => void }) {
@@ -27,32 +28,48 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => voi
   );
 }
 
+
 export function DashboardView() {
   const { data, loading, error, refresh } = useDashboardData();
 
   if (loading) return <DashboardSkeleton />;
 
   if (error || !data) {
-    return <ErrorBanner message={error ?? "Unknown error"} onRetry={refresh} />;
+    return (
+      <div className="space-y-5">
+        <PageHeader
+          title="Email Verification Dashboard"
+          subtitle="Clean your lists, reduce bounce rates, and improve deliverability before every outreach."
+          onRefresh={refresh}
+          refreshing={loading}
+        />
+        <ErrorBanner message={error ?? "Unknown error"} onRetry={refresh} />
+      </div>
+    );
   }
 
   const { stats, chartData, chartTotal } = data;
 
   return (
     <div className="space-y-5">
+      <PageHeader
+        title="Email Verification Dashboard"
+        subtitle="Clean your lists, reduce bounce rates, and improve deliverability before every outreach."
+        onRefresh={refresh}
+        refreshing={loading}
+      />
+
       <StatsGrid stats={stats} loading={false} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         <BulkVerifyCard onUploaded={refresh} />
         <SingleVerifyCard onVerified={refresh} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <ResultsOverview data={chartData} total={chartTotal} />
-        <div className="lg:col-span-2">
-          <RecentVerificationsTable />
+        <div className="md:col-span-2 lg:col-span-1">
+          <ResultsOverview data={chartData} total={chartTotal} />
         </div>
       </div>
+
+      <RecentVerificationsTable />
     </div>
   );
 }

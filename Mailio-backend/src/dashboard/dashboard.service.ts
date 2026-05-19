@@ -49,21 +49,19 @@ export class DashboardService {
     const currentInvalid = currentPeriod.filter(
       (e) => e.verificationResult === VerificationResult.INVALID,
     ).length;
+    const currentRisky = currentPeriod.filter(
+      (e) => e.verificationResult === VerificationResult.RISKY,
+    ).length;
     const currentTotal = currentPeriod.length;
 
-    const validRate =
-      currentTotal > 0
-        ? Math.round((currentValid / currentTotal) * 1000) / 10
-        : 0;
-    const invalidRate =
-      currentTotal > 0
-        ? Math.round((currentInvalid / currentTotal) * 1000) / 10
-        : 0;
+    const pct = (n: number) =>
+      currentTotal > 0 ? Math.round((n / currentTotal) * 1000) / 10 : 0;
 
     return {
       totalVerified: allTime,
-      validRate,
-      invalidRate,
+      validRate: pct(currentValid),
+      invalidRate: pct(currentInvalid),
+      riskyRate: pct(currentRisky),
     };
   }
 

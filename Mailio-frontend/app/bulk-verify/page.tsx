@@ -7,18 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function BulkVerifyPage() {
-  return (
-    <>
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-foreground sm:text-2xl">
-          Bulk Email Verification
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Upload a list and verify thousands of emails at once.
-        </p>
-      </div>
-
-      <BulkVerifyView />
-    </>
-  );
+  return <BulkVerifyView />;
 }

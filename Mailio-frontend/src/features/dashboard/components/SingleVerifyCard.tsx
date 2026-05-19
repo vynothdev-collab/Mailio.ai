@@ -107,8 +107,15 @@ export function SingleVerifyCard({ onVerified }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Single Email Verification</CardTitle>
-        <CardDescription>Verify one email address instantly.</CardDescription>
+        <div className="flex items-start justify-between gap-3">
+          <CardTitle className="leading-tight">Single Email Verification</CardTitle>
+          <span className="inline-flex shrink-0 items-center rounded-full bg-[#E6EEFB] px-2.5 py-1 text-[11px] font-semibold text-[#0F5BFF]">
+            Instant
+          </span>
+        </div>
+        <CardDescription className="mt-1">
+          Verify one address against mailbox, domain, and disposable list checks.
+        </CardDescription>
       </CardHeader>
 
       <CardContent>
@@ -135,16 +142,24 @@ export function SingleVerifyCard({ onVerified }: Props) {
             type="submit"
             size="lg"
             disabled={verifying}
-            className="w-full gradient-accent border-0 text-white hover:opacity-90"
+            className="w-full rounded-full border-0 bg-[#7EA6FF] text-white hover:bg-[#6C97FB] h-11"
           >
-            {verifying
-              ? <><Loader2 size={15} className="animate-spin" /> Verifying…</>
-              : "Verify Now"}
+            {verifying ? (
+              <><Loader2 size={15} className="animate-spin" /> Verifying…</>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M12.8334 1.16675L8.75002 12.8334L6.41669 7.58341L1.16669 5.25008L12.8334 1.16675Z" stroke="white" strokeWidth="1.28333" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12.8334 1.16675L6.41669 7.58341" stroke="white" strokeWidth="1.28333" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Verify Now
+              </>
+            )}
           </Button>
         </form>
 
         <p className="mt-3 text-center text-xs text-muted-foreground">
-          We&apos;ll check domain and mailbox.
+          We check syntax, domain, mailbox &amp; catch-all in &lt; 1.5s
         </p>
 
         {result && (

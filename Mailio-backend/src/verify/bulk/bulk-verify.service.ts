@@ -9,6 +9,7 @@ import {
   EmailListStatus,
 } from '../../email-lists/entities/email-list.entity';
 import { Email, EmailStatus } from '../../emails/entities/email.entity';
+import { VerificationResult } from '../../common/types/verification-result.enum';
 import { User } from '../../users/entities/user.entity';
 import { VerificationService } from '../../verification/verification.service';
 
@@ -160,7 +161,7 @@ export class BulkVerifyService {
       }),
       this.emailsRepo.find({
         where: { userId, isSingleVerify: false },
-        select: ['durationMs'],
+        select: ['durationMs', 'verificationResult'],
       }),
     ]);
 
@@ -177,12 +178,25 @@ export class BulkVerifyService {
     const avgResponseToday = avgMs(todayEmails);
     const avgResponseYday = avgMs(yesterdayEmails);
 
+    const successCount = allEmails.filter(
+      (e) => e.verificationResult === VerificationResult.VALID,
+    ).length;
+    const invalidCount = allEmails.filter(
+      (e) => e.verificationResult === VerificationResult.INVALID,
+    ).length;
+    const riskCount = allEmails.filter(
+      (e) => e.verificationResult === VerificationResult.RISKY,
+    ).length;
+
     return {
       filesToday: todayLists.length,
       currentJobEmails: activeList?.totalCount ?? 0,
       completedJobs,
       apiUsage: allEmails.length,
       avgResponseMs,
+      successCount,
+      invalidCount,
+      riskCount,
       changes: {
         filesToday: this.pctChange(todayLists.length, yesterdayLists.length),
         completedJobs: this.pctChange(completedJobs, completedYesterday),

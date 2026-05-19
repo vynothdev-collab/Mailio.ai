@@ -22,6 +22,8 @@ export interface SingleStatsDto {
   successRate:   number;
   apiUsage:      number;
   avgResponseMs: number;
+  invalidRate?:  number;
+  riskRate?:     number;
   changes: {
     todayCount:    string;
     successRate:   string;

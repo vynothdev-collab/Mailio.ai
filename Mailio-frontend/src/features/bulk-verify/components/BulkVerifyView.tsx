@@ -15,6 +15,7 @@ import { UploadCard } from "./UploadCard";
 import { BulkStatsRow } from "./BulkStatsRow";
 import { VerificationBreakdownCard } from "./VerificationBreakdownCard";
 import { RecentBulkVerificationsTable } from "./RecentBulkVerificationsTable";
+import { PageHeader } from "@/src/components/layout/PageHeader";
 
 const JOBS_PAGE_SIZE = 10;
 
@@ -84,6 +85,13 @@ export function BulkVerifyView() {
 
   return (
     <div className="space-y-4">
+      <PageHeader
+        title="Bulk Email Verification"
+        subtitle="Upload a list and verify thousands of emails at once."
+        onRefresh={() => void refetchAfterChange()}
+        refreshing={loading}
+      />
+
       <BulkStatsRow stats={stats} loading={loading} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

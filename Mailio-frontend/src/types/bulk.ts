@@ -49,6 +49,9 @@ export interface BulkStatsDto {
   completedJobs:     number;
   apiUsage:          number;
   avgResponseMs:     number;
+  successCount?:     number;
+  invalidCount?:     number;
+  riskCount?:        number;
   changes: {
     filesToday:    string;
     completedJobs: string;

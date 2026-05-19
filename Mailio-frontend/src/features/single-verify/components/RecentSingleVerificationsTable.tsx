@@ -116,80 +116,99 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
 
   return (
     <Card className="overflow-hidden gap-0 py-0">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-semibold">Recent Single Verifications</h2>
+          <h2 className="text-base font-bold text-[#111827]">Recent Single Verifications</h2>
           {loading && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
         </div>
-        <a href="/results" className="text-xs font-semibold text-primary hover:underline">View all</a>
+        <a
+          href="/results"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-[#0F5BFF] hover:underline"
+        >
+          View all <span aria-hidden>→</span>
+        </a>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead>Email</TableHead>
-            <TableHead className="w-28">Status</TableHead>
-            <TableHead className="w-24">Risk</TableHead>
-            <TableHead className="w-44">Verified At</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loading && merged.length === 0 ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <TableRow key={i}>
-                <TableCell colSpan={4}><Skeleton className="h-5 w-full" /></TableCell>
-              </TableRow>
-            ))
-          ) : error && merged.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={4} className="py-6 text-center text-sm text-destructive">{error}</TableCell>
+      <div className="overflow-x-auto">
+        <Table className="w-full">
+          <TableHeader>
+            <TableRow className="border-b border-[#DCE6F3] hover:bg-transparent">
+              <TableHead className="h-10 px-5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Email
+              </TableHead>
+              <TableHead className="h-10 w-32 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Status
+              </TableHead>
+              <TableHead className="h-10 w-28 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Risk
+              </TableHead>
+              <TableHead className="h-10 w-40 px-5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Verified At
+              </TableHead>
             </TableRow>
-          ) : merged.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
-                No verifications yet. Verify your first email above.
-              </TableCell>
-            </TableRow>
-          ) : (
-            merged.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell className="font-medium text-sm">{r.email}</TableCell>
-                <TableCell><StatusBadge status={r.status} /></TableCell>
-                <TableCell><RiskCell risk={r.risk} /></TableCell>
-                <TableCell className="text-sm text-muted-foreground">{formatDate(r.verifiedAt)}</TableCell>
+          </TableHeader>
+          <TableBody>
+            {loading && merged.length === 0 ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell colSpan={4} className="px-5"><Skeleton className="h-6 w-full" /></TableCell>
+                </TableRow>
+              ))
+            ) : error && merged.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="py-6 text-center text-sm text-destructive">{error}</TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            ) : merged.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
+                  No verifications yet. Verify your first email above.
+                </TableCell>
+              </TableRow>
+            ) : (
+              merged.map((r) => (
+                <TableRow
+                  key={r.id}
+                  className="border-b border-[#DCE6F3]/60 last:border-0 transition-colors hover:bg-[#F4F8FF]/60"
+                >
+                  <TableCell className="px-5 py-3 text-sm font-medium text-[#111827]">{r.email}</TableCell>
+                  <TableCell className="py-3"><StatusBadge status={r.status} /></TableCell>
+                  <TableCell className="py-3"><RiskCell risk={r.risk} /></TableCell>
+                  <TableCell className="px-5 py-3 text-right text-sm text-muted-foreground tabular-nums whitespace-nowrap">
+                    {formatDate(r.verifiedAt)}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
-        <p className="text-xs text-muted-foreground tabular-nums">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#DCE6F3] px-5 py-3">
+        <p className="text-sm text-muted-foreground tabular-nums">
           {total === 0
             ? "No records"
-            : <>Showing <span className="font-medium text-foreground">{start}</span>–<span className="font-medium text-foreground">{end}</span> of <span className="font-medium text-foreground">{total}</span></>
+            : <>Showing <span className="font-semibold text-[#111827]">{start}-{end}</span> of <span className="font-semibold text-[#111827]">{total}</span></>
           }
         </p>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             disabled={!canPrev}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="gap-1 h-7 px-2 text-xs"
+            className="h-8 gap-1.5 rounded-full border-[#DCE6F3] bg-white px-3 text-xs font-medium text-[#161514] hover:bg-[#F4F8FF] disabled:opacity-50"
             aria-label="Previous page"
           >
             <ChevronLeft size={13} /> Prev
           </Button>
-          <span className="text-xs text-muted-foreground tabular-nums px-2">
-            Page <span className="font-medium text-foreground">{page}</span> / {totalPages}
+          <span className="text-sm text-muted-foreground tabular-nums px-1">
+            Page <span className="font-semibold text-[#111827]">{page}</span> / {totalPages}
           </span>
           <Button
-            variant="outline"
             size="sm"
             disabled={!canNext}
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            className="gap-1 h-7 px-2 text-xs"
+            className="h-8 gap-1.5 rounded-full bg-[#111827] px-4 text-xs font-semibold text-white hover:bg-[#000000] disabled:opacity-50"
             aria-label="Next page"
           >
             Next <ChevronRight size={13} />
