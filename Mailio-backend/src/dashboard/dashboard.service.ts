@@ -103,24 +103,177 @@ export class DashboardService {
     };
   }
 
-  async getRecentVerifications(userId: string, page: number, limit: number) {
-    const [rows, total] = await this.emailsRepo.findAndCount({
-      where: { userId, status: EmailStatus.COMPLETED },
-      order: { processedAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+  async getRecentVerifications(
+    userId: string,
+    page: number,
+    limit: number,
+    filters: {
+      status?: 'queued' | 'pending' | 'completed' | 'failed';
+      from?: Date;
+      to?: Date;
+    } = {},
+  ) {
+    const offset = (page - 1) * limit;
 
-    const data = rows.map((e) => ({
-      id: e.id,
-      email: e.address,
-      status: e.verificationResult?.toLowerCase() ?? 'unknown',
-      risk: this.toRisk(e.verificationResult),
-      verifiedAt: e.processedAt ?? e.createdAt,
-      isBulk: !e.isSingleVerify,
+    const params: unknown[] = [userId];
+    const listStatusValue = this.statusToList(filters.status);
+    const emailStatusValue = this.statusToEmail(filters.status);
+
+    const listConditions = ['el.user_id = $1'];
+    const emailConditions = ['e.user_id = $1', 'e.is_single_verify = TRUE'];
+
+    if (listStatusValue) {
+      params.push(listStatusValue);
+      const idx = params.length;
+      listConditions.push(`el.status = $${idx}::email_lists_status_enum`);
+      params.push(emailStatusValue);
+      const idx2 = params.length;
+      emailConditions.push(`e.status = $${idx2}::emails_status_enum`);
+    }
+
+    if (filters.from) {
+      params.push(filters.from);
+      const idx = params.length;
+      listConditions.push(`COALESCE(el.started_at, el.created_at) >= $${idx}`);
+      emailConditions.push(`COALESCE(e.processed_at, e.created_at) >= $${idx}`);
+    }
+    if (filters.to) {
+      params.push(filters.to);
+      const idx = params.length;
+      listConditions.push(`COALESCE(el.started_at, el.created_at) <= $${idx}`);
+      emailConditions.push(`COALESCE(e.processed_at, e.created_at) <= $${idx}`);
+    }
+
+    const limitIdx = params.length + 1;
+    const offsetIdx = params.length + 2;
+    params.push(limit, offset);
+
+    const sql = `
+      SELECT id, label, email, "isBulk", "rawStatus", "verifiedAt"
+      FROM (
+        SELECT
+          el.id::text                              AS id,
+          COALESCE(el.original_filename, el.name)  AS label,
+          NULL::text                               AS email,
+          TRUE                                     AS "isBulk",
+          el.status::text                          AS "rawStatus",
+          COALESCE(el.started_at, el.created_at)   AS "verifiedAt"
+        FROM email_lists el
+        WHERE ${listConditions.join(' AND ')}
+
+        UNION ALL
+
+        SELECT
+          e.id::text                               AS id,
+          e.address                                AS label,
+          e.address                                AS email,
+          FALSE                                    AS "isBulk",
+          e.status::text                           AS "rawStatus",
+          COALESCE(e.processed_at, e.created_at)   AS "verifiedAt"
+        FROM emails e
+        WHERE ${emailConditions.join(' AND ')}
+      ) AS recent
+      ORDER BY "verifiedAt" DESC
+      LIMIT $${limitIdx} OFFSET $${offsetIdx}
+    `;
+
+    const rows: Array<{
+      id: string;
+      label: string;
+      email: string | null;
+      isBulk: boolean;
+      rawStatus: string;
+      verifiedAt: Date;
+    }> = await this.emailsRepo.manager.query(sql, params);
+
+    const countParams = params.slice(0, params.length - 2);
+    const countSql = `
+      SELECT (
+        (SELECT COUNT(*) FROM email_lists el WHERE ${listConditions.join(' AND ')})
+        +
+        (SELECT COUNT(*) FROM emails e WHERE ${emailConditions.join(' AND ')})
+      )::text AS total
+    `;
+    const totalRows: Array<{ total: string }> =
+      await this.emailsRepo.manager.query(countSql, countParams);
+    const total = parseInt(totalRows[0]?.total ?? '0', 10);
+
+    const data = rows.map((r) => ({
+      id: r.id,
+      label: r.label,
+      email: r.email,
+      isBulk: r.isBulk,
+      status: this.toJobStatus(r.rawStatus, r.isBulk),
+      verifiedAt: r.verifiedAt,
     }));
 
     return { data, total, page, limit };
+  }
+
+  private statusToList(
+    status?: 'queued' | 'pending' | 'completed' | 'failed',
+  ): EmailListStatus | null {
+    switch (status) {
+      case 'queued':
+        return EmailListStatus.PENDING;
+      case 'pending':
+        return EmailListStatus.PROCESSING;
+      case 'completed':
+        return EmailListStatus.COMPLETED;
+      case 'failed':
+        return EmailListStatus.FAILED;
+      default:
+        return null;
+    }
+  }
+
+  private statusToEmail(
+    status?: 'queued' | 'pending' | 'completed' | 'failed',
+  ): EmailStatus | null {
+    switch (status) {
+      case 'queued':
+        return EmailStatus.QUEUED;
+      case 'pending':
+        return EmailStatus.PROCESSING;
+      case 'completed':
+        return EmailStatus.COMPLETED;
+      case 'failed':
+        return EmailStatus.FAILED;
+      default:
+        return null;
+    }
+  }
+
+  private toJobStatus(
+    raw: string,
+    isBulk: boolean,
+  ): 'queued' | 'pending' | 'completed' | 'failed' {
+    if (isBulk) {
+      switch (raw as EmailListStatus) {
+        case EmailListStatus.PENDING:
+          return 'queued';
+        case EmailListStatus.PROCESSING:
+          return 'pending';
+        case EmailListStatus.COMPLETED:
+          return 'completed';
+        case EmailListStatus.FAILED:
+          return 'failed';
+        default:
+          return 'pending';
+      }
+    }
+    switch (raw as EmailStatus) {
+      case EmailStatus.QUEUED:
+        return 'queued';
+      case EmailStatus.PROCESSING:
+        return 'pending';
+      case EmailStatus.COMPLETED:
+        return 'completed';
+      case EmailStatus.FAILED:
+        return 'failed';
+      default:
+        return 'pending';
+    }
   }
 
   async getChart(userId: string, period: string) {
@@ -188,12 +341,5 @@ export class DashboardService {
     });
 
     return { used, total: PLAN_LIMITS[plan] ?? PLAN_LIMITS[Plan.PRO], plan };
-  }
-
-  private toRisk(result: VerificationResult | null): string {
-    if (result === VerificationResult.VALID) return 'low';
-    if (result === VerificationResult.RISKY) return 'medium';
-    if (result === VerificationResult.INVALID) return 'high';
-    return 'unknown';
   }
 }

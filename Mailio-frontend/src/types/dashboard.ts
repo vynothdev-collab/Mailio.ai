@@ -30,16 +30,15 @@ export interface DashboardChartResponse {
   total: number;
 }
 
-export type RecentVerificationStatus = "valid" | "invalid" | "risky" | "unknown" | "disposable";
-export type RecentVerificationRisk   = "low" | "medium" | "high" | "unknown";
+export type RecentVerificationStatus = "queued" | "pending" | "completed" | "failed";
 
 export interface RecentVerificationItem {
   id:         string;
+  label:      string;
   email:      string;
-  status:     RecentVerificationStatus;
-  risk:       RecentVerificationRisk;
-  verifiedAt: string;
   isBulk:     boolean;
+  status:     RecentVerificationStatus;
+  verifiedAt: string;
 }
 
 export interface RecentVerificationsResponse {

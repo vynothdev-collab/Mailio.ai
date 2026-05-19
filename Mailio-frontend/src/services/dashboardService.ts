@@ -45,13 +45,29 @@ export const dashboardService = {
   },
 
   async getRecentVerifications(
-    page = 1,
-    limit = 10,
+    params: {
+      page?: number;
+      limit?: number;
+      status?: "queued" | "pending" | "completed" | "failed";
+      period?: "today" | "week" | "custom" | "all";
+      from?: string;
+      to?: string;
+    } = {},
     signal?: AbortSignal,
   ): Promise<RecentVerificationsResponse> {
     const { data } = await api.get<RecentVerificationsResponse>(
       "/dashboard/recent-verifications",
-      { params: { page, limit }, signal },
+      {
+        params: {
+          page:   params.page  ?? 1,
+          limit:  params.limit ?? 10,
+          ...(params.status && { status: params.status }),
+          ...(params.period && params.period !== "all" && { period: params.period }),
+          ...(params.from && { from: params.from }),
+          ...(params.to && { to: params.to }),
+        },
+        signal,
+      },
     );
     return data;
   },

@@ -1,7 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, FileX, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  CalendarDays, ChevronLeft, ChevronRight, FileSpreadsheet, FileX,
+  Loader2, Mail, X,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,41 +15,22 @@ import { cn } from "@/src/lib/utils";
 import { dashboardService } from "@/src/services/dashboardService";
 import type {
   RecentVerificationItem,
-  RecentVerificationRisk,
   RecentVerificationStatus,
 } from "@/src/types/dashboard";
 import type { ApiError } from "@/src/types/auth";
 
 const STATUS_STYLE: Record<RecentVerificationStatus, { label: string; className: string; dot: string }> = {
-  valid:      { label: "Valid",      className: "bg-emerald-50 text-emerald-700 border-emerald-100", dot: "bg-emerald-500" },
-  invalid:    { label: "Invalid",    className: "bg-red-50 text-red-600 border-red-100",             dot: "bg-red-500"     },
-  risky:      { label: "Risky",      className: "bg-amber-50 text-amber-700 border-amber-100",       dot: "bg-amber-400"   },
-  unknown:    { label: "Unknown",    className: "bg-slate-50 text-slate-600 border-slate-200",       dot: "bg-slate-400"   },
-  disposable: { label: "Disposable", className: "bg-violet-50 text-violet-700 border-violet-100",    dot: "bg-violet-500"  },
-};
-
-const RISK_STYLE: Record<RecentVerificationRisk, { label: string; textColor: string; dotColor: string }> = {
-  low:     { label: "Low",     textColor: "text-emerald-600",  dotColor: "bg-emerald-500"  },
-  medium:  { label: "Medium",  textColor: "text-amber-600",    dotColor: "bg-amber-400"    },
-  high:    { label: "High",    textColor: "text-red-600",      dotColor: "bg-red-500"      },
-  unknown: { label: "Unknown", textColor: "text-muted-foreground", dotColor: "bg-slate-400" },
+  queued:    { label: "Queued",    className: "bg-slate-50 text-slate-600 border-slate-200",       dot: "bg-slate-400"   },
+  pending:   { label: "Pending",   className: "bg-blue-50 text-blue-700 border-blue-100",          dot: "bg-blue-500"    },
+  completed: { label: "Completed", className: "bg-emerald-50 text-emerald-700 border-emerald-100", dot: "bg-emerald-500" },
+  failed:    { label: "Failed",    className: "bg-red-50 text-red-600 border-red-100",             dot: "bg-red-500"     },
 };
 
 function StatusPill({ status }: { status: RecentVerificationStatus }) {
-  const cfg = STATUS_STYLE[status] ?? STATUS_STYLE.unknown;
+  const cfg = STATUS_STYLE[status] ?? STATUS_STYLE.pending;
   return (
     <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold", cfg.className)}>
       <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dot)} />
-      {cfg.label}
-    </span>
-  );
-}
-
-function RiskCell({ risk }: { risk: RecentVerificationRisk }) {
-  const cfg = RISK_STYLE[risk] ?? RISK_STYLE.unknown;
-  return (
-    <span className={cn("flex items-center gap-1.5 text-xs font-medium", cfg.textColor)}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dotColor)} />
       {cfg.label}
     </span>
   );
@@ -79,7 +63,7 @@ function formatDateTime(iso: string): string {
 function EmptyState() {
   return (
     <TableRow>
-      <TableCell colSpan={5} className="py-12 text-center">
+      <TableCell colSpan={4} className="py-12 text-center">
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
           <FileX size={32} strokeWidth={1.5} />
           <p className="text-sm font-medium">No verifications yet</p>
@@ -96,6 +80,23 @@ interface RecentVerificationsTableProps {
   limit?: number;
 }
 
+type StatusFilter = "all" | RecentVerificationStatus;
+type PeriodFilter = "all" | "today" | "week" | "custom";
+
+const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: "all",       label: "All Status" },
+  { value: "queued",    label: "Queued" },
+  { value: "pending",   label: "Pending" },
+  { value: "completed", label: "Completed" },
+  { value: "failed",    label: "Failed" },
+];
+
+const PERIOD_FILTERS: { value: PeriodFilter; label: string }[] = [
+  { value: "today",  label: "Today" },
+  { value: "week",   label: "This week" },
+  { value: "custom", label: "Custom" },
+];
+
 export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerificationsTableProps = {}) {
   const [page,    setPage]    = useState(1);
   const [data,    setData]    = useState<RecentVerificationItem[]>([]);
@@ -103,11 +104,46 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
 
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
+  const [customFrom,   setCustomFrom]   = useState<string>("");
+  const [customTo,     setCustomTo]     = useState<string>("");
+  const [customOpen,   setCustomOpen]   = useState<boolean>(false);
+  const customRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!customOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (customRef.current && !customRef.current.contains(e.target as Node)) {
+        setCustomOpen(false);
+      }
+    };
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCustomOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [customOpen]);
+
   const load = useCallback(async (targetPage: number, signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await dashboardService.getRecentVerifications(targetPage, limit, signal);
+      const res = await dashboardService.getRecentVerifications(
+        {
+          page:   targetPage,
+          limit,
+          status: statusFilter === "all" ? undefined : statusFilter,
+          period: periodFilter === "all" ? undefined : periodFilter,
+          from:   periodFilter === "custom" && customFrom ? new Date(customFrom).toISOString() : undefined,
+          to:     periodFilter === "custom" && customTo   ? new Date(customTo).toISOString()   : undefined,
+        },
+        signal,
+      );
       if (signal?.aborted) return;
       setData(res.data);
       setTotal(res.total);
@@ -117,7 +153,11 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  }, [limit]);
+  }, [limit, statusFilter, periodFilter, customFrom, customTo]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, periodFilter, customFrom, customTo]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -143,39 +183,196 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
         </a>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead>Email</TableHead>
-            <TableHead className="w-24">Type</TableHead>
-            <TableHead className="w-28">Status</TableHead>
-            <TableHead className="w-28">Risk</TableHead>
-            <TableHead className="w-44">Verified At</TableHead>
-          </TableRow>
-        </TableHeader>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-b border-border">
+        <div className="inline-flex items-center gap-1 rounded-full bg-muted/60 p-0.5">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => setStatusFilter(f.value)}
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                statusFilter === f.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
 
-        <TableBody>
-          {error ? (
-            <TableRow>
-              <TableCell colSpan={5} className="py-6 text-center text-sm text-destructive">
-                {error}
-              </TableCell>
-            </TableRow>
-          ) : data.length === 0 && !loading ? (
-            <EmptyState />
-          ) : (
-            data.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="font-medium text-sm truncate max-w-[260px]">{row.email}</TableCell>
-                <TableCell><TypeCell isBulk={row.isBulk} /></TableCell>
-                <TableCell><StatusPill status={row.status} /></TableCell>
-                <TableCell><RiskCell risk={row.risk} /></TableCell>
-                <TableCell className="text-sm text-muted-foreground">{formatDateTime(row.verifiedAt)}</TableCell>
-              </TableRow>
-            ))
+        <div className="relative flex items-center gap-2" ref={customRef}>
+          <div className="inline-flex items-center gap-1 rounded-full bg-muted/60 p-0.5">
+            {PERIOD_FILTERS.map((f) => {
+              const isActive = periodFilter === f.value;
+              return (
+                <button
+                  key={f.value}
+                  type="button"
+                  onClick={() => {
+                    if (f.value === "custom") {
+                      setCustomOpen((v) => !v || periodFilter !== "custom");
+                      if (periodFilter !== "custom") setPeriodFilter("custom");
+                      return;
+                    }
+                    setCustomOpen(false);
+                    setPeriodFilter((prev) => (prev === f.value ? "all" : f.value));
+                  }}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                    isActive
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {f.value === "custom" && <CalendarDays size={12} />}
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {customOpen && (
+            <div
+              role="dialog"
+              aria-label="Custom date range"
+              className="absolute right-0 top-full z-20 mt-2 w-72 rounded-xl border border-border bg-background p-4 shadow-lg"
+            >
+              <div className="flex items-center justify-between pb-2">
+                <p className="text-sm font-semibold">Custom range</p>
+                <button
+                  type="button"
+                  onClick={() => setCustomOpen(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Close"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="space-y-3">
+                {(() => {
+                  const today = new Date().toISOString().slice(0, 10);
+                  return (
+                    <>
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">From</label>
+                        <input
+                          type="date"
+                          value={customFrom}
+                          max={customTo && customTo < today ? customTo : today}
+                          onChange={(e) => setCustomFrom(e.target.value)}
+                          className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">To</label>
+                        <input
+                          type="date"
+                          value={customTo}
+                          min={customFrom || undefined}
+                          max={today}
+                          onChange={(e) => setCustomTo(e.target.value)}
+                          className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomFrom("");
+                      setCustomTo("");
+                      setPeriodFilter("all");
+                      setCustomOpen(false);
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!customFrom && !customTo}
+                    onClick={() => setCustomOpen(false)}
+                    className="h-7 px-3 text-xs"
+                  >
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            </div>
           )}
-        </TableBody>
-      </Table>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableHead className="h-10 px-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Email / File
+              </TableHead>
+              <TableHead className="h-10 w-24 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Type
+              </TableHead>
+              <TableHead className="h-10 w-32 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Status
+              </TableHead>
+              <TableHead className="h-10 w-40 px-5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Verified At
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {error ? (
+              <TableRow>
+                <TableCell colSpan={4} className="py-10 text-center text-sm text-destructive">
+                  {error}
+                </TableCell>
+              </TableRow>
+            ) : data.length === 0 && !loading ? (
+              <EmptyState />
+            ) : (
+              data.map((row) => (
+                <TableRow
+                  key={row.id}
+                  className="group border-b border-border/60 transition-colors hover:bg-muted/30"
+                >
+                  <TableCell className="py-3 px-5">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                        row.isBulk
+                          ? "bg-blue-50 text-blue-600"
+                          : "bg-slate-100 text-slate-600",
+                      )}>
+                        {row.isBulk
+                          ? <FileSpreadsheet size={14} />
+                          : <Mail size={14} />}
+                      </div>
+                      <span
+                        className="truncate text-sm font-medium text-foreground"
+                        title={row.label}
+                      >
+                        {row.label}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-3"><TypeCell isBulk={row.isBulk} /></TableCell>
+                  <TableCell className="py-3"><StatusPill status={row.status} /></TableCell>
+                  <TableCell className="py-3 px-5 text-right text-sm text-muted-foreground tabular-nums whitespace-nowrap">
+                    {formatDateTime(row.verifiedAt)}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
         <p className="text-xs text-muted-foreground tabular-nums">

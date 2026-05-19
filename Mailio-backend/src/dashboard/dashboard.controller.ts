@@ -87,6 +87,28 @@ export class DashboardController {
   @ApiOperation({ summary: 'Recent verifications across single and bulk' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['queued', 'pending', 'completed', 'failed'],
+  })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    enum: ['today', 'week', 'custom', 'all'],
+  })
+  @ApiQuery({
+    name: 'from',
+    required: false,
+    type: String,
+    example: '2026-05-01T00:00:00Z',
+  })
+  @ApiQuery({
+    name: 'to',
+    required: false,
+    type: String,
+    example: '2026-05-18T23:59:59Z',
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated recent verification records',
@@ -99,12 +121,13 @@ export class DashboardController {
             type: 'object',
             properties: {
               id: { type: 'string', format: 'uuid' },
+              label: { type: 'string' },
               email: { type: 'string', format: 'email' },
+              isBulk: { type: 'boolean' },
               status: {
                 type: 'string',
-                enum: ['valid', 'invalid', 'risky', 'unknown'],
+                enum: ['queued', 'pending', 'completed', 'failed'],
               },
-              source: { type: 'string', enum: ['single', 'bulk'] },
               verifiedAt: { type: 'string', format: 'date-time' },
             },
           },
@@ -120,8 +143,41 @@ export class DashboardController {
     @CurrentUser() user: User,
     @Query('page', new ParseIntPipe({ optional: true })) page = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 10,
+    @Query('status') status?: 'queued' | 'pending' | 'completed' | 'failed',
+    @Query('period') period?: 'today' | 'week' | 'custom' | 'all',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
-    return this.dashboardService.getRecentVerifications(user.id, page, limit);
+    const range = this.resolveDateRange(period, from, to);
+    return this.dashboardService.getRecentVerifications(user.id, page, limit, {
+      status,
+      from: range.from,
+      to: range.to,
+    });
+  }
+
+  private resolveDateRange(
+    period?: string,
+    from?: string,
+    to?: string,
+  ): { from?: Date; to?: Date } {
+    if (period === 'today') {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      return { from: start, to: new Date() };
+    }
+    if (period === 'week') {
+      const start = new Date();
+      start.setDate(start.getDate() - 7);
+      return { from: start, to: new Date() };
+    }
+    if (period === 'custom') {
+      return {
+        from: from ? new Date(from) : undefined,
+        to: to ? new Date(to) : undefined,
+      };
+    }
+    return {};
   }
 
   @ApiTags('dashboard')
