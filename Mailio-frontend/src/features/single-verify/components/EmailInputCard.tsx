@@ -58,7 +58,7 @@ export function EmailInputCard({ onVerify, isLoading }: EmailInputCardProps) {
             <Button
               type="submit"
               disabled={isLoading}
-              className="h-10 shrink-0 gap-1.5 rounded-full border-0 bg-[#7EA6FF] px-6 text-white hover:bg-[#6C97FB]"
+              className="h-10 shrink-0 gap-1.5 rounded-full border-0 bg-[#0F5BFF] px-6 text-white hover:bg-[#0A4BD9] disabled:bg-[#7EA6FF] disabled:opacity-100"
             >
               {isLoading ? (
                 <><Loader2 size={14} className="animate-spin" /> Verifying…</>

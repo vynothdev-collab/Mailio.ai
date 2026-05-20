@@ -142,7 +142,7 @@ export function SingleVerifyCard({ onVerified }: Props) {
             type="submit"
             size="lg"
             disabled={verifying}
-            className="w-full rounded-full border-0 bg-[#7EA6FF] text-white hover:bg-[#6C97FB] h-11"
+            className="w-full rounded-full border-0 bg-[#0F5BFF] text-white hover:bg-[#0A4BD9] disabled:bg-[#7EA6FF] disabled:opacity-100 h-11"
           >
             {verifying ? (
               <><Loader2 size={15} className="animate-spin" /> Verifying…</>
