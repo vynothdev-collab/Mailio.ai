@@ -29,7 +29,7 @@ export default function RootLayout({
       lang="en"
       className={`${jakarta.variable} ${jetbrainsMono.variable} h-full`}
     >
-      <body className="h-full antialiased">
+      <body className="h-full antialiased overflow-hidden">
         <Providers>{children}</Providers>
         <Toaster position="bottom-right" richColors />
       </body>

@@ -30,9 +30,9 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => voi
 
 
 export function DashboardView() {
-  const { data, loading, error, refresh } = useDashboardData();
+  const { data, loading, refreshing, error, refresh, silentReload } = useDashboardData();
 
-  if (loading) return <DashboardSkeleton />;
+  if ((loading && !data) || (refreshing && !data)) return <DashboardSkeleton />;
 
   if (error || !data) {
     return (
@@ -41,7 +41,7 @@ export function DashboardView() {
           title="Email Verification Dashboard"
           subtitle="Clean your lists, reduce bounce rates, and improve deliverability before every outreach."
           onRefresh={refresh}
-          refreshing={loading}
+          refreshing={refreshing}
         />
         <ErrorBanner message={error ?? "Unknown error"} onRetry={refresh} />
       </div>
@@ -50,20 +50,24 @@ export function DashboardView() {
 
   const { stats, chartData, chartTotal } = data;
 
+  if (refreshing) {
+    return <DashboardSkeleton />;
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Email Verification Dashboard"
         subtitle="Clean your lists, reduce bounce rates, and improve deliverability before every outreach."
         onRefresh={refresh}
-        refreshing={loading}
+        refreshing={refreshing}
       />
 
       <StatsGrid stats={stats} loading={false} />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <BulkVerifyCard onUploaded={refresh} />
-        <SingleVerifyCard onVerified={refresh} />
+        <BulkVerifyCard onUploaded={silentReload} />
+        <SingleVerifyCard onVerified={silentReload} />
         <div className="md:col-span-2 lg:col-span-1">
           <ResultsOverview data={chartData} total={chartTotal} />
         </div>

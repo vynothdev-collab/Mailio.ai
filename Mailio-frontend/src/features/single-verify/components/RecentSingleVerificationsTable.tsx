@@ -130,7 +130,7 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
       </div>
 
       <div className="overflow-x-auto">
-        <Table className="w-full">
+        <Table className="w-full min-w-[640px]">
           <TableHeader>
             <TableRow className="border-b border-[#DCE6F3] hover:bg-transparent">
               <TableHead className="h-10 px-5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">

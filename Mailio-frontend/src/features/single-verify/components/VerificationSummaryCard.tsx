@@ -25,11 +25,12 @@ function TrendingUpIcon() {
   );
 }
 
-function RefreshDotIcon() {
+function WarningTriangleRedIcon() {
   return (
     <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-      <path d="M9.625 4.58333V2.29166H7.33333" stroke="#0F5BFF" strokeWidth="1.00833" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M9.625 4.58332C9.04687 3.29062 7.75 2.29166 6.18333 2.29166C4.05833 2.29166 2.33333 4.01666 2.33333 6.14166C2.33333 8.26666 4.05833 9.99166 6.18333 9.99166C7.91667 9.99166 9.36667 8.83332 9.85 7.33332" stroke="#0F5BFF" strokeWidth="1.00833" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M5.5 4.125V5.95833" stroke="#E03A3A" strokeWidth="1.00833" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M5.5 7.79175H5.50458" stroke="#E03A3A" strokeWidth="1.00833" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M4.72093 1.76923L0.834268 8.25007C0.754228 8.38868 0.711878 8.54583 0.711429 8.70589C0.710981 8.86595 0.752451 9.02333 0.831713 9.16239C0.910975 9.30145 1.02527 9.41733 1.16322 9.4985C1.30117 9.57967 1.45797 9.62331 1.61802 9.62507H9.38218C9.54223 9.62331 9.69903 9.57967 9.83698 9.4985C9.97493 9.41733 10.0892 9.30145 10.1685 9.16239C10.2478 9.02333 10.2892 8.86595 10.2888 8.70589C10.2883 8.54583 10.246 8.38868 10.1659 8.25007L6.27927 1.76923C6.19706 1.63658 6.08234 1.52711 5.94599 1.4512C5.80964 1.37529 5.65616 1.33545 5.5001 1.33545C5.34404 1.33545 5.19056 1.37529 5.05421 1.4512C4.91786 1.52711 4.80314 1.63658 4.72093 1.76923Z" stroke="#E03A3A" strokeWidth="1.00833" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
 }
@@ -74,8 +75,8 @@ function buildTiles(s: SingleStatsDto): Tile[] {
       id:     "invalid-rate",
       label:  "Invalid Rate",
       value:  `${invalidRate.toFixed(1)}%`,
-      icon:   <RefreshDotIcon />,
-      iconBg: "bg-[#E6EEFB]",
+      icon:   <WarningTriangleRedIcon />,
+      iconBg: "bg-[#FCE6E6]",
     },
     {
       id:     "risk-rate",

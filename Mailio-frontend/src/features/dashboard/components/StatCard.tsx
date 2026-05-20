@@ -5,10 +5,11 @@ import type { StatItem } from "../types";
 
 const ICON_THEMES: Record<
   string,
-  { pillBg: string; icon: (props: { size?: number }) => React.ReactElement }
+  { pillBg: string; innerBg: string; icon: (props: { size?: number }) => React.ReactElement }
 > = {
   Mail: {
-    pillBg: "bg-[#E6EEFB]",
+    pillBg: "bg-[#EEF3FB]",
+    innerBg: "bg-[#DCE7FC]",
     icon: ({ size = 12 }) => (
       <svg width={size} height={size} viewBox="0 0 12 12" fill="none" aria-hidden="true">
         <path d="M9.5 2.5H2.5C1.94772 2.5 1.5 2.94772 1.5 3.5V8.5C1.5 9.05228 1.94772 9.5 2.5 9.5H9.5C10.0523 9.5 10.5 9.05228 10.5 8.5V3.5C10.5 2.94772 10.0523 2.5 9.5 2.5Z" stroke="#0F5BFF" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
@@ -17,7 +18,8 @@ const ICON_THEMES: Record<
     ),
   },
   ShieldCheck: {
-    pillBg: "bg-[#E2F4EA]",
+    pillBg: "bg-[#EEF3FB]",
+    innerBg: "bg-[#D6EFE0]",
     icon: ({ size = 12 }) => (
       <svg width={size} height={size} viewBox="0 0 12 12" fill="none" aria-hidden="true">
         <path d="M6 11C6 11 10 9 10 6V2.5L6 1L2 2.5V6C2 9 6 11 6 11Z" stroke="#14A055" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
@@ -26,7 +28,8 @@ const ICON_THEMES: Record<
     ),
   },
   AlertTriangle: {
-    pillBg: "bg-[#FCE6E6]",
+    pillBg: "bg-[#EEF3FB]",
+    innerBg: "bg-[#FAD7D7]",
     icon: ({ size = 12 }) => (
       <svg width={size} height={size} viewBox="0 0 12 12" fill="none" aria-hidden="true">
         <path d="M6 4.5V6.5" stroke="#E03A3A" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
@@ -38,7 +41,8 @@ const ICON_THEMES: Record<
 };
 
 const RISK_THEME = {
-  pillBg: "bg-[#FDEFD3]",
+  pillBg: "bg-[#EEF3FB]",
+  innerBg: "bg-[#FBE7BF]",
   icon: ({ size = 12 }: { size?: number }) => (
     <svg width={size} height={size} viewBox="0 0 12 12" fill="none" aria-hidden="true">
       <path d="M6 4.5V6.5" stroke="#E89B1A" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
@@ -52,6 +56,36 @@ interface StatCardProps {
   stat: StatItem;
 }
 
+// const TOOLTIP_BY_LABEL: Record<string, string> = {
+//   "total verified":
+//     "Total emails verified across all your single and bulk verifications.",
+//   "valid rate":
+//     "Percentage of verified emails that are deliverable to a real mailbox.",
+//   "invalid rate":
+//     "Percentage of emails that are undeliverable — bad syntax, missing MX, or hard bounce.",
+//   "risk rate":
+//     "Percentage of risky emails — catch-all, role-based, disposable, or low-confidence results.",
+// };
+
+const TOOLTIP_BY_LABEL: Record<string, string> = {
+  "total verified":
+    "Total number of emails verified across single and bulk checks.",
+  "valid rate":
+    "Percentage of verified emails that are safe to send. These emails passed mailbox, domain checks.",
+  "invalid rate":
+    "Percentage of verified emails that failed verification.",
+  "risk rate":
+    "Percentage of emails that are not fully invalid but may be risky.",
+};
+
+
+function tooltipFor(label: string): string {
+  return (
+    TOOLTIP_BY_LABEL[label.toLowerCase()] ??
+    `${label} for the selected period.`
+  );
+}
+
 export const StatCard = memo(({ stat }: StatCardProps) => {
   const isRiskCard = stat.label.toLowerCase().includes("risk");
   const theme = isRiskCard ? RISK_THEME : (ICON_THEMES[stat.iconName] ?? ICON_THEMES.Mail);
@@ -60,28 +94,54 @@ export const StatCard = memo(({ stat }: StatCardProps) => {
   const isUp = stat.change > 0;
   const isDown = stat.change < 0;
   const showChange = stat.change !== 0 || !!stat.changePeriod;
+  const tooltip = tooltipFor(stat.label);
 
   return (
-    <div className="rounded-2xl border border-[#DCE6F3] bg-white p-5 transition-shadow hover:shadow-sm">
+    <div className="rounded-2xl border border-[#DCE6F3] bg-white p-6 transition-shadow hover:shadow-sm">
       <div className="flex items-center justify-between">
         <span
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#161514]",
+            "inline-flex items-center gap-2 rounded-full px-1.5y py-1.5 pl-1.5 pr-5 text-xs font-semibold uppercase tracking-wider text-[#8B847A]",
             theme.pillBg,
           )}
         >
-          <Icon size={12} />
+          <span
+            className={cn(
+              "flex h-7 w-7 items-center justify-center rounded-full",
+              theme.innerBg,
+            )}
+          >
+            <Icon size={14} />
+          </span>
           {stat.label}
         </span>
-        <Info size={14} className="text-muted-foreground" />
+        <div className="group relative">
+          <button
+            type="button"
+            aria-label={`What is ${stat.label}?`}
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#8B847A] hover:bg-[#F4F8FF] hover:text-[#161514] transition-colors"
+          >
+            <Info size={13} strokeWidth={1.5} />
+          </button>
+          <div
+            role="tooltip"
+            className="pointer-events-none absolute right-0 bottom-full z-30 mb-2.5 w-52 -translate-y-1 rounded-lg bg-[#111827] px-3 py-2 text-[11px] leading-relaxed text-white opacity-0 shadow-xl transition-all duration-150 group-hover:translate-y-0 group-hover:opacity-100"
+          >
+            <span
+              aria-hidden
+              className="absolute -bottom-1 right-3 h-2 w-2 rotate-45 bg-[#111827]"
+            />
+            {tooltip}
+          </div>
+        </div>
       </div>
 
-      <p className="mt-4 text-4xl font-bold tabular-nums leading-none text-[#111827]">
+      <p className="mt-5 text-5xl font-bold tabular-nums leading-none tracking-tight text-[#111827]">
         {stat.value}
       </p>
 
       {showChange && (
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-6 flex items-center gap-2">
           <span
             className={cn(
               "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",

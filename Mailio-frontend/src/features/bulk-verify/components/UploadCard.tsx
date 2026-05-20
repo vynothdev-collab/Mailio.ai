@@ -325,7 +325,6 @@ function TemplateGuide() {
   const rules = [
     'Only one column with the header "Email".',
     "Each row must contain one email address.",
-    "No empty rows.",
     "File must be saved as CSV or TXT (UTF-8).",
     "Maximum file size: 50MB.",
   ];

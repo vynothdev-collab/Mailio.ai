@@ -129,7 +129,7 @@ export function PageHeader({ title, subtitle, onRefresh, refreshing = false }: P
             type="button"
             variant="outline"
             size="sm"
-            onClick={onRefresh}
+            onClick={() => onRefresh()}
             disabled={refreshing}
             className="h-9 gap-1.5 rounded-full border-[#DCE6F3] bg-white px-4 text-sm font-medium text-[#161514] hover:bg-[#F4F8FF]"
           >
