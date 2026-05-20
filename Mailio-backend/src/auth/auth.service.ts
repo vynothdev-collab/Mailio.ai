@@ -1,10 +1,15 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { SignupDto } from './dto/signup.dto';
+import { EmailOtpService } from './email-otp.service';
 import { GoogleTokenVerifierService } from './google-token-verifier.service';
 import { LinkedinAuthService } from './linkedin-auth.service';
 
@@ -16,13 +21,20 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly googleVerifier: GoogleTokenVerifierService,
     private readonly linkedinAuth: LinkedinAuthService,
+    private readonly emailOtpService: EmailOtpService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.usersService.findByEmail(email);
     if (!user || !user.isActive || !user.passwordHash) return null;
     const valid = await bcrypt.compare(password, user.passwordHash);
-    return valid ? user : null;
+    if (!valid) return null;
+    if (!user.emailVerified) {
+      throw new UnauthorizedException(
+        'Please verify your email before login.',
+      );
+    }
+    return user;
   }
 
   async signup(dto: SignupDto) {
@@ -32,7 +44,40 @@ export class AuthService {
       passwordHash,
       name: dto.fullName,
     });
-    return this.issueSession(user, false);
+    try {
+      await this.emailOtpService.issueAndSend(user);
+    } catch (err) {
+      if (!user.emailVerified) {
+        await this.usersService.deleteById(user.id);
+      }
+      throw err;
+    }
+    return {
+      success: true,
+      email: user.email,
+      message: 'Signup successful. Please verify your email.',
+    };
+  }
+
+  async verifyEmail(email: string, otp: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) throw new NotFoundException('User not found.');
+    if (user.emailVerified) {
+      return { success: true, message: 'Email already verified.' };
+    }
+    await this.emailOtpService.verify(email, otp);
+    await this.usersService.markEmailVerified(user.id);
+    return { success: true, message: 'Email verified successfully.' };
+  }
+
+  async resendVerificationOtp(email: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) throw new NotFoundException('User not found.');
+    if (user.emailVerified) {
+      return { success: true, message: 'Email is already verified.' };
+    }
+    await this.emailOtpService.resend(user);
+    return { success: true, message: 'Verification code sent.' };
   }
 
   async login(user: User, remember = false) {

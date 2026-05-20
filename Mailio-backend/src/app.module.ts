@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
+import mailConfig from './config/mail.config';
 import redisConfig from './config/redis.config';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DbWriteModule } from './db-write/db-write.module';
@@ -31,7 +32,7 @@ import { VerifyModule } from './verify/verify.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig, redisConfig],
+      load: [databaseConfig, jwtConfig, redisConfig, mailConfig],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],

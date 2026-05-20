@@ -48,6 +48,7 @@
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.1",
     "@nestjs/websockets": "^11.1.19",
+    "@sendgrid/mail": "^8.1.6",
     "axios": "^1.16.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.76.6",

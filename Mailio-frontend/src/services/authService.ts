@@ -5,9 +5,13 @@ import type {
   GoogleLoginPayload,
   LinkedinLoginPayload,
   LoginPayload,
+  MessageResponse,
   RefreshPayload,
   RefreshResponse,
+  ResendOtpPayload,
   SignupPayload,
+  SignupResponse,
+  VerifyEmailPayload,
 } from "@/src/types/auth";
 
 function persistSession(data: AuthResponse): void {
@@ -16,9 +20,18 @@ function persistSession(data: AuthResponse): void {
 }
 
 export const authService = {
-  async signup(payload: SignupPayload): Promise<AuthResponse> {
-    const { data } = await api.post<AuthResponse>("/auth/signup", payload, { _skipAuth: true });
-    persistSession(data);
+  async signup(payload: SignupPayload): Promise<SignupResponse> {
+    const { data } = await api.post<SignupResponse>("/auth/signup", payload, { _skipAuth: true });
+    return data;
+  },
+
+  async verifyEmail(payload: VerifyEmailPayload): Promise<MessageResponse> {
+    const { data } = await api.post<MessageResponse>("/auth/verify-email", payload, { _skipAuth: true });
+    return data;
+  },
+
+  async resendVerificationOtp(payload: ResendOtpPayload): Promise<MessageResponse> {
+    const { data } = await api.post<MessageResponse>("/auth/resend-verification-otp", payload, { _skipAuth: true });
     return data;
   },
 

@@ -44,6 +44,26 @@ export interface RefreshResponse {
   accessToken: string;
 }
 
+export interface SignupResponse {
+  success: boolean;
+  email:   string;
+  message: string;
+}
+
+export interface VerifyEmailPayload {
+  email: string;
+  otp:   string;
+}
+
+export interface ResendOtpPayload {
+  email: string;
+}
+
+export interface MessageResponse {
+  success: boolean;
+  message: string;
+}
+
 export interface ApiError {
   status:  number;
   message: string;

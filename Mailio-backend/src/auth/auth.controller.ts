@@ -15,7 +15,9 @@ import { GoogleLoginDto } from './dto/google-login.dto';
 import { LinkedinLoginDto } from './dto/linkedin-login.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ResendVerificationOtpDto } from './dto/resend-verification-otp.dto';
 import { SignupDto } from './dto/signup.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 const AUTH_RESPONSE = {
   type: 'object',
@@ -46,12 +48,11 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('signup')
-  @ApiOperation({ summary: 'Register a new user' })
+  @ApiOperation({ summary: 'Register a new user and send verification OTP' })
   @ApiBody({ type: SignupDto })
   @ApiResponse({
     status: 201,
-    description: 'User created — returns tokens and profile',
-    schema: AUTH_RESPONSE,
+    description: 'User created — verification email sent',
   })
   @ApiResponse({
     status: 400,
@@ -59,6 +60,25 @@ export class AuthController {
   })
   signup(@Body() dto: SignupDto) {
     return this.authService.signup(dto);
+  }
+
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify signup email with OTP' })
+  @ApiBody({ type: VerifyEmailDto })
+  @ApiResponse({ status: 200, description: 'Email verified' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired OTP' })
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto.email, dto.otp);
+  }
+
+  @Post('resend-verification-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend signup verification OTP' })
+  @ApiBody({ type: ResendVerificationOtpDto })
+  @ApiResponse({ status: 200, description: 'Verification code sent' })
+  resendVerificationOtp(@Body() dto: ResendVerificationOtpDto) {
+    return this.authService.resendVerificationOtp(dto.email);
   }
 
   @Post('login')

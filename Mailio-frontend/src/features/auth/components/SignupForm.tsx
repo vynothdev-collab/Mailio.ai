@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/src/lib/utils";
 import { authService } from "@/src/services/authService";
-import { useAuth } from "@/src/hooks/useAuth";
 import { clearSession } from "@/src/utils/storage";
 import { SocialAuthButtons } from "./SocialButtons";
 import type { ApiError } from "@/src/types/auth";
@@ -61,7 +60,6 @@ function PasswordStrength({ password }: { password: string }) {
 
 export function SignupForm() {
   const router = useRouter();
-  const { refresh: refreshUser } = useAuth();
   const [showPassword, setShowPassword]        = useState(false);
   const [showConfirmPassword, setShowConfirm]  = useState(false);
   const [submitState, setSubmitState]          = useState<"idle" | "loading">("idle");
@@ -79,16 +77,14 @@ export function SignupForm() {
     setSubmitState("loading");
     clearSession();
     try {
-      const res = await authService.signup({
+      await authService.signup({
         fullName: data.fullName,
         email:    data.email,
         password: data.password,
       });
 
-      await refreshUser();
-
-      toast.success(`Welcome, ${res.user.name.split(" ")[0]}! Account created.`);
-      router.push("/dashboard");
+      toast.success("Account created. Check your inbox for the verification code.");
+      router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
     } catch (err) {
       const apiErr = err as ApiError;
       toast.error(apiErr?.message ?? "Signup failed. Please try again.");

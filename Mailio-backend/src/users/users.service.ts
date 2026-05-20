@@ -37,6 +37,10 @@ export class UsersService {
     return this.usersRepo.findOne({ where: { id } });
   }
 
+  async deleteById(id: string): Promise<void> {
+    await this.usersRepo.delete({ id });
+  }
+
   async create(data: {
     email: string;
     passwordHash: string;
@@ -85,8 +89,17 @@ export class UsersService {
       provider,
       providerId: profile.providerId,
       passwordHash: null,
+      emailVerified: true,
+      emailVerifiedAt: new Date(),
     });
     return this.usersRepo.save(created);
+  }
+
+  async markEmailVerified(userId: string): Promise<void> {
+    await this.usersRepo.update(
+      { id: userId },
+      { emailVerified: true, emailVerifiedAt: new Date() },
+    );
   }
 
   private async touchProfile(user: User, profile: OAuthProfile): Promise<User> {

@@ -46,6 +46,17 @@ export function LoginForm() {
       router.push("/dashboard");
     } catch (err) {
       const apiErr = err as ApiError;
+      const unverified =
+        apiErr?.status === 401 &&
+        typeof apiErr.message === "string" &&
+        apiErr.message.toLowerCase().includes("verify your email");
+
+      if (unverified) {
+        toast.error(apiErr.message);
+        router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
+        return;
+      }
+
       const msg =
         apiErr?.status === 401
           ? "Invalid email or password. Please try again."
