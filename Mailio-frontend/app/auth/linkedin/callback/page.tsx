@@ -2,8 +2,6 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import CallbackClient from "./CallbackClient";
 
-export const dynamic = "force-dynamic";
-
 function Fallback() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-canvas">
