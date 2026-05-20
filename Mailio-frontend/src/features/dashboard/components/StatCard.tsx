@@ -136,12 +136,12 @@ export const StatCard = memo(({ stat }: StatCardProps) => {
         </div>
       </div>
 
-      <p className="mt-5 text-5xl font-bold tabular-nums leading-none tracking-tight text-[#111827]">
+      <p className="mt-3 text-[26px] md:text-[28px] font-bold tabular-nums leading-tight tracking-tight text-[#111827]">
         {stat.value}
       </p>
 
       {showChange && (
-        <div className="mt-6 flex items-center gap-2">
+        <div className="mt-3 flex items-center gap-2">
           <span
             className={cn(
               "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
