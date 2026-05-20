@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, AlertTriangle } from "lucide-react";
@@ -14,7 +14,7 @@ import {
 } from "@/src/features/auth/lib/linkedin";
 import type { ApiError } from "@/src/types/auth";
 
-export default function LinkedinCallbackPage() {
+function LinkedinCallbackInner() {
   const router = useRouter();
   const params = useSearchParams();
   const { refresh: refreshUser } = useAuth();
@@ -96,5 +96,24 @@ export default function LinkedinCallbackPage() {
         Completing LinkedIn sign-in…
       </div>
     </div>
+  );
+}
+
+function LinkedinCallbackFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-canvas">
+      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+        <Loader2 size={16} className="animate-spin" />
+        Completing LinkedIn sign-in…
+      </div>
+    </div>
+  );
+}
+
+export default function LinkedinCallbackPage() {
+  return (
+    <Suspense fallback={<LinkedinCallbackFallback />}>
+      <LinkedinCallbackInner />
+    </Suspense>
   );
 }
