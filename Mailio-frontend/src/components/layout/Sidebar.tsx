@@ -109,68 +109,69 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     });
   }, []);
 
-  const content = (
-    <div className="relative flex h-full flex-col">
-      <div className={cn(
-        "flex items-center py-4",
-        collapsed ? "justify-center px-1" : "justify-between px-4"
-      )}>
-        <div className="flex items-center justify-center">
-          <EmailanswersLogo collapsed={collapsed} />
-        </div>
+  const renderContent = (forceExpanded: boolean) => {
+    const isCollapsed = forceExpanded ? false : collapsed;
+    return (
+      <div className="relative flex h-full flex-col">
+        <div className={cn(
+          "flex items-center py-4",
+          isCollapsed ? "justify-center px-1" : "justify-between px-4"
+        )}>
+          <div className="flex items-center justify-center">
+            <EmailanswersLogo collapsed={isCollapsed} />
+          </div>
 
-        {!collapsed && (
+          {!isCollapsed && !forceExpanded && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={toggleCollapsed}
+              className="hidden lg:flex text-muted-foreground"
+              aria-label="Collapse sidebar"
+            >
+              <ChevronLeft size={14} />
+            </Button>
+          )}
+
           <Button
             variant="ghost"
             size="icon-xs"
-            onClick={toggleCollapsed}
-            className="hidden lg:flex text-muted-foreground"
-            aria-label="Collapse sidebar"
+            onClick={onMobileClose}
+            className="lg:hidden text-muted-foreground"
+            aria-label="Close menu"
           >
-            <ChevronLeft size={14} />
+            <X size={16} />
           </Button>
+        </div>
+
+        {isCollapsed && !forceExpanded && (
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label="Expand sidebar"
+            className="absolute right-0 top-6 z-50 hidden h-5 w-5 translate-x-1/2 items-center justify-center rounded-full border border-[#DCE6F3] bg-white text-[#8B847A] shadow-sm hover:text-[#161514] lg:flex"
+          >
+            <ChevronRight size={12} />
+          </button>
         )}
 
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={onMobileClose}
-          className="lg:hidden text-muted-foreground"
-          aria-label="Close menu"
-        >
-          <X size={16} />
-        </Button>
+        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5" aria-label="Main navigation">
+          {NAV_ITEMS.map((item, idx) => (
+            <div key={item.id}>
+              {item.id === "settings" && idx > 0 && (
+                <div className="my-2 border-t border-[#DCE6F3] mx-2" aria-hidden />
+              )}
+              <NavLink
+                item={item}
+                isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
+                collapsed={isCollapsed}
+              />
+            </div>
+          ))}
+        </nav>
       </div>
-
-      {collapsed && (
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          aria-label="Expand sidebar"
-          className="absolute right-0 top-6 z-50 hidden h-5 w-5 translate-x-1/2 items-center justify-center rounded-full border border-[#DCE6F3] bg-white text-[#8B847A] shadow-sm hover:text-[#161514] lg:flex"
-        >
-          <ChevronRight size={12} />
-        </button>
-      )}
-
-      
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5" aria-label="Main navigation">
-        {NAV_ITEMS.map((item, idx) => (
-          <div key={item.id}>
-            {item.id === "settings" && idx > 0 && (
-              <div className="my-2 border-t border-[#DCE6F3] mx-2" aria-hidden />
-            )}
-            <NavLink
-              item={item}
-              isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
-              collapsed={collapsed}
-            />
-          </div>
-        ))}
-      </nav>
-
-    </div>
-  );
+    );
+  };
 
   return (
     <>
@@ -182,14 +183,14 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           collapsed ? "w-16" : "w-64"
         )}
       >
-        {content}
+        {renderContent(false)}
       </aside>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden" aria-hidden="true">
           <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={onMobileClose} />
           <aside className="absolute left-0 top-0 h-full w-64 bg-[#EEF3FB] shadow-xl z-50">
-            {content}
+            {renderContent(true)}
           </aside>
         </div>
       )}

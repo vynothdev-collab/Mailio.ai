@@ -321,20 +321,20 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <Table className="table-fixed w-full">
+      <div>
+        <Table className="w-full">
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="h-10 w-[40%] px-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <TableHead className="h-10 px-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Email / File
               </TableHead>
-              <TableHead className="h-10 w-[15%] text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <TableHead className="hidden h-10 w-24 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:table-cell">
                 Type
               </TableHead>
-              <TableHead className="h-10 w-[20%] text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <TableHead className="h-10 w-28 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:w-32">
                 Status
               </TableHead>
-              <TableHead className="h-10 w-[25%] px-5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <TableHead className="hidden h-10 w-44 px-5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap md:table-cell">
                 Verified At
               </TableHead>
             </TableRow>
@@ -360,17 +360,22 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#EEF3FB] text-[10px] font-semibold uppercase text-[#8B847A]">
                         {initialsOf(row.label)}
                       </div>
-                      <span
-                        className="truncate text-sm font-medium text-foreground"
-                        title={row.label}
-                      >
-                        {row.label}
-                      </span>
+                      <div className="min-w-0">
+                        <span
+                          className="block truncate text-sm font-medium text-foreground"
+                          title={row.label}
+                        >
+                          {row.label}
+                        </span>
+                        <span className="block text-[11px] text-muted-foreground md:hidden">
+                          {formatDateTime(row.verifiedAt)} · {row.isBulk ? "Bulk" : "Single"}
+                        </span>
+                      </div>
                     </div>
                   </TableCell>
-                  <TableCell className="py-3"><TypeCell isBulk={row.isBulk} /></TableCell>
+                  <TableCell className="hidden py-3 sm:table-cell"><TypeCell isBulk={row.isBulk} /></TableCell>
                   <TableCell className="py-3"><StatusPill status={row.status} /></TableCell>
-                  <TableCell className="py-3 px-5 text-right text-sm text-muted-foreground tabular-nums whitespace-nowrap">
+                  <TableCell className="hidden py-3 px-5 text-right text-sm text-muted-foreground tabular-nums whitespace-nowrap md:table-cell">
                     {formatDateTime(row.verifiedAt)}
                   </TableCell>
                 </TableRow>

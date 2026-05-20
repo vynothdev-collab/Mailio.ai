@@ -78,7 +78,7 @@ export function RecentBulkVerificationsTable({
         <h2 className="text-base font-bold text-[#111827]">Recent Bulk Verifications</h2>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[820px] text-sm">
             <thead>
               <tr className="border-b border-[#DCE6F3]">
                 {["File", "Total", "Status", "Valid", "Invalid", "Risky", "View", "Actions"].map((h) => (
