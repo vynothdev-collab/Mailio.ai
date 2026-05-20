@@ -182,17 +182,35 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
 
   return (
     <Card className="overflow-hidden gap-0 py-0">
-      <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-bold text-[#111827]">Recent Verifications</h2>
-            {loading && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {total === 0
-              ? "No results yet"
-              : `${Math.min(data.length, limit)} of ${total.toLocaleString()} results · live feed`}
-          </p>
+      <div className="flex flex-col gap-0.5 px-3 py-3 sm:px-5 sm:py-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-bold text-[#111827]">Recent Verifications</h2>
+          {loading && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {total === 0
+            ? "No results yet"
+            : `${Math.min(data.length, limit)} of ${total.toLocaleString()} results · live feed`}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 pb-3 sm:px-5 sm:pb-4">
+        <div className="inline-flex flex-wrap items-center gap-1 rounded-full bg-[#EEF3FB] p-1">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              onClick={() => setStatusFilter(f.value)}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors focus:outline-none sm:px-4 sm:py-2 sm:text-xs",
+                statusFilter === f.value
+                  ? "bg-white text-[#111827] shadow-sm"
+                  : "text-[#8B847A] hover:text-[#111827]",
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
 
         <div className="relative flex items-center gap-2" ref={customRef}>
@@ -213,7 +231,7 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
                     setPeriodFilter((prev) => (prev === f.value ? "all" : f.value));
                   }}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-colors focus:outline-none",
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors focus:outline-none sm:px-4 sm:py-2 sm:text-xs",
                     isActive
                       ? "bg-white text-[#111827] shadow-sm"
                       : "text-[#8B847A] hover:text-[#111827]",
@@ -227,11 +245,17 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
           </div>
 
           {customOpen && (
-            <div
-              role="dialog"
-              aria-label="Custom date range"
-              className="absolute right-0 top-full z-20 mt-2 w-72 rounded-xl border border-[#DCE6F3] bg-white p-4 shadow-lg"
-            >
+            <>
+              <div
+                aria-hidden
+                onClick={() => setCustomOpen(false)}
+                className="fixed inset-0 z-40 bg-black/30 sm:hidden"
+              />
+              <div
+                role="dialog"
+                aria-label="Custom date range"
+                className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-xs -translate-x-1/2 -translate-y-1/2 rounded-xl border border-[#DCE6F3] bg-white p-4 shadow-xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:z-20 sm:mt-2 sm:w-72 sm:max-w-none sm:translate-x-0 sm:translate-y-0 sm:shadow-lg"
+              >
               <div className="flex items-center justify-between pb-2">
                 <p className="text-sm font-semibold">Custom range</p>
                 <button
@@ -297,35 +321,16 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
                 </div>
               </div>
             </div>
+            </>
           )}
         </div>
       </div>
 
-      <div className="px-5 pb-4">
-        <div className="inline-flex flex-wrap items-center gap-1 rounded-full bg-[#EEF3FB] p-1">
-          {STATUS_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => setStatusFilter(f.value)}
-              className={cn(
-                "rounded-full px-4 py-2 text-xs font-semibold transition-colors focus:outline-none",
-                statusFilter === f.value
-                  ? "bg-white text-[#111827] shadow-sm"
-                  : "text-[#8B847A] hover:text-[#111827]",
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <Table className="w-full">
+      <div className="-mx-px overflow-x-auto">
+        <Table className="w-full min-w-[480px]">
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="h-10 px-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <TableHead className="h-10 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:px-5">
                 Email / File
               </TableHead>
               <TableHead className="hidden h-10 w-24 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:table-cell">
@@ -355,7 +360,7 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
                   key={row.id}
                   className="group border-b border-border/60 transition-colors hover:bg-muted/30"
                 >
-                  <TableCell className="py-3 px-5">
+                  <TableCell className="py-3 px-3 sm:px-5">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#EEF3FB] text-[10px] font-semibold uppercase text-[#8B847A]">
                         {initialsOf(row.label)}
@@ -385,7 +390,7 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
         </Table>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#DCE6F3] px-5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#DCE6F3] px-3 py-3 sm:px-5">
         <p className="text-sm text-muted-foreground tabular-nums">
           {total === 0
             ? "No records"

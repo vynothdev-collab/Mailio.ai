@@ -56,16 +56,6 @@ interface StatCardProps {
   stat: StatItem;
 }
 
-// const TOOLTIP_BY_LABEL: Record<string, string> = {
-//   "total verified":
-//     "Total emails verified across all your single and bulk verifications.",
-//   "valid rate":
-//     "Percentage of verified emails that are deliverable to a real mailbox.",
-//   "invalid rate":
-//     "Percentage of emails that are undeliverable — bad syntax, missing MX, or hard bounce.",
-//   "risk rate":
-//     "Percentage of risky emails — catch-all, role-based, disposable, or low-confidence results.",
-// };
 
 const TOOLTIP_BY_LABEL: Record<string, string> = {
   "total verified":
@@ -97,21 +87,21 @@ export const StatCard = memo(({ stat }: StatCardProps) => {
   const tooltip = tooltipFor(stat.label);
 
   return (
-    <div className="rounded-2xl border border-[#DCE6F3] bg-white p-6 transition-shadow hover:shadow-sm">
+    <div className="rounded-2xl border border-[#DCE6F3] bg-white p-2.5 sm:p-4 lg:p-5 transition-shadow hover:shadow-sm">
       <div className="flex items-center justify-between">
         <span
           className={cn(
-            "inline-flex items-center gap-2 rounded-full px-1.5y py-1.5 pl-1.5 pr-5 text-xs font-semibold uppercase tracking-wider text-[#8B847A]",
+            "inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5 text-[9px] font-semibold uppercase tracking-wider text-[#8B847A] sm:gap-2 sm:py-1.5 sm:pl-1.5 sm:pr-5 sm:text-xs",
             theme.pillBg,
           )}
         >
           <span
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-full",
+              "flex h-5 w-5 items-center justify-center rounded-full sm:h-7 sm:w-7",
               theme.innerBg,
             )}
           >
-            <Icon size={14} />
+            <Icon size={12} />
           </span>
           {stat.label}
         </span>
@@ -119,9 +109,10 @@ export const StatCard = memo(({ stat }: StatCardProps) => {
           <button
             type="button"
             aria-label={`What is ${stat.label}?`}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#8B847A] hover:bg-[#F4F8FF] hover:text-[#161514] transition-colors"
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#8B847A] hover:bg-[#F4F8FF] hover:text-[#161514] transition-colors sm:h-7 sm:w-7"
           >
-            <Info size={13} strokeWidth={1.5} />
+            <Info size={11} strokeWidth={1.5} className="sm:hidden" />
+            <Info size={13} strokeWidth={1.5} className="hidden sm:block" />
           </button>
           <div
             role="tooltip"
@@ -136,12 +127,12 @@ export const StatCard = memo(({ stat }: StatCardProps) => {
         </div>
       </div>
 
-      <p className="mt-3 text-[26px] md:text-[28px] font-bold tabular-nums leading-tight tracking-tight text-[#111827]">
+      <p className="mt-2 text-[20px] font-bold tabular-nums leading-tight tracking-tight text-[#111827] sm:mt-3 sm:text-[26px] md:text-[28px]">
         {stat.value}
       </p>
 
       {showChange && (
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:mt-3 sm:gap-2">
           <span
             className={cn(
               "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
@@ -156,7 +147,7 @@ export const StatCard = memo(({ stat }: StatCardProps) => {
             {stat.change}%
           </span>
           {stat.changePeriod && (
-            <span className="text-xs text-muted-foreground truncate">
+            <span className="text-[10px] text-muted-foreground truncate sm:text-xs">
               {stat.changePeriod}
             </span>
           )}

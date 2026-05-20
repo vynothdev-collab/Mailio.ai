@@ -94,8 +94,8 @@ export function AuthShell({ children }: AuthShellProps) {
     <div className="flex h-full min-h-screen">
       <BrandPanel />
 
-      <div className="flex flex-1 flex-col items-center justify-center bg-canvas px-6 py-12 lg:px-16">
-        <Link href="/" className="mb-10 flex items-center gap-2 lg:hidden">
+      <div className="flex flex-1 flex-col items-center justify-center bg-canvas px-4 py-8 sm:px-6 sm:py-12 lg:px-16">
+        <Link href="/" className="mb-6 flex items-center gap-2 sm:mb-10 lg:hidden">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-brand">
             <Zap size={15} className="text-white" />
           </div>

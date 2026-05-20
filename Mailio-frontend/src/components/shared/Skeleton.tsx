@@ -3,13 +3,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function StatCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-[#DCE6F3] bg-white p-6">
+    <div className="rounded-2xl border border-[#DCE6F3] bg-white p-2.5 sm:p-4 lg:p-5">
       <div className="flex items-center justify-between">
-        <Skeleton className="h-7 w-32 rounded-full" />
-        <Skeleton className="h-7 w-7 rounded-full" />
+        <Skeleton className="h-5 w-20 rounded-full sm:h-7 sm:w-32" />
+        <Skeleton className="h-5 w-5 rounded-full sm:h-7 sm:w-7" />
       </div>
-      <Skeleton className="mt-5 h-10 w-28" />
-      <Skeleton className="mt-6 h-4 w-40" />
+      <Skeleton className="mt-2 h-6 w-16 sm:mt-3 sm:h-8 sm:w-24 lg:h-10 lg:w-28" />
+      <Skeleton className="mt-2 h-3 w-24 sm:mt-3 sm:h-4 sm:w-40" />
     </div>
   );
 }
@@ -32,7 +32,7 @@ function HeaderSkeleton() {
 
 function CardBlock({ className = "" }: { className?: string }) {
   return (
-    <div className={`rounded-2xl border border-[#DCE6F3] bg-white p-5 space-y-3 ${className}`}>
+    <div className={`rounded-2xl border border-[#DCE6F3] bg-white p-3 space-y-3 sm:p-4 lg:p-5 ${className}`}>
       <div className="flex items-center justify-between">
         <Skeleton className="h-5 w-40" />
         <Skeleton className="h-6 w-20 rounded-full" />
@@ -47,21 +47,21 @@ function CardBlock({ className = "" }: { className?: string }) {
 function TableSkeleton() {
   return (
     <div className="rounded-2xl border border-[#DCE6F3] bg-white">
-      <div className="flex items-start justify-between gap-3 px-5 py-4">
+      <div className="flex items-start justify-between gap-3 px-3 py-3 sm:px-5 sm:py-4">
         <div className="space-y-1.5">
           <Skeleton className="h-5 w-44" />
           <Skeleton className="h-3 w-32" />
         </div>
         <Skeleton className="h-9 w-56 rounded-full" />
       </div>
-      <div className="px-5 pb-4">
+      <div className="px-3 pb-3 sm:px-5 sm:pb-4">
         <Skeleton className="h-9 w-64 rounded-full" />
       </div>
       <div className="border-t border-[#DCE6F3]">
         {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
-            className="flex items-center gap-4 border-b border-[#DCE6F3]/60 px-5 py-3 last:border-0"
+            className="flex items-center gap-4 border-b border-[#DCE6F3]/60 px-3 py-3 sm:px-5 last:border-0"
           >
             <Skeleton className="h-8 w-8 shrink-0 rounded-xl" />
             <Skeleton className="h-4 flex-1" />
@@ -143,14 +143,14 @@ export function SingleVerifySkeleton() {
 
 export function DashboardSkeleton() {
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 md:space-y-5">
       <HeaderSkeleton />
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-5">
         {Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
         <CardBlock />
         <CardBlock />
         <div className="md:col-span-2 lg:col-span-1">

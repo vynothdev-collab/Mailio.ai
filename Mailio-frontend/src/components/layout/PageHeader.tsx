@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/src/lib/utils";
 import { useAuth } from "@/src/hooks/useAuth";
 import type { ApiError } from "@/src/types/auth";
+import { useMobileMenu } from "./mobile-menu-context";
+import { MobileMenuButton } from "./Sidebar";
+import { BrandMark } from "./BrandMark";
 
 function NotificationButton() {
   return (
@@ -113,9 +116,14 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ title, subtitle, onRefresh, refreshing = false }: PageHeaderProps) {
+  const mobileMenu = useMobileMenu();
+  useEffect(() => {
+    if (!mobileMenu) return;
+    return mobileMenu.registerHeader();
+  }, [mobileMenu]);
   return (
-    <div className="sticky top-0 z-30 -mx-4 flex flex-wrap items-start justify-between gap-3 bg-[#EEF3FB] px-4 py-3 lg:-mx-6 lg:px-6 lg:py-4">
-      <div className="min-w-0 flex-1">
+    <div className="sticky top-0 z-30 -mx-4 flex flex-col gap-3 bg-[#EEF3FB] px-4 py-3 lg:-mx-6 lg:flex-row lg:items-start lg:justify-between lg:px-6 lg:py-4">
+      <div className="order-2 min-w-0 flex-1 lg:order-1">
         <h1 className="text-xl font-bold tracking-tight text-[#111827] sm:text-2xl">
           {title}
         </h1>
@@ -123,7 +131,13 @@ export function PageHeader({ title, subtitle, onRefresh, refreshing = false }: P
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
         )}
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="order-1 flex shrink-0 items-center gap-2 lg:order-2 lg:justify-end">
+        {mobileMenu && (
+          <div className="mr-auto flex items-center gap-2 lg:hidden">
+            <MobileMenuButton onClick={mobileMenu.openMobile} />
+            <BrandMark className="h-6 w-auto" />
+          </div>
+        )}
         {onRefresh && (
           <Button
             type="button"
