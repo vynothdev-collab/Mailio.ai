@@ -151,9 +151,9 @@ export class MailService implements OnModuleInit {
 <body>
   <main class="email-wrapper">
     <section class="header">
-      // <div class="logo-row" aria-label="EmailAnswers.ai logo">
-      //   <img src="${this.frontendUrl}/brand-logo.svg" alt="EmailAnswers.ai" width="270" style="width:270px;max-width:100%;height:auto;display:inline-block;border:0;outline:none;text-decoration:none;" />
-      // </div>
+      <div class="logo-row" aria-label="EmailAnswers.ai logo">
+        <img src="${this.frontendUrl}/brand-logo.svg" alt="EmailAnswers.ai" width="270" style="width:270px;max-width:100%;height:auto;display:inline-block;border:0;outline:none;text-decoration:none;" />
+      </div>
     </section>
 
     <section class="content">
