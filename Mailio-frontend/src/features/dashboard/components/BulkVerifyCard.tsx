@@ -123,10 +123,10 @@ export function BulkVerifyCard({ onUploaded }: Props) {
       <CardContent className="space-y-3">
         <label
           className={cn(
-            "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed cursor-pointer py-8 transition-colors select-none",
+            "flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed cursor-pointer py-8 transition-colors select-none",
             isDragging
-              ? "border-primary bg-primary/5"
-              : "border-border hover:border-primary/40 hover:bg-muted/30",
+              ? "border-[#0F5BFF] bg-[#F4F8FF]"
+              : "border-[#DCE6F3] bg-[#F4F8FF] hover:border-[#0F5BFF]/40",
           )}
           onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
           onDragLeave={() => setIsDragging(false)}
@@ -140,10 +140,7 @@ export function BulkVerifyCard({ onUploaded }: Props) {
             onChange={handleFileChange}
             className="sr-only"
           />
-          <div className={cn(
-            "flex h-12 w-12 items-center justify-center rounded-xl transition-colors",
-            isDragging ? "bg-[#E6EEFB]" : "bg-white border border-[#DCE6F3]",
-          )}>
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white border border-[#DCE6F3] shadow-sm">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
               <path d="M17.5 12.5V15.8333C17.5 16.2754 17.3244 16.6993 17.0118 17.0118C16.6993 17.3244 16.2754 17.5 15.8333 17.5H4.16667C3.72464 17.5 3.30072 17.3244 2.98816 17.0118C2.67559 16.6993 2.5 16.2754 2.5 15.8333V12.5" stroke="#0F5BFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M14.1667 6.66667L10 2.5L5.83334 6.66667" stroke="#0F5BFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>

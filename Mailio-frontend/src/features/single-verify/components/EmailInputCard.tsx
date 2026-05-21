@@ -35,7 +35,7 @@ export function EmailInputCard({ onVerify, isLoading }: EmailInputCardProps) {
                 placeholder="name@company.com"
                 aria-invalid={!!errors.email}
                 className={cn(
-                  "pl-9 pr-9 h-10",
+                  "pl-9 pr-9 h-10 text-sm md:text-base placeholder:text-xs md:placeholder:text-sm",
                   errors.email && "border-destructive focus-visible:ring-destructive/20"
                 )}
                 {...register("email", {
@@ -58,7 +58,7 @@ export function EmailInputCard({ onVerify, isLoading }: EmailInputCardProps) {
             <Button
               type="submit"
               disabled={isLoading}
-              className="h-10 shrink-0 gap-1.5 rounded-full border-0 bg-[#0F5BFF] px-6 text-white hover:bg-[#0A4BD9] disabled:bg-[#7EA6FF] disabled:opacity-100"
+              className="h-10 shrink-0 gap-1.5 rounded-full border-0 bg-[#0F5BFF] px-4 md:px-6 text-xs md:text-sm text-white hover:bg-[#0A4BD9] disabled:bg-[#7EA6FF] disabled:opacity-100"
             >
               {isLoading ? (
                 <><Loader2 size={14} className="animate-spin" /> Verifying…</>

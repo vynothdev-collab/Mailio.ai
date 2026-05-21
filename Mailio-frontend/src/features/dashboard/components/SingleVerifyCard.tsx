@@ -126,7 +126,7 @@ export function SingleVerifyCard({ onVerified }: Props) {
               type="email"
               placeholder="name@company.com"
               aria-invalid={!!errors.email}
-              className="pl-9 h-10"
+              className="pl-9 h-10 text-sm md:text-base placeholder:text-xs md:placeholder:text-sm"
               {...register("email", {
                 required: "Email is required.",
                 pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email address." },

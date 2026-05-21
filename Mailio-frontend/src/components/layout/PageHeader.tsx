@@ -135,7 +135,7 @@ export function PageHeader({ title, subtitle, onRefresh, refreshing = false }: P
         {mobileMenu && (
           <div className="mr-auto flex items-center gap-2 lg:hidden">
             <MobileMenuButton onClick={mobileMenu.openMobile} />
-            <BrandMark className="h-6 w-auto" />
+            <BrandMark className="h-8 w-auto" />
           </div>
         )}
         {onRefresh && (
