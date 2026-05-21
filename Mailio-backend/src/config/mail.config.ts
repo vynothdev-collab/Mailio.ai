@@ -5,4 +5,5 @@ export default registerAs('mail', () => ({
   fromEmail: process.env.SENDGRID_FROM_EMAIL ?? '',
   fromName: process.env.SENDGRID_FROM_NAME ?? 'Mailio',
   otpExpireMinutes: parseInt(process.env.OTP_EXPIRE_MINUTES ?? '10', 10),
+  frontendUrl: (process.env.FRONTEND_URL ?? '').replace(/\/$/, ''),
 }));

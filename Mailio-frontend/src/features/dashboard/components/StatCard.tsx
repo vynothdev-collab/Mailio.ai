@@ -130,29 +130,6 @@ export const StatCard = memo(({ stat }: StatCardProps) => {
       <p className="mt-2 text-[20px] font-bold tabular-nums leading-tight tracking-tight text-[#111827] sm:mt-3 sm:text-[26px] md:text-[28px]">
         {stat.value}
       </p>
-
-      {showChange && (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:mt-3 sm:gap-2">
-          <span
-            className={cn(
-              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
-              isUp && "bg-emerald-50 text-emerald-700",
-              isDown && "bg-red-50 text-red-600",
-              !isUp && !isDown && "bg-muted text-muted-foreground",
-            )}
-          >
-            {isUp && <TrendingUp size={10} />}
-            {isDown && <TrendingDown size={10} />}
-            {stat.change > 0 ? "+" : ""}
-            {stat.change}%
-          </span>
-          {stat.changePeriod && (
-            <span className="text-[10px] text-muted-foreground truncate sm:text-xs">
-              {stat.changePeriod}
-            </span>
-          )}
-        </div>
-      )}
     </div>
   );
 });
