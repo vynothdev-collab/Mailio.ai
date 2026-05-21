@@ -30,6 +30,7 @@ import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { VerifyRateLimitGuard } from '../../common/guards/verify-rate-limit.guard';
 import { User } from '../../users/entities/user.entity';
 import { BulkVerifyService } from './bulk-verify.service';
 
@@ -60,7 +61,9 @@ export class BulkVerifyController {
   constructor(private readonly bulkVerifyService: BulkVerifyService) {}
 
   @Post('upload')
+  @UseGuards(VerifyRateLimitGuard)
   @ApiOperation({ summary: 'Upload CSV/TXT file to start bulk verification' })
+  @ApiResponse({ status: 429, description: 'Too many requests (50/min per user)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
