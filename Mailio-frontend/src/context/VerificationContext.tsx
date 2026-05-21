@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -12,15 +11,12 @@ import {
 import { useAuth } from "@/src/hooks/useAuth";
 import type { RecentVerification, VerificationResult } from "@/src/features/single-verify/types";
 
-const STORAGE_KEY_PREFIX = "mailio.recentSingleVerifications";
 const MAX_RECORDS = 20;
-
-const storageKeyFor = (userId: string | null) =>
-  userId ? `${STORAGE_KEY_PREFIX}::${userId}` : null;
 
 interface VerificationContextValue {
   recent:    RecentVerification[];
   push:      (result: VerificationResult) => void;
+  remove:    (id: string) => void;
   clear:     () => void;
 }
 
@@ -46,53 +42,33 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const [recent, setRecent] = useState<RecentVerification[]>([]);
+  // Reset the in-memory buffer when the signed-in user changes, without an
+  // effect (React-recommended derived-state pattern). The API is the source
+  // of truth — this buffer only exists for the brief moment between
+  // "just verified" and the next refetch resolving.
+  const [prevUserId, setPrevUserId] = useState(userId);
+  if (prevUserId !== userId) {
+    setPrevUserId(userId);
+    setRecent([]);
+  }
 
-  useEffect(() => {
-    const key = storageKeyFor(userId);
-    if (typeof window === "undefined" || !key) {
-      setRecent([]);
-      return;
-    }
-    try {
-      const raw = window.sessionStorage.getItem(key);
-      setRecent(raw ? (JSON.parse(raw) as RecentVerification[]) : []);
-    } catch {
-      setRecent([]);
-    }
-  }, [userId]);
+  const push = useCallback((result: VerificationResult) => {
+    const record = toRecent(result);
+    setRecent((prev) => {
+      const filtered = prev.filter((r) => r.id !== record.id);
+      return [record, ...filtered].slice(0, MAX_RECORDS);
+    });
+  }, []);
 
-  const persist = useCallback(
-    (next: RecentVerification[]) => {
-      setRecent(next);
-      const key = storageKeyFor(userId);
-      if (typeof window !== "undefined" && key) {
-        window.sessionStorage.setItem(key, JSON.stringify(next));
-      }
-    },
-    [userId],
-  );
+  const remove = useCallback((id: string) => {
+    setRecent((prev) => prev.filter((r) => r.id !== id));
+  }, []);
 
-  const push = useCallback(
-    (result: VerificationResult) => {
-      const record = toRecent(result);
-      setRecent((prev) => {
-        const filtered = prev.filter((r) => r.id !== record.id);
-        const next = [record, ...filtered].slice(0, MAX_RECORDS);
-        const key = storageKeyFor(userId);
-        if (typeof window !== "undefined" && key) {
-          window.sessionStorage.setItem(key, JSON.stringify(next));
-        }
-        return next;
-      });
-    },
-    [userId],
-  );
-
-  const clear = useCallback(() => persist([]), [persist]);
+  const clear = useCallback(() => setRecent([]), []);
 
   const value = useMemo<VerificationContextValue>(
-    () => ({ recent, push, clear }),
-    [recent, push, clear],
+    () => ({ recent, push, remove, clear }),
+    [recent, push, remove, clear],
   );
 
   return <VerificationContext.Provider value={value}>{children}</VerificationContext.Provider>;

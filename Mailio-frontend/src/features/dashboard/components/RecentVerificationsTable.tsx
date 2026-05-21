@@ -3,16 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CalendarDays, ChevronLeft, ChevronRight, FileX,
-  Loader2, X,
+  Loader2, Trash2, X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead,
   TableHeader, TableRow,
 } from "@/components/ui/table";
+import { ConfirmDeleteDialog } from "@/src/components/ConfirmDeleteDialog";
 import { cn } from "@/src/lib/utils";
+import { bulkVerifyService } from "@/src/services/bulkVerifyService";
 import { dashboardService } from "@/src/services/dashboardService";
+import { verificationService } from "@/src/services/verificationService";
 import type {
   RecentVerificationItem,
   RecentVerificationStatus,
@@ -88,7 +92,8 @@ function EmptyState() {
 const DEFAULT_LIMIT = 10;
 
 interface RecentVerificationsTableProps {
-  limit?: number;
+  limit?:     number;
+  onDeleted?: () => void;
 }
 
 type StatusFilter = "all" | RecentVerificationStatus;
@@ -106,7 +111,7 @@ const PERIOD_FILTERS: { value: PeriodFilter; label: string }[] = [
   { value: "custom", label: "Custom" },
 ];
 
-export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerificationsTableProps = {}) {
+export function RecentVerificationsTable({ limit = DEFAULT_LIMIT, onDeleted }: RecentVerificationsTableProps = {}) {
   const [page,    setPage]    = useState(1);
   const [data,    setData]    = useState<RecentVerificationItem[]>([]);
   const [total,   setTotal]   = useState(0);
@@ -179,6 +184,30 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
   const end        = Math.min(page * limit, total);
   const canPrev    = page > 1 && !loading;
   const canNext    = page < totalPages && !loading;
+
+  const [pendingDelete, setPendingDelete] = useState<RecentVerificationItem | null>(null);
+  const [deleting,      setDeleting]      = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    const target = pendingDelete;
+    setDeleting(true);
+    try {
+      if (target.isBulk) {
+        await bulkVerifyService.deleteJob(target.id);
+      } else {
+        await verificationService.deleteOne(target.id);
+      }
+      toast.success("Verification deleted.");
+      setPendingDelete(null);
+      void load(page);
+      onDeleted?.();
+    } catch (err) {
+      toast.error((err as ApiError)?.message ?? "Failed to delete record.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <Card className="overflow-hidden gap-0 py-0">
@@ -342,13 +371,16 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
               <TableHead className="hidden h-10 w-44 px-5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap md:table-cell">
                 Verified At
               </TableHead>
+              <TableHead className="h-10 w-20 pr-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:pr-5">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
 
           <TableBody>
             {error ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-10 text-center text-sm text-destructive">
+                <TableCell colSpan={5} className="py-10 text-center text-sm text-destructive">
                   {error}
                 </TableCell>
               </TableRow>
@@ -383,12 +415,33 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT }: RecentVerifi
                   <TableCell className="hidden py-3 px-5 text-right text-sm text-muted-foreground tabular-nums whitespace-nowrap md:table-cell">
                     {formatDateTime(row.verifiedAt)}
                   </TableCell>
+                  <TableCell className="pr-3 py-3 text-right sm:pr-5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => setPendingDelete(row)}
+                      aria-label={`Delete ${row.label}`}
+                      className="text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDeleteDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => { if (!open && !deleting) setPendingDelete(null); }}
+        title={pendingDelete?.isBulk ? "Delete bulk job?" : "Delete verification?"}
+        itemLabel={pendingDelete?.label}
+        pending={deleting}
+        onConfirm={handleConfirmDelete}
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#DCE6F3] px-3 py-3 sm:px-5">
         <p className="text-sm text-muted-foreground tabular-nums">

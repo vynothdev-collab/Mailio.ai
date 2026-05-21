@@ -187,7 +187,9 @@ export class EmailListsService {
   }
 
   async findById(id: string, userId: string): Promise<EmailList> {
-    const list = await this.listsRepo.findOne({ where: { id, userId } });
+    const list = await this.listsRepo.findOne({
+      where: { id, userId, isDeleted: false },
+    });
     if (!list) throw new NotFoundException('List not found');
     return list;
   }
@@ -199,8 +201,8 @@ export class EmailListsService {
   async findActiveJob(userId: string): Promise<EmailList | null> {
     return this.listsRepo.findOne({
       where: [
-        { userId, status: EmailListStatus.PROCESSING },
-        { userId, status: EmailListStatus.PENDING },
+        { userId, isDeleted: false, status: EmailListStatus.PROCESSING },
+        { userId, isDeleted: false, status: EmailListStatus.PENDING },
       ],
       order: { createdAt: 'DESC' },
     });
@@ -212,7 +214,7 @@ export class EmailListsService {
     limit: number,
     status?: EmailListStatus,
   ): Promise<[EmailList[], number]> {
-    const where: Record<string, unknown> = { userId };
+    const where: Record<string, unknown> = { userId, isDeleted: false };
     if (status) where['status'] = status;
     return this.listsRepo.findAndCount({
       where,
@@ -230,7 +232,7 @@ export class EmailListsService {
     result?: VerificationResult,
   ): Promise<[Email[], number]> {
     await this.findById(listId, userId);
-    const where: Record<string, unknown> = { listId };
+    const where: Record<string, unknown> = { listId, isDeleted: false };
     if (result) where['verificationResult'] = result;
     return this.emailsRepo.findAndCount({
       where,
@@ -247,7 +249,7 @@ export class EmailListsService {
     const list = await this.findById(listId, userId);
 
     const failed = await this.emailsRepo.find({
-      where: { listId, status: EmailStatus.FAILED },
+      where: { listId, status: EmailStatus.FAILED, isDeleted: false },
       select: ['id'],
     });
 
@@ -284,6 +286,7 @@ export class EmailListsService {
       .createQueryBuilder('e')
       .select(['e.address', 'e.verificationResult', 'e.apiRawResponse'])
       .where('e.list_id = :listId', { listId })
+      .andWhere('e.is_deleted = FALSE')
       .andWhere('e.status = :status', { status: EmailStatus.COMPLETED });
 
     if (type === 'verified') {

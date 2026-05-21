@@ -73,7 +73,7 @@ export function DashboardView() {
         </div>
       </div>
 
-      <RecentVerificationsTable />
+      <RecentVerificationsTable onDeleted={silentReload} />
     </div>
   );
 }

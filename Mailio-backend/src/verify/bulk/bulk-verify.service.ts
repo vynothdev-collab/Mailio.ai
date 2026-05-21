@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 import { CsvParseService } from '../../csv-parse/csv-parse.service';
@@ -124,7 +124,7 @@ export class BulkVerifyService {
     startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
     const allLists = await this.listsRepo.find({
-      where: { userId },
+      where: { userId, isDeleted: false },
       select: ['id', 'status', 'totalCount', 'processedCount', 'createdAt'],
     });
 
@@ -147,6 +147,7 @@ export class BulkVerifyService {
         where: {
           userId,
           isSingleVerify: false,
+          isDeleted: false,
           createdAt: Between(startOfToday, new Date()),
         },
         select: ['durationMs'],
@@ -155,12 +156,13 @@ export class BulkVerifyService {
         where: {
           userId,
           isSingleVerify: false,
+          isDeleted: false,
           createdAt: Between(startOfYesterday, startOfToday),
         },
         select: ['durationMs'],
       }),
       this.emailsRepo.find({
-        where: { userId, isSingleVerify: false },
+        where: { userId, isSingleVerify: false, isDeleted: false },
         select: ['durationMs', 'verificationResult'],
       }),
     ]);
@@ -220,7 +222,7 @@ export class BulkVerifyService {
 
   async getAggregateBreakdown(userId: string) {
     const rows = await this.emailsRepo.find({
-      where: { userId, isSingleVerify: false },
+      where: { userId, isSingleVerify: false, isDeleted: false },
       select: ['verificationResult'],
     });
 
@@ -228,9 +230,9 @@ export class BulkVerifyService {
     let invalid = 0;
     let risky = 0;
     for (const r of rows) {
-      if (r.verificationResult === 'VALID') valid++;
-      else if (r.verificationResult === 'INVALID') invalid++;
-      else if (r.verificationResult === 'RISKY') risky++;
+      if (r.verificationResult === VerificationResult.VALID) valid++;
+      else if (r.verificationResult === VerificationResult.INVALID) invalid++;
+      else if (r.verificationResult === VerificationResult.RISKY) risky++;
     }
 
     const total = valid + invalid + risky;
@@ -335,6 +337,22 @@ export class BulkVerifyService {
     }
 
     return { jobId, status: 'queued', requeuedCount };
+  }
+
+  async softDeleteJob(jobId: string, userId: string): Promise<void> {
+    const now = new Date();
+    const result = await this.listsRepo.update(
+      { id: jobId, userId, isDeleted: false },
+      { isDeleted: true, deletedAt: now },
+    );
+    if (!result.affected) {
+      throw new NotFoundException('Record not found');
+    }
+    // Cascade: hide all child emails belonging to this list from list/stat APIs.
+    await this.emailsRepo.update(
+      { listId: jobId, userId, isDeleted: false },
+      { isDeleted: true, deletedAt: now },
+    );
   }
 
   private toActiveJob(list: EmailList) {

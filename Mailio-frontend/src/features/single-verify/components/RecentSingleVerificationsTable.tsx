@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,6 +10,8 @@ import {
   Table, TableBody, TableCell, TableHead,
   TableHeader, TableRow,
 } from "@/components/ui/table";
+import { ConfirmDeleteDialog } from "@/src/components/ConfirmDeleteDialog";
+import { useVerificationHistory } from "@/src/context/VerificationContext";
 import { cn } from "@/src/lib/utils";
 import {
   verificationService,
@@ -66,14 +69,36 @@ function fromApi(item: SingleRecentItem): RecentVerification {
 interface Props {
   refreshKey?: number;
   optimistic?: RecentVerification[];
+  onDeleted?:  () => void;
 }
 
-export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = [] }: Props) {
+export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = [], onDeleted }: Props) {
   const [page,    setPage]    = useState(1);
   const [rows,    setRows]    = useState<RecentVerification[]>([]);
   const [total,   setTotal]   = useState(0);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
+  const { remove: removeFromHistory } = useVerificationHistory();
+  const [pendingDelete, setPendingDelete] = useState<RecentVerification | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    const target = pendingDelete;
+    setDeleting(true);
+    try {
+      await verificationService.deleteOne(target.id);
+      removeFromHistory(target.id);
+      toast.success("Verification deleted.");
+      setPendingDelete(null);
+      onDeleted?.();
+    } catch (err) {
+      const apiErr = err as ApiError;
+      toast.error(apiErr?.message ?? "Failed to delete record.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => { setPage(1); }, [refreshKey]);
 
@@ -145,22 +170,25 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
               <TableHead className="h-10 w-40 px-5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Verified At
               </TableHead>
+              <TableHead className="h-10 w-20 pr-5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && merged.length === 0 ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={4} className="px-5"><Skeleton className="h-6 w-full" /></TableCell>
+                  <TableCell colSpan={5} className="px-5"><Skeleton className="h-6 w-full" /></TableCell>
                 </TableRow>
               ))
             ) : error && merged.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-6 text-center text-sm text-destructive">{error}</TableCell>
+                <TableCell colSpan={5} className="py-6 text-center text-sm text-destructive">{error}</TableCell>
               </TableRow>
             ) : merged.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
                   No verifications yet. Verify your first email above.
                 </TableCell>
               </TableRow>
@@ -176,12 +204,33 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
                   <TableCell className="px-5 py-3 text-right text-sm text-muted-foreground tabular-nums whitespace-nowrap">
                     {formatDate(r.verifiedAt)}
                   </TableCell>
+                  <TableCell className="pr-5 py-3 text-right">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => setPendingDelete(r)}
+                      aria-label={`Delete verification for ${r.email}`}
+                      className="text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDeleteDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => { if (!open && !deleting) setPendingDelete(null); }}
+        title="Delete verification?"
+        itemLabel={pendingDelete?.email}
+        pending={deleting}
+        onConfirm={handleConfirmDelete}
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#DCE6F3] px-5 py-3">
         <p className="text-sm text-muted-foreground tabular-nums">

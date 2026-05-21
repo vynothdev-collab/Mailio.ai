@@ -38,7 +38,7 @@ export class EmailsService {
   }
 
   async findById(id: string, userId?: string): Promise<Email> {
-    const where: Record<string, unknown> = { id };
+    const where: Record<string, unknown> = { id, isDeleted: false };
     if (userId) where.userId = userId;
     const email = await this.emailsRepo.findOne({ where });
     if (!email) throw new NotFoundException('Email not found');
@@ -51,7 +51,7 @@ export class EmailsService {
     limit: number,
   ): Promise<[Email[], number]> {
     return this.emailsRepo.findAndCount({
-      where: { userId, isSingleVerify: true },
+      where: { userId, isSingleVerify: true, isDeleted: false },
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,

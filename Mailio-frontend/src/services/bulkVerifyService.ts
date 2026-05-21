@@ -90,6 +90,10 @@ export const bulkVerifyService = {
     return data;
   },
 
+  async deleteJob(jobId: string): Promise<void> {
+    await api.delete(`/verify/bulk/${jobId}`);
+  },
+
   async download(
     jobId: string,
     format: "csv" | "json" = "csv",

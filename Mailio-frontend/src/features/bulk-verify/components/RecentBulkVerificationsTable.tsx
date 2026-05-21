@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, Download, Eye, FileText, RotateCcw, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Download, Eye, FileText, RotateCcw, Loader2, MoreVertical, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ConfirmDeleteDialog } from "@/src/components/ConfirmDeleteDialog";
 import { bulkVerifyService } from "@/src/services/bulkVerifyService";
 import { formatNumber, cn } from "@/src/lib/utils";
 import type { ApiError } from "@/src/types/auth";
@@ -40,6 +41,44 @@ export function RecentBulkVerificationsTable({
   const [retryingId,    setRetryingId]    = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [viewingJob,    setViewingJob]    = useState<BulkJobDto | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<BulkJobDto | null>(null);
+  const [deleting,      setDeleting]      = useState(false);
+  const [openMenuId,    setOpenMenuId]    = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenMenuId(null);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [openMenuId]);
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    const target = pendingDelete;
+    setDeleting(true);
+    try {
+      await bulkVerifyService.deleteJob(target.jobId);
+      toast.success("Bulk job deleted.");
+      setPendingDelete(null);
+      onChange();
+    } catch (err) {
+      toast.error((err as ApiError)?.message ?? "Failed to delete record.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleDownload = async (job: BulkJobDto) => {
     setDownloadingId(job.jobId);
@@ -78,10 +117,10 @@ export function RecentBulkVerificationsTable({
         <h2 className="text-base font-bold text-[#111827]">Recent Bulk Verifications</h2>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-[#DCE6F3]">
-                {["File", "Total", "Status", "Valid", "Invalid", "Risky", "View", "Actions"].map((h) => (
+                {["File", "Total", "Status", "Valid", "Invalid", "Risky", "Actions"].map((h) => (
                   <th key={h} className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">
                     {h}
                   </th>
@@ -92,12 +131,12 @@ export function RecentBulkVerificationsTable({
               {loading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <tr key={i} className="border-b border-[#DCE6F3]/60 last:border-0">
-                    <td colSpan={8} className="px-3 py-3"><Skeleton className="h-6 w-full" /></td>
+                    <td colSpan={7} className="px-3 py-3"><Skeleton className="h-6 w-full" /></td>
                   </tr>
                 ))
               ) : jobs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={7} className="px-3 py-10 text-center text-sm text-muted-foreground">
                     No bulk jobs yet. Upload a file to get started.
                   </td>
                 </tr>
@@ -126,46 +165,69 @@ export function RecentBulkVerificationsTable({
                       <td className="px-3 py-3 font-bold tabular-nums text-red-500"><NumCell val={job.invalid} /></td>
                       <td className="px-3 py-3 font-bold tabular-nums text-amber-500"><NumCell val={job.risky} /></td>
                       <td className="px-3 py-3">
-                        {job.status === "completed" ? (
-                          <button
-                            onClick={() => setViewingJob(job)}
-                            aria-label={`View details for ${job.fileName}`}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-[#EEF3FB] hover:text-[#111827] transition-colors"
-                          >
-                            <Eye size={14} />
-                          </button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground px-2">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        {job.status === "failed" ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 gap-1.5 rounded-full border-[#DCE6F3] bg-white px-3 text-xs font-medium hover:bg-[#F4F8FF]"
-                            disabled={retryingId === job.jobId}
-                            onClick={() => handleRetry(job.jobId)}
-                          >
-                            {retryingId === job.jobId
-                              ? <Loader2 size={12} className="animate-spin" />
-                              : <RotateCcw size={12} />}
-                            Retry
-                          </Button>
-                        ) : isCompleted ? (
+                        <div className="relative inline-block" ref={openMenuId === job.jobId ? menuRef : undefined}>
                           <button
                             type="button"
-                            disabled={downloadingId === job.jobId}
-                            onClick={() => handleDownload(job)}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#DCE6F3] bg-white px-3 text-xs font-medium text-[#161514] hover:bg-[#F4F8FF] disabled:cursor-not-allowed disabled:opacity-60"
+                            onClick={() => setOpenMenuId((id) => (id === job.jobId ? null : job.jobId))}
+                            aria-label={`Actions for ${job.fileName}`}
+                            aria-haspopup="menu"
+                            aria-expanded={openMenuId === job.jobId}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-[#EEF3FB] hover:text-[#111827] transition-colors"
                           >
-                            {downloadingId === job.jobId
-                              ? <><Loader2 size={12} className="animate-spin" /> Downloading…</>
-                              : <><Download size={12} /> Download</>}
+                            <MoreVertical size={16} />
                           </button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground px-2">—</span>
-                        )}
+                          {openMenuId === job.jobId && (
+                            <div
+                              role="menu"
+                              className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-[#DCE6F3] bg-white py-1 shadow-lg"
+                            >
+                              {isCompleted && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => { setOpenMenuId(null); setViewingJob(job); }}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF]"
+                                >
+                                  <Eye size={13} /> View details
+                                </button>
+                              )}
+                              {isCompleted && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  disabled={downloadingId === job.jobId}
+                                  onClick={() => { setOpenMenuId(null); void handleDownload(job); }}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF] disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {downloadingId === job.jobId
+                                    ? <><Loader2 size={13} className="animate-spin" /> Downloading…</>
+                                    : <><Download size={13} /> Download</>}
+                                </button>
+                              )}
+                              {job.status === "failed" && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  disabled={retryingId === job.jobId}
+                                  onClick={() => { setOpenMenuId(null); void handleRetry(job.jobId); }}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF] disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {retryingId === job.jobId
+                                    ? <><Loader2 size={13} className="animate-spin" /> Retrying…</>
+                                    : <><RotateCcw size={13} /> Retry</>}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => { setOpenMenuId(null); setPendingDelete(job); }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 size={13} /> Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -212,6 +274,15 @@ export function RecentBulkVerificationsTable({
       <JobDetailsDialog
         job={viewingJob}
         onOpenChange={(open) => { if (!open) setViewingJob(null); }}
+      />
+
+      <ConfirmDeleteDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => { if (!open && !deleting) setPendingDelete(null); }}
+        title="Delete bulk job?"
+        itemLabel={pendingDelete?.fileName}
+        pending={deleting}
+        onConfirm={handleConfirmDelete}
       />
     </Card>
   );

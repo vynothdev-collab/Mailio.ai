@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 import { VerificationResult } from '../../common/types/verification-result.enum';
@@ -74,7 +74,7 @@ export class SingleVerifyService {
 
   async getRecent(userId: string, page: number, limit: number) {
     const [rows, total] = await this.emailsRepo.findAndCount({
-      where: { userId, isSingleVerify: true },
+      where: { userId, isSingleVerify: true, isDeleted: false },
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -102,6 +102,7 @@ export class SingleVerifyService {
         where: {
           userId,
           isSingleVerify: true,
+          isDeleted: false,
           createdAt: Between(today, new Date()),
         },
         select: ['id', 'verificationResult', 'durationMs'],
@@ -110,12 +111,13 @@ export class SingleVerifyService {
         where: {
           userId,
           isSingleVerify: true,
+          isDeleted: false,
           createdAt: Between(yesterday, today),
         },
         select: ['id', 'verificationResult', 'durationMs'],
       }),
       this.emailsRepo.find({
-        where: { userId, isSingleVerify: true },
+        where: { userId, isSingleVerify: true, isDeleted: false },
         select: ['verificationResult', 'durationMs'],
       }),
     ]);
@@ -171,8 +173,10 @@ export class SingleVerifyService {
     id: string,
     userId: string,
   ): Promise<{ csv: string; filename: string }> {
-    const email = await this.emailsRepo.findOne({ where: { id, userId } });
-    if (!email) throw new Error('Not found');
+    const email = await this.emailsRepo.findOne({
+      where: { id, userId, isDeleted: false },
+    });
+    if (!email) throw new NotFoundException('Record not found');
 
     const csv = [
       'address,result,score,mx_found,smtp_check,disposable,catch_all,free_provider,duration_ms,verified_at',
@@ -191,6 +195,16 @@ export class SingleVerifyService {
     ].join('\n');
 
     return { csv, filename: `verify-${id}.csv` };
+  }
+
+  async softDelete(id: string, userId: string): Promise<void> {
+    const result = await this.emailsRepo.update(
+      { id, userId, isSingleVerify: true, isDeleted: false },
+      { isDeleted: true, deletedAt: new Date() },
+    );
+    if (!result.affected) {
+      throw new NotFoundException('Record not found');
+    }
   }
 
   private calcConfidence(result: VerificationResult, score: number): number {

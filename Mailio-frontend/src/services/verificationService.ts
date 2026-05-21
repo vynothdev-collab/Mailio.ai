@@ -57,4 +57,8 @@ export const verificationService = {
   async download(id: string): Promise<void> {
     await downloadFile(`/verify/single/${id}/download`, `verification-${id}.csv`);
   },
+
+  async deleteOne(id: string): Promise<void> {
+    await api.delete(`/verify/single/${id}`);
+  },
 };

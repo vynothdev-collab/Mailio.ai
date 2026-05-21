@@ -37,10 +37,10 @@ export class DashboardService {
 
     const [currentPeriod, allTime] = await Promise.all([
       this.emailsRepo.find({
-        where: { userId, createdAt: Between(sevenDaysAgo, now) },
+        where: { userId, isDeleted: false, createdAt: Between(sevenDaysAgo, now) },
         select: ['verificationResult', 'disposable'],
       }),
-      this.emailsRepo.count({ where: { userId } }),
+      this.emailsRepo.count({ where: { userId, isDeleted: false } }),
     ]);
 
     const currentValid = currentPeriod.filter(
@@ -68,8 +68,8 @@ export class DashboardService {
   async getActiveJob(userId: string) {
     const list = await this.listsRepo.findOne({
       where: [
-        { userId, status: EmailListStatus.PROCESSING },
-        { userId, status: EmailListStatus.PENDING },
+        { userId, isDeleted: false, status: EmailListStatus.PROCESSING },
+        { userId, isDeleted: false, status: EmailListStatus.PENDING },
       ],
       order: { createdAt: 'DESC' },
     });
@@ -117,8 +117,12 @@ export class DashboardService {
     const listStatusValue = this.statusToList(filters.status);
     const emailStatusValue = this.statusToEmail(filters.status);
 
-    const listConditions = ['el.user_id = $1'];
-    const emailConditions = ['e.user_id = $1', 'e.is_single_verify = TRUE'];
+    const listConditions = ['el.user_id = $1', 'el.is_deleted = FALSE'];
+    const emailConditions = [
+      'e.user_id = $1',
+      'e.is_single_verify = TRUE',
+      'e.is_deleted = FALSE',
+    ];
 
     if (listStatusValue) {
       params.push(listStatusValue);
@@ -279,7 +283,7 @@ export class DashboardService {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     const rows = await this.emailsRepo.find({
-      where: { userId, createdAt: Between(since, new Date()) },
+      where: { userId, isDeleted: false, createdAt: Between(since, new Date()) },
       select: ['verificationResult'],
     });
 
@@ -335,7 +339,7 @@ export class DashboardService {
     startOfMonth.setHours(0, 0, 0, 0);
 
     const used = await this.emailsRepo.count({
-      where: { userId, createdAt: Between(startOfMonth, new Date()) },
+      where: { userId, isDeleted: false, createdAt: Between(startOfMonth, new Date()) },
     });
 
     return { used, total: PLAN_LIMITS[plan] ?? PLAN_LIMITS[Plan.PRO], plan };

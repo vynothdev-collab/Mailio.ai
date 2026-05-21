@@ -1,5 +1,6 @@
 import {
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -337,5 +338,17 @@ export class BulkVerifyController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   retry(@Param('jobId') jobId: string, @CurrentUser() user: User) {
     return this.bulkVerifyService.retry(jobId, user.id);
+  }
+
+  @Delete(':jobId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Soft-delete a bulk verification job' })
+  @ApiParam({ name: 'jobId', description: 'Email list UUID' })
+  @ApiResponse({ status: 200, description: 'Job deleted' })
+  @ApiResponse({ status: 404, description: 'Record not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async remove(@Param('jobId') jobId: string, @CurrentUser() user: User) {
+    await this.bulkVerifyService.softDeleteJob(jobId, user.id);
+    return { success: true, message: 'Record deleted successfully' };
   }
 }

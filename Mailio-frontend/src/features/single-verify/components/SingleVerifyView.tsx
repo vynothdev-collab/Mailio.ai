@@ -58,7 +58,11 @@ function SingleVerifyContent() {
             </>
           )}
 
-          <RecentSingleVerificationsTable refreshKey={refreshKey} optimistic={recent} />
+          <RecentSingleVerificationsTable
+            refreshKey={refreshKey}
+            optimistic={recent}
+            onDeleted={() => setRefreshKey((k) => k + 1)}
+          />
         </div>
 
         <div className="space-y-4">

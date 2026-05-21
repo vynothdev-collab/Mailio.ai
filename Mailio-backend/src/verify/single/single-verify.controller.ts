@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -175,5 +176,17 @@ export class SingleVerifyController {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.end(csv);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Soft-delete a single verification record' })
+  @ApiParam({ name: 'id', description: 'Email record UUID' })
+  @ApiResponse({ status: 200, description: 'Record deleted' })
+  @ApiResponse({ status: 404, description: 'Record not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async remove(@Param('id') id: string, @CurrentUser() user: User) {
+    await this.singleVerifyService.softDelete(id, user.id);
+    return { success: true, message: 'Record deleted successfully' };
   }
 }
