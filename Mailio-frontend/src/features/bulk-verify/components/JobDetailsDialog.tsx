@@ -77,13 +77,15 @@ export function JobDetailsDialog({ job, onOpenChange }: Props) {
 
   return (
     <Dialog open={!!job} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="flex max-h-[90dvh] w-[calc(100%-1.5rem)] flex-col gap-3 p-4 sm:max-w-2xl sm:p-6">
         <DialogHeader>
-          <DialogTitle className="truncate pr-8">{job?.fileName ?? "Job details"}</DialogTitle>
+          <DialogTitle className="truncate pr-6 text-sm sm:text-base">
+            {job?.fileName ?? "Job details"}
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="overflow-y-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
+        <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-border">
+          <table className="w-full min-w-[480px] text-sm">
             <thead className="sticky top-0 bg-muted/60 backdrop-blur">
               <tr>
                 {["Email", "User", "Domain", "Status"].map((h) => (
@@ -113,9 +115,9 @@ export function JobDetailsDialog({ job, onOpenChange }: Props) {
               ) : (
                 pageRows.map((r, i) => (
                   <tr key={`${r.email}-${i}`} className="border-t border-border">
-                    <td className="px-3 py-2 font-medium truncate max-w-[220px]">{r.email}</td>
-                    <td className="px-3 py-2 text-muted-foreground truncate max-w-[140px]">{r.user || "—"}</td>
-                    <td className="px-3 py-2 text-muted-foreground truncate max-w-[140px]">{r.domain || "—"}</td>
+                    <td className="px-3 py-2 font-medium truncate max-w-[200px]">{r.email}</td>
+                    <td className="px-3 py-2 text-muted-foreground truncate max-w-[120px]">{r.user || "—"}</td>
+                    <td className="px-3 py-2 text-muted-foreground truncate max-w-[120px]">{r.domain || "—"}</td>
                     <td className="px-3 py-2">
                       <span className={cn(
                         "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold capitalize",
@@ -131,33 +133,32 @@ export function JobDetailsDialog({ job, onOpenChange }: Props) {
           </table>
         </div>
 
-        <div className="flex items-center justify-between gap-3 pt-1">
-          <p className="text-xs text-muted-foreground tabular-nums">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground tabular-nums">
             {total === 0
               ? "No records"
-              : <>Showing <span className="font-medium text-foreground">{start}</span>–<span className="font-medium text-foreground">{end}</span> of <span className="font-medium text-foreground">{total}</span></>
+              : <>Showing <span className="font-semibold text-foreground">{start}</span>–<span className="font-semibold text-foreground">{end}</span> of <span className="font-semibold text-foreground">{total}</span></>
             }
           </p>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               disabled={safePage <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="gap-1 h-7 px-2 text-xs"
+              className="h-8 gap-1.5 rounded-full border-[#DCE6F3] bg-white px-3 text-xs font-medium text-[#161514] hover:bg-[#F4F8FF] disabled:opacity-50"
               aria-label="Previous page"
             >
               <ChevronLeft size={13} /> Prev
             </Button>
-            <span className="text-xs text-muted-foreground tabular-nums px-2">
-              Page <span className="font-medium text-foreground">{safePage}</span> / {totalPages}
+            <span className="text-sm text-muted-foreground tabular-nums px-1">
+              Page <span className="font-semibold text-foreground">{safePage}</span> / {totalPages}
             </span>
             <Button
-              variant="outline"
               size="sm"
               disabled={safePage >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="gap-1 h-7 px-2 text-xs"
+              className="h-8 gap-1.5 rounded-full bg-[#111827] px-4 text-xs font-semibold text-white hover:bg-black disabled:opacity-50"
               aria-label="Next page"
             >
               Next <ChevronRight size={13} />

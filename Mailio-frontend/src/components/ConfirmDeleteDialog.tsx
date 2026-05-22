@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,62 +12,80 @@ import {
 } from "@/components/ui/dialog";
 
 interface ConfirmDeleteDialogProps {
-  open:        boolean;
-  onOpenChange:(open: boolean) => void;
-  title?:      string;
-  description?:string;
-  itemLabel?:  string;
-  pending?:    boolean;
-  onConfirm:   () => void;
+  open:         boolean;
+  onOpenChange: (open: boolean) => void;
+  title?:       string;
+  description?: string;
+  itemLabel?:   string;
+  pending?:     boolean;
+  onConfirm:    () => void;
 }
 
 export function ConfirmDeleteDialog({
   open,
   onOpenChange,
-  title = "Delete record?",
+  title,
   description,
   itemLabel,
   pending = false,
   onConfirm,
 }: ConfirmDeleteDialogProps) {
+  const isBulk = title?.toLowerCase().includes("bulk");
+
+  const resolvedTitle = title ?? (isBulk ? "Delete bulk job?" : "Delete verification?");
+
+  const resolvedDescription = description ?? (
+    <>
+      You are about to permanently delete{" "}
+      {itemLabel ? (
+        <span className="font-semibold text-foreground break-all">{itemLabel}</span>
+      ) : (
+        "this record"
+      )}
+      {isBulk
+        ? ". All associated verification results will be lost."
+        : "."}
+      {" "}This action <span className="font-semibold text-foreground">cannot be undone</span>.
+    </>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md" showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            {description ?? (
-              <>
-                This will move{" "}
-                {itemLabel ? (
-                  <span className="font-medium text-foreground">{itemLabel}</span>
-                ) : (
-                  "this record"
-                )}{" "}
-                to your deleted items. This action can&apos;t be undone from the UI.
-              </>
-            )}
-          </DialogDescription>
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100">
+              <Trash2 size={16} className="text-red-600" />
+            </div>
+            <div className="min-w-0 flex-1 pt-0.5">
+              <DialogTitle className="text-sm font-semibold text-foreground sm:text-base">
+                {resolvedTitle}
+              </DialogTitle>
+              <DialogDescription className="mt-1 text-xs leading-relaxed sm:text-sm">
+                {resolvedDescription}
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
+
         <DialogFooter>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={pending}
+            className="h-9 text-sm sm:h-10"
           >
             Cancel
           </Button>
           <Button
             onClick={onConfirm}
             disabled={pending}
-            className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-70"
+            className="h-9 gap-1.5 bg-red-600 text-sm text-white hover:bg-red-700 disabled:opacity-70 sm:h-10"
           >
             {pending ? (
-              <>
-                <Loader2 size={14} className="mr-2 animate-spin" /> Deleting…
-              </>
+              <><Loader2 size={14} className="animate-spin" /> Deleting…</>
             ) : (
-              "Delete"
+              <><Trash2 size={14} /> Delete</>
             )}
           </Button>
         </DialogFooter>

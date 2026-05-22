@@ -1,8 +1,7 @@
 const STATE_KEY = "mailio.linkedinOauthState";
 const LINKEDIN_AUTHORIZE_URL = "https://www.linkedin.com/oauth/v2/authorization";
-const LINKEDIN_LOGOUT_URL = "https://www.linkedin.com/m/logout/";
+const LINKEDIN_LOGIN_URL = "https://www.linkedin.com/uas/login";
 const SCOPE = "openid profile email";
-const LOGOUT_POPUP_MS = 2500;
 
 export interface LinkedinConfig {
   clientId: string;
@@ -28,41 +27,17 @@ export function beginLinkedinAuth(config: LinkedinConfig): void {
   const state = generateState();
   sessionStorage.setItem(STATE_KEY, state);
 
-  const params = new URLSearchParams({
+  const oauthParams = new URLSearchParams({
     response_type: "code",
     client_id: config.clientId,
     redirect_uri: config.redirectUri,
     scope: SCOPE,
     state,
-    prompt: "login",
   });
-  const authorizeUrl = `${LINKEDIN_AUTHORIZE_URL}?${params.toString()}`;
+  const authorizeUrl = `${LINKEDIN_AUTHORIZE_URL}?${oauthParams.toString()}`;
 
-  const left = Math.max(0, Math.floor((window.screen.width - 480) / 2));
-  const top = Math.max(0, Math.floor((window.screen.height - 560) / 2));
-  const popup = window.open(
-    LINKEDIN_LOGOUT_URL,
-    "linkedin-logout",
-    `width=480,height=560,left=${left},top=${top},resizable=yes,scrollbars=yes`,
-  );
-
-  if (!popup) {
-    window.location.assign(authorizeUrl);
-    return;
-  }
-
-  try {
-    popup.focus();
-  } catch {
-  }
-
-  window.setTimeout(() => {
-    try {
-      popup.close();
-    } catch {
-    }
-    window.location.assign(authorizeUrl);
-  }, LOGOUT_POPUP_MS);
+  const loginParams = new URLSearchParams({ session_redirect: authorizeUrl });
+  window.location.assign(`${LINKEDIN_LOGIN_URL}?${loginParams.toString()}`);
 }
 
 export function consumeLinkedinState(received: string | null): boolean {

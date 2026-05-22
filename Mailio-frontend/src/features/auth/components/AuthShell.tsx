@@ -53,18 +53,18 @@ export function AuthShell({ children }: AuthShellProps) {
     <div className="flex min-h-screen">
       <BrandPanel />
 
-      <div className="flex flex-1 flex-col items-center justify-center bg-[#f3f4f8] px-5 py-8 sm:px-6 sm:py-10 lg:px-16">
+      <div className="flex flex-1 flex-col items-center justify-center bg-[#EEF3FB] px-5 py-8 sm:px-6 sm:py-10 lg:px-16">
         <Link
           href="/"
-          className="mb-6 flex items-center gap-2 lg:hidden"
+          className="mb-6 lg:hidden"
           aria-label="emailanswers.ai home"
         >
           <Image
-            src="/auth-brand.svg"
+            src="/brand-logo-mobile.svg"
             alt="emailanswers.ai"
-            width={160}
-            height={33}
-            className="h-auto w-[160px]"
+            width={200}
+            height={46}
+            className="h-auto w-[180px] sm:w-[200px]"
             priority
           />
         </Link>
