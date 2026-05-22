@@ -1,6 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
+import type { Redis } from 'ioredis';
 import { randomUUID } from 'crypto';
 import {
   EmailBatchJobPayload,
@@ -150,13 +151,13 @@ export class VerificationService {
   }
 
   async advanceNowServing(): Promise<void> {
-    const client = await this.bulkQueue.client;
+    const client = (await this.bulkQueue.client) as unknown as Redis;
     await client.incr(PRIORITY_COUNTER_KEY);
   }
 
   async advanceNowServingBy(delta: number): Promise<void> {
     if (delta <= 0) return;
-    const client = await this.bulkQueue.client;
+    const client = (await this.bulkQueue.client) as unknown as Redis;
     await client.incrby(PRIORITY_COUNTER_KEY, delta);
   }
 }
