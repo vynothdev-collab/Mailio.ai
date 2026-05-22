@@ -1,42 +1,36 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Loader2, Mail, ShieldCheck } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { authService } from "@/src/services/authService";
+import { cn } from "@/src/lib/utils";
 import type { ApiError } from "@/src/types/auth";
 
-interface VerifyFormData {
-  email: string;
-  otp:   string;
-}
-
+const OTP_LENGTH = 6;
 const RESEND_COOLDOWN_SECONDS = 60;
 
 export function VerifyEmailForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const prefillEmail = params.get("email") ?? "";
+  const email = params.get("email") ?? "";
 
+  const [digits, setDigits] = useState<string[]>(() => Array(OTP_LENGTH).fill(""));
   const [submitting, setSubmitting] = useState(false);
-  const [resending,  setResending]  = useState(false);
-  const [cooldown,   setCooldown]   = useState(0);
+  const [resending, setResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const [errorMessage, setErrorMessage] = useState("");
+  const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
   const timerRef = useRef<number | null>(null);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<VerifyFormData>({
-    defaultValues: { email: prefillEmail, otp: "" },
-  });
+  const otp = useMemo(() => digits.join(""), [digits]);
+  const complete = otp.length === OTP_LENGTH && /^\d{6}$/.test(otp);
 
   useEffect(() => {
+    inputsRef.current[0]?.focus();
     return () => {
       if (timerRef.current !== null) window.clearInterval(timerRef.current);
     };
@@ -56,29 +50,101 @@ export function VerifyEmailForm() {
     }, 1000);
   };
 
-  const onSubmit = async (data: VerifyFormData) => {
+  const setDigitAt = (index: number, value: string) => {
+    setDigits((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  };
+
+  const handleChange = (index: number, raw: string) => {
+    setErrorMessage("");
+    const value = raw.replace(/\D/g, "");
+    if (!value) {
+      setDigitAt(index, "");
+      return;
+    }
+    if (value.length === 1) {
+      setDigitAt(index, value);
+      inputsRef.current[index + 1]?.focus();
+      return;
+    }
+    const chars = value.slice(0, OTP_LENGTH - index).split("");
+    setDigits((prev) => {
+      const next = [...prev];
+      chars.forEach((c, i) => {
+        next[index + i] = c;
+      });
+      return next;
+    });
+    const nextIndex = Math.min(index + chars.length, OTP_LENGTH - 1);
+    inputsRef.current[nextIndex]?.focus();
+  };
+
+  const handleKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !digits[index] && index > 0) {
+      inputsRef.current[index - 1]?.focus();
+      setDigitAt(index - 1, "");
+      e.preventDefault();
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      inputsRef.current[index - 1]?.focus();
+    } else if (e.key === "ArrowRight" && index < OTP_LENGTH - 1) {
+      inputsRef.current[index + 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
+    if (!text) return;
+    e.preventDefault();
+    const chars = text.split("");
+    setDigits(() => {
+      const next = Array(OTP_LENGTH).fill("");
+      chars.forEach((c, i) => {
+        next[i] = c;
+      });
+      return next;
+    });
+    inputsRef.current[Math.min(chars.length, OTP_LENGTH - 1)]?.focus();
+  };
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      toast.error("Missing email. Please sign up again.");
+      return;
+    }
+    if (!complete) {
+      setErrorMessage("Enter the 6-digit code.");
+      return;
+    }
     setSubmitting(true);
     try {
-      await authService.verifyEmail({ email: data.email, otp: data.otp });
+      await authService.verifyEmail({ email, otp });
       toast.success("Email verified. You can now sign in.");
       router.push("/login");
     } catch (err) {
       const apiErr = err as ApiError;
-      toast.error(apiErr?.message ?? "Verification failed. Please try again.");
+      const msg = apiErr?.message ?? "Verification failed. Please try again.";
+      setErrorMessage(msg);
+      toast.error(msg);
       setSubmitting(false);
     }
   };
 
-  const handleResend = async (email: string) => {
+  const handleResend = async () => {
     if (!email) {
-      toast.error("Enter your email to receive a new code.");
+      toast.error("Missing email. Please sign up again.");
       return;
     }
-    if (cooldown > 0) return;
+    if (cooldown > 0 || resending) return;
     setResending(true);
     try {
       const res = await authService.resendVerificationOtp({ email });
       toast.success(res.message ?? "Verification code sent.");
+      setDigits(Array(OTP_LENGTH).fill(""));
+      inputsRef.current[0]?.focus();
       startCooldown();
     } catch (err) {
       const apiErr = err as ApiError;
@@ -89,110 +155,83 @@ export function VerifyEmailForm() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1.5">
-        <h2 className="text-2xl font-bold tracking-tight">Verify your email</h2>
-        <p className="text-sm text-muted-foreground">
-          Enter the 6-digit code we sent to your inbox to activate your account.
+    <div className="space-y-5 sm:space-y-7">
+      <div className="space-y-1.5 sm:space-y-2">
+        <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-3xl">
+          Verify your email
+        </h2>
+        <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
+          Enter the 6-digit code we sent to{" "}
+          <span className="font-medium text-foreground break-all">{email || "your email"}</span>
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-        <div className="space-y-1.5">
-          <label htmlFor="verify-email" className="text-sm font-medium">Email</label>
-          <div className="relative">
-            <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <Input
-              id="verify-email"
-              type="email"
-              placeholder="name@company.com"
-              autoComplete="email"
-              aria-invalid={!!errors.email}
-              className="pl-9 h-10"
-              {...register("email", {
-                required: "Email is required.",
-                pattern:  { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email." },
-              })}
-            />
-          </div>
-          {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+      {errorMessage && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {errorMessage}
         </div>
+      )}
 
-        <div className="space-y-1.5">
-          <label htmlFor="verify-otp" className="text-sm font-medium">Verification code</label>
-          <div className="relative">
-            <ShieldCheck size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <Input
-              id="verify-otp"
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              placeholder="123456"
-              aria-invalid={!!errors.otp}
-              className="pl-9 h-10 tracking-[0.5em] font-mono"
-              {...register("otp", {
-                required: "Enter the 6-digit code.",
-                pattern: { value: /^\d{6}$/, message: "Code must be 6 digits." },
-              })}
-            />
+      <form onSubmit={onSubmit} noValidate className="space-y-4 sm:space-y-5">
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-foreground sm:text-sm">Verification code</label>
+          <div className="flex justify-between gap-1.5 sm:gap-3">
+            {digits.map((d, i) => (
+              <input
+                key={i}
+                ref={(el) => { inputsRef.current[i] = el; }}
+                type="text"
+                inputMode="numeric"
+                autoComplete={i === 0 ? "one-time-code" : "off"}
+                maxLength={1}
+                value={d}
+                onChange={(e) => handleChange(i, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(i, e)}
+                onPaste={handlePaste}
+                aria-label={`Digit ${i + 1}`}
+                className={cn(
+                  "h-11 w-9 rounded-lg border border-input bg-white text-center text-lg font-semibold text-foreground transition sm:h-14 sm:w-12 sm:text-2xl",
+                  "focus:border-[#2563eb] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20",
+                  d && "border-[#2563eb]"
+                )}
+              />
+            ))}
           </div>
-          {errors.otp && <p className="text-xs text-destructive">{errors.otp.message}</p>}
+          <div className="flex justify-end pt-1">
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={cooldown > 0 || resending}
+              className="text-xs font-medium text-[#2563eb] hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline sm:text-sm"
+            >
+              {resending
+                ? "Sending…"
+                : cooldown > 0
+                  ? `Resend code in ${cooldown}s`
+                  : "Resend code"}
+            </button>
+          </div>
         </div>
 
         <Button
           type="submit"
-          size="lg"
-          disabled={submitting}
-          className="w-full gradient-brand border-0 text-white hover:opacity-90 h-10"
+          disabled={submitting || !complete}
+          className="h-11 w-full rounded-lg bg-[#162D3A] text-sm text-white hover:bg-[#0e1f29] disabled:opacity-60 sm:h-12 sm:text-base"
         >
           {submitting ? (
-            <><Loader2 size={15} className="animate-spin" /> Verifying…</>
+            <><Loader2 size={16} className="animate-spin" /> Verifying…</>
           ) : (
             "Verify email"
           )}
         </Button>
-
-        <ResendButton
-          cooldown={cooldown}
-          resending={resending}
-          onClick={() => {
-            const emailInput = (document.getElementById("verify-email") as HTMLInputElement | null);
-            void handleResend(emailInput?.value?.trim() ?? "");
-          }}
-        />
       </form>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center text-xs text-muted-foreground sm:text-sm">
         Already verified?{" "}
-        <Link href="/login" className="font-semibold text-primary hover:underline">
+        <Link href="/login" className="font-semibold text-[#2563eb] hover:underline">
           Sign in
         </Link>
       </p>
     </div>
-  );
-}
-
-function ResendButton({
-  cooldown, resending, onClick,
-}: {
-  cooldown:  number;
-  resending: boolean;
-  onClick:   () => void;
-}) {
-  const disabled = cooldown > 0 || resending;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="w-full text-sm text-muted-foreground hover:text-foreground disabled:opacity-60 transition-colors"
-    >
-      {resending
-        ? "Sending…"
-        : cooldown > 0
-          ? `Resend code in ${cooldown}s`
-          : "Resend verification code"}
-    </button>
   );
 }
