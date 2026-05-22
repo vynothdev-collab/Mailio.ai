@@ -80,7 +80,7 @@ function createLimiter(max: number): <T>(fn: () => Promise<T>) => Promise<T> {
 export class VerificationBulkProcessor extends VerificationBaseProcessor {
   private readonly batchLogger = new Logger(VerificationBulkProcessor.name);
   private readonly innerLimit = createLimiter(
-    parseInt(process.env.BATCH_INNER_CONCURRENCY ?? '10', 10),
+    parseInt(process.env.BATCH_INNER_CONCURRENCY ?? '25', 10),
   );
 
   constructor(
@@ -249,7 +249,10 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
   private async verifyOneForBatch(
     email: ClaimedEmailRow,
   ): Promise<PerEmailSuccess> {
-    const MAX_ACQUIRE_WAIT_MS = 30_000;
+    const MAX_ACQUIRE_WAIT_MS = parseInt(
+      process.env.KEY_ACQUIRE_MAX_WAIT_MS ?? '60000',
+      10,
+    );
     const waitStart = Date.now();
     let slot = await this.keyPool.acquireKey(MAILTESTER_PROVIDER);
     while (!slot.ok) {
@@ -273,7 +276,10 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
           slot.retryAfterMs,
         );
       }
-      const sleepMs = Math.min(slot.retryAfterMs || 50, 1000);
+      // Sleep up to 1 s, honouring server-suggested retry-after when shorter.
+      // Add 0-100 ms jitter so 100 workers don't all retry on the same tick.
+      const base = Math.min(slot.retryAfterMs || 50, 1000);
+      const sleepMs = base + Math.floor(Math.random() * 100);
       await new Promise((r) => setTimeout(r, sleepMs));
       slot = await this.keyPool.acquireKey(MAILTESTER_PROVIDER);
     }
