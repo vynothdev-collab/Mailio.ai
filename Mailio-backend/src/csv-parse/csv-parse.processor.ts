@@ -70,12 +70,10 @@ export class CsvParseProcessor extends WorkerHost {
     let duplicates = 0;
     let detectedColumn: string | null = null;
     const quotaTruncated = false;
-    let baseOffset: number | undefined;
+
+    const pendingIds: string[] = [];
 
     try {
-
-      baseOffset = await this.verification.getEnqueueAnchor();
-
       const seen = new Set<string>();
       let isFirstRow = true;
       const buffer: string[] = [];
@@ -97,13 +95,7 @@ export class CsvParseProcessor extends WorkerHost {
             listId,
             buffer.splice(0, buffer.length),
           );
-          await this.enqueueVerifyBatch(
-            ids,
-            userId,
-            listId,
-            baseOffset!,
-            inserted,
-          );
+          pendingIds.push(...ids);
           inserted += ids.length;
         } finally {
           parser.resume();
@@ -144,14 +136,20 @@ export class CsvParseProcessor extends WorkerHost {
 
       if (buffer.length > 0) {
         const ids = await this.insertBatch(userId, listId, buffer);
+        pendingIds.push(...ids);
+        inserted += ids.length;
+      }
+
+      if (pendingIds.length > 0) {
+        const baseOffset = await this.verification.getEnqueueAnchor();
         await this.enqueueVerifyBatch(
-          ids,
+          pendingIds,
           userId,
           listId,
           baseOffset,
+          0,
           inserted,
         );
-        inserted += ids.length;
       }
 
       if (inserted === 0) {
@@ -230,14 +228,30 @@ export class CsvParseProcessor extends WorkerHost {
     listId: string,
     baseOffset: number,
     indexStart: number,
+    totalCount: number,
   ): Promise<void> {
     if (ids.length === 0) return;
+
+    const useBatched = process.env.BULK_BATCH_ENABLED !== 'false';
+
+    if (useBatched) {
+      await this.verification.enqueueBulkBatches(
+        ids,
+        userId,
+        listId,
+        undefined,
+        totalCount,
+      );
+      return;
+    }
+
     await this.verification.enqueueBulkWithBase(
       ids,
       userId,
       listId,
       baseOffset,
       indexStart,
+      totalCount,
     );
   }
 

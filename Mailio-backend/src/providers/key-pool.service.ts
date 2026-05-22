@@ -171,7 +171,7 @@ export class KeyPoolService {
       10,
     );
     const DEFAULT_RATE_LIMIT_COOLDOWN_MS = parseInt(
-      process.env.KEY_RATE_LIMIT_COOLDOWN_MS ?? '2000',
+      process.env.KEY_RATE_LIMIT_COOLDOWN_MS ?? '250',
       10,
     );
     const RATE_LIMIT_COOLDOWN_MS =

@@ -1,12 +1,15 @@
 import { Processor } from '@nestjs/bullmq';
 import { Injectable, Logger, Optional } from '@nestjs/common';
-import { Job, RateLimitError, WorkerOptions } from 'bullmq';
+import { Job, WorkerOptions } from 'bullmq';
 import { VerificationResult } from '../common/types/verification-result.enum';
 import { DbWriteService } from '../db-write/db-write.service';
 import { BatchFailureRow, BatchSuccessRow } from '../db-write/db-write.types';
 import { DlqService } from '../dlq/dlq.service';
-import { EmailsService } from '../emails/emails.service';
-import { ClaimedEmailRow } from '../emails/emails.service';
+import {
+  CachedVerificationRow,
+  ClaimedEmailRow,
+  EmailsService,
+} from '../emails/emails.service';
 import { MailTesterResponse } from '../mailtester/interfaces/mailtester-response.interface';
 import { MailTesterService } from '../mailtester/mailtester.service';
 import { MetricsService } from '../metrics/metrics.service';
@@ -79,8 +82,14 @@ function createLimiter(max: number): <T>(fn: () => Promise<T>) => Promise<T> {
 >)
 export class VerificationBulkProcessor extends VerificationBaseProcessor {
   private readonly batchLogger = new Logger(VerificationBulkProcessor.name);
+  // Global cap on in-flight provider calls across ALL batches handled by this
+  // process. Going higher than the upstream rate budget × average call latency
+  // only creates spin-wait contention. The right value is roughly
+  //   ceil(rl_max_per_sec × avg_api_seconds × 1.5)
+  // — e.g. for rl_max=60/sec and 2.5 s calls, ~225. For rl_max=4/sec, ~15.
+  // Tune via BATCH_INNER_CONCURRENCY.
   private readonly innerLimit = createLimiter(
-    parseInt(process.env.BATCH_INNER_CONCURRENCY ?? '10', 10),
+    parseInt(process.env.BATCH_INNER_CONCURRENCY ?? '60', 10),
   );
 
   constructor(
@@ -122,8 +131,59 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
       return;
     }
 
+    // ── Verification cache lookup ────────────────────────────────────────
+    // Same address already verified recently (any user)? Reuse the result
+    // and skip the Ninja call entirely. This saves the provider budget for
+    // genuinely new addresses and lets duplicates resolve in milliseconds.
+    const cacheTtlMs = parseInt(
+      process.env.VERIFY_CACHE_TTL_MS ?? '2592000000', // 30 days
+      10,
+    );
+    const cacheHits: Map<string, CachedVerificationRow> =
+      cacheTtlMs > 0
+        ? await this.emailsService.findRecentResultsByAddress(
+            claimed.map((c) => c.address),
+            cacheTtlMs,
+          )
+        : new Map<string, CachedVerificationRow>();
+
+    const cachedRows: BatchSuccessRow[] = [];
+    const toVerify: ClaimedEmailRow[] = [];
+    for (const email of claimed) {
+      const hit = cacheHits.get(email.address.toLowerCase());
+      if (!hit) {
+        toVerify.push(email);
+        continue;
+      }
+      cachedRows.push({
+        emailId: email.id,
+        emailAddress: email.address,
+        isSingleVerify: email.isSingleVerify,
+        providerKeyId: 'cache',
+        result: hit.result,
+        score: hit.score ?? 0,
+        mxFound: hit.mxFound ?? false,
+        smtpCheck: hit.smtpCheck ?? false,
+        disposable: hit.disposable ?? false,
+        catchAll: hit.catchAll,
+        freeProvider: hit.freeProvider ?? false,
+        apiRawResponse: hit.apiRawResponse ?? {},
+        durationMs: 0,
+        processedAt: new Date().toISOString(),
+      });
+    }
+    if (cachedRows.length > 0) {
+      this.metrics?.providerRequests
+        ?.labels({
+          provider: MAILTESTER_PROVIDER,
+          key_id: 'cache',
+          outcome: 'cache-hit',
+        })
+        .inc(cachedRows.length);
+    }
+
     const settled = await Promise.allSettled(
-      claimed.map((email) =>
+      toVerify.map((email) =>
         this.innerLimit(() => this.verifyOneForBatch(email)),
       ),
     );
@@ -134,7 +194,7 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
 
     for (let i = 0; i < settled.length; i++) {
       const r = settled[i];
-      const email = claimed[i];
+      const email = toVerify[i];
       if (r.status === 'fulfilled') {
         successes.push(r.value);
         continue;
@@ -147,8 +207,8 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
       }
     }
 
-    if (successes.length > 0) {
-      const rows: BatchSuccessRow[] = successes.map((s) => ({
+    if (successes.length > 0 || cachedRows.length > 0) {
+      const apiRows: BatchSuccessRow[] = successes.map((s) => ({
         emailId: s.email.id,
         emailAddress: s.email.address,
         isSingleVerify: s.email.isSingleVerify,
@@ -164,6 +224,7 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
         durationMs: s.durationMs,
         processedAt: new Date().toISOString(),
       }));
+      const rows: BatchSuccessRow[] = [...cachedRows, ...apiRows];
       await this.dbWrite.enqueueBatch({
         kind: 'success-batch',
         batchId,
@@ -189,7 +250,15 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
       this.metrics?.batchPartialFailures
         ?.labels({ reason: 'rate-limit' })
         .inc(failures.length);
-      throw new RateLimitError();
+      // Do NOT throw RateLimitError — that can pause the whole worker
+      // (concurrency=8) and stall the other 7 batches running in parallel.
+      // A normal Error lets bullmq retry just THIS batch with the job's own
+      // exponential backoff (250 ms), while the other batches keep draining
+      // the limiter budget at the full 5.7 req/sec.
+      throw new Error(
+        `Batch rate-limited (failures=${failures.length}, ` +
+          `retryAfterMs=${rateLimitRetryMs}) — will retry`,
+      );
     }
 
     const attemptsMade = (job.attemptsMade ?? 0) + 1;
@@ -249,7 +318,10 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
   private async verifyOneForBatch(
     email: ClaimedEmailRow,
   ): Promise<PerEmailSuccess> {
-    const MAX_ACQUIRE_WAIT_MS = 30_000;
+    const MAX_ACQUIRE_WAIT_MS = parseInt(
+      process.env.KEY_ACQUIRE_MAX_WAIT_MS ?? '60000',
+      10,
+    );
     const waitStart = Date.now();
     let slot = await this.keyPool.acquireKey(MAILTESTER_PROVIDER);
     while (!slot.ok) {
@@ -273,13 +345,15 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
           slot.retryAfterMs,
         );
       }
-      const sleepMs = Math.min(slot.retryAfterMs || 50, 1000);
+      // Honour the limiter's own retry-after (token-bucket refill math is
+      // accurate to ~ms). Clamp to a sensible band so a stale/huge value
+      // doesn't park a worker for minutes. Add 0-150 ms jitter so the
+      // workers don't all wake on the same tick (thundering herd).
+      const base = Math.min(Math.max(slot.retryAfterMs || 50, 50), 2000);
+      const sleepMs = base + Math.floor(Math.random() * 40);
       await new Promise((r) => setTimeout(r, sleepMs));
       slot = await this.keyPool.acquireKey(MAILTESTER_PROVIDER);
     }
-    this.batchLogger.debug(
-      `→ Ninja verify ${email.address} (keyId=${slot.key.id})`,
-    );
     const start = Date.now();
     try {
       const res = await this.mailTesterService.verify(

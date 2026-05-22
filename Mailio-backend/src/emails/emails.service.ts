@@ -20,6 +20,19 @@ export interface TransitionedRow {
   disposable: boolean | null;
 }
 
+export interface CachedVerificationRow {
+  address: string;
+  result: VerificationResult;
+  score: number | null;
+  mxFound: boolean | null;
+  smtpCheck: boolean | null;
+  disposable: boolean | null;
+  catchAll: boolean | null;
+  freeProvider: boolean | null;
+  apiRawResponse: Record<string, unknown> | null;
+  processedAt: Date;
+}
+
 @Injectable()
 export class EmailsService {
   constructor(
@@ -132,6 +145,81 @@ export class EmailsService {
       })
       .execute();
     return (result.affected ?? 0) > 0;
+  }
+
+  /**
+   * Look up the freshest COMPLETED verification per address from any user.
+   * Used as a cache to skip the Ninja API call when the same address has
+   * already been verified recently. Returns a Map keyed by address (lowercase).
+   *
+   * The query relies on the partial index idx_emails_address_completed.
+   */
+  async findRecentResultsByAddress(
+    addresses: string[],
+    maxAgeMs: number,
+  ): Promise<Map<string, CachedVerificationRow>> {
+    const out = new Map<string, CachedVerificationRow>();
+    if (addresses.length === 0 || maxAgeMs <= 0) return out;
+
+    // Dedupe + normalise (addresses are already inserted lower-cased by the
+    // CSV parser, but we play it safe).
+    const lowered = Array.from(
+      new Set(addresses.map((a) => a.toLowerCase())),
+    );
+
+    const cutoff = new Date(Date.now() - maxAgeMs);
+
+    type Row = {
+      address: string;
+      result: VerificationResult;
+      score: number | null;
+      mx_found: boolean | null;
+      smtp_check: boolean | null;
+      disposable: boolean | null;
+      catch_all: boolean | null;
+      free_provider: boolean | null;
+      api_raw_response: Record<string, unknown> | null;
+      processed_at: Date;
+    };
+
+    const rows: Row[] = await this.emailsRepo.manager.query(
+      `SELECT DISTINCT ON (address)
+              address,
+              verification_result AS result,
+              score,
+              mx_found,
+              smtp_check,
+              disposable,
+              catch_all,
+              free_provider,
+              api_raw_response,
+              processed_at
+         FROM emails
+        WHERE address = ANY($1::text[])
+          AND status = 'COMPLETED'::emails_status_enum
+          AND is_deleted = false
+          AND verification_result IS NOT NULL
+          AND processed_at IS NOT NULL
+          AND processed_at >= $2::timestamptz
+        ORDER BY address, processed_at DESC`,
+      [lowered, cutoff],
+    );
+
+    for (const r of rows) {
+      out.set(r.address, {
+        address: r.address,
+        result: r.result,
+        score: r.score,
+        mxFound: r.mx_found,
+        smtpCheck: r.smtp_check,
+        disposable: r.disposable,
+        catchAll: r.catch_all,
+        freeProvider: r.free_provider,
+        apiRawResponse: r.api_raw_response,
+        processedAt: r.processed_at,
+      });
+    }
+    return out;
   }
 
   async tryClaimMany(

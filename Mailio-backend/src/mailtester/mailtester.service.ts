@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
@@ -59,7 +59,6 @@ const DISPOSABLE_DOMAINS = new Set([
 @Injectable()
 export class MailTesterService implements EmailVerificationProvider {
   readonly name = 'mailtester';
-  private readonly logger = new Logger(MailTesterService.name);
   private readonly baseUrl: string;
   private readonly fallbackKey: string;
   private readonly timeout: number;
@@ -97,9 +96,6 @@ export class MailTesterService implements EmailVerificationProvider {
         }),
       );
       const normalized = this.normalize(email, data);
-      this.logger.debug(
-        `Verified ${email} → ${normalized.result} (code=${data.code}, msg=${data.message})`,
-      );
       return normalized;
     } catch (e) {
       throw this.classifyError(e);

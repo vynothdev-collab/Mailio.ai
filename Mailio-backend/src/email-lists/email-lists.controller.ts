@@ -141,14 +141,14 @@ export class EmailListsController {
       file.originalname,
     );
 
-    if (process.env.BULK_BATCH_ENABLED === 'true') {
+    if (process.env.BULK_BATCH_ENABLED === 'false') {
+      await this.verificationService.enqueueBulk(emailIds, user.id, list.id);
+    } else {
       await this.verificationService.enqueueBulkBatches(
         emailIds,
         user.id,
         list.id,
       );
-    } else {
-      await this.verificationService.enqueueBulk(emailIds, user.id, list.id);
     }
 
     return { listId: list.id, name: list.name, totalCount: list.totalCount };

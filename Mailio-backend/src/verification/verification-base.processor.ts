@@ -72,13 +72,14 @@ export abstract class VerificationBaseProcessor extends WorkerHost {
           `Releasing claim and deferring job.`,
       );
       await this.emailsService.releaseClaim(emailId);
-      await this.worker.rateLimit(slot.retryAfterMs);
+      // Cap worker pause to 500 ms. Pausing the whole worker for the full
+      // retryAfter freezes every other in-flight job (concurrency=8 here),
+      // and our limiter is already global via Redis — a short pause is enough
+      // for the bucket to refill at least one token.
+      const pauseMs = Math.min(slot.retryAfterMs || 100, 500);
+      await this.worker.rateLimit(pauseMs);
       throw new RateLimitError();
     }
-    this.logger.debug(
-      `→ Ninja verify ${email.address} (jobId=${job.id}, keyId=${slot.key.id})`,
-    );
-
     const startMs = Date.now();
     let apiRes: MailTesterResponse;
     try {
@@ -109,7 +110,11 @@ export abstract class VerificationBaseProcessor extends WorkerHost {
         );
         if (e.kind === 'rate-limit') {
           await this.emailsService.releaseClaim(emailId);
-          await this.worker.rateLimit(e.retryAfterMs ?? 5000);
+          // Server 429: cap worker pause to 500 ms. Default was 5000 ms which
+          // froze all 8 concurrent slots on a single 429 — catastrophic when
+          // we only have one Ninja key.
+          const pauseMs = Math.min(e.retryAfterMs ?? 250, 500);
+          await this.worker.rateLimit(pauseMs);
           throw new RateLimitError();
         }
       } else {

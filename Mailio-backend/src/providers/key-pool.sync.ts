@@ -126,10 +126,26 @@ export class KeyPoolSync implements OnApplicationBootstrap, OnModuleDestroy {
       const cooling = list.filter(
         (r) => r.status === ApiKeyStatus.COOLDOWN,
       ).length;
+
+      const budgetPerSec = list
+        .filter((r) => r.status === ApiKeyStatus.ACTIVE)
+        .reduce(
+          (acc, r) => acc + (r.rlMax / Math.max(1, r.rlWindowMs)) * 1000,
+          0,
+        );
       this.logger.log(
         `Loaded ${list.length} key(s) for provider="${prov}" ` +
-          `(active=${active}, cooldown=${cooling})`,
+          `(active=${active}, cooldown=${cooling}, ` +
+          `budget=${budgetPerSec.toFixed(1)} req/sec)`,
       );
+      if (budgetPerSec > 0 && budgetPerSec < 10) {
+        this.logger.warn(
+          `[${prov}] Effective rate budget is only ${budgetPerSec.toFixed(1)} ` +
+            `req/sec across all active keys. At this rate, 400 emails take ` +
+            `~${Math.ceil(400 / budgetPerSec)}s no matter how high you ` +
+            `set concurrency. Raise rl_max in api_keys or add more keys.`,
+        );
+      }
     }
     if (byProvider.size === 0 && !provider) {
       this.logger.warn(
