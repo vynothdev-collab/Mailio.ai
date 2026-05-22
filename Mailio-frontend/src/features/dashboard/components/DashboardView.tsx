@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { DashboardSkeleton } from "@/src/components/shared/Skeleton";
 import { StatsGrid }                  from "./StatsGrid";
@@ -31,6 +32,12 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => voi
 
 export function DashboardView() {
   const { data, loading, refreshing, error, refresh, silentReload } = useDashboardData();
+  const [tableRefreshKey, setTableRefreshKey] = useState(0);
+
+  const handleVerified = useCallback(() => {
+    silentReload();
+    setTableRefreshKey((k) => k + 1);
+  }, [silentReload]);
 
   if ((loading && !data) || (refreshing && !data)) return <DashboardSkeleton />;
 
@@ -66,14 +73,14 @@ export function DashboardView() {
       <StatsGrid stats={stats} loading={false} />
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
-        <BulkVerifyCard onUploaded={silentReload} />
-        <SingleVerifyCard onVerified={silentReload} />
+        <BulkVerifyCard onUploaded={handleVerified} />
+        <SingleVerifyCard onVerified={handleVerified} />
         <div className="md:col-span-2 lg:col-span-1">
           <ResultsOverview data={chartData} total={chartTotal} />
         </div>
       </div>
 
-      <RecentVerificationsTable onDeleted={silentReload} />
+      <RecentVerificationsTable onDeleted={silentReload} refreshKey={tableRefreshKey} />
     </div>
   );
 }

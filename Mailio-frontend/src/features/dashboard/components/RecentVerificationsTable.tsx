@@ -92,8 +92,9 @@ function EmptyState() {
 const DEFAULT_LIMIT = 10;
 
 interface RecentVerificationsTableProps {
-  limit?:     number;
-  onDeleted?: () => void;
+  limit?:      number;
+  onDeleted?:  () => void;
+  refreshKey?: number;
 }
 
 type StatusFilter = "all" | RecentVerificationStatus;
@@ -111,7 +112,7 @@ const PERIOD_FILTERS: { value: PeriodFilter; label: string }[] = [
   { value: "custom", label: "Custom" },
 ];
 
-export function RecentVerificationsTable({ limit = DEFAULT_LIMIT, onDeleted }: RecentVerificationsTableProps = {}) {
+export function RecentVerificationsTable({ limit = DEFAULT_LIMIT, onDeleted, refreshKey }: RecentVerificationsTableProps = {}) {
   const [page,    setPage]    = useState(1);
   const [data,    setData]    = useState<RecentVerificationItem[]>([]);
   const [total,   setTotal]   = useState(0);
@@ -177,7 +178,8 @@ export function RecentVerificationsTable({ limit = DEFAULT_LIMIT, onDeleted }: R
     const controller = new AbortController();
     void load(page, controller.signal);
     return () => controller.abort();
-  }, [load, page]);
+    // refreshKey intentionally triggers a reload when a new verification completes
+  }, [load, page, refreshKey]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const start      = total === 0 ? 0 : (page - 1) * limit + 1;

@@ -108,7 +108,7 @@ export function VerificationBreakdownCard({ breakdown, loading }: Props) {
 
         <a
           href="/results"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#E45A1A] hover:underline"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0F5BFF] hover:underline"
         >
           View all results <span aria-hidden>→</span>
         </a>

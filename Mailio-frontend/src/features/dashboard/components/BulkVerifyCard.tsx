@@ -35,6 +35,7 @@ export function BulkVerifyCard({ onUploaded }: Props) {
         setProgress(p);
         if (p.totalCount > 0 && p.processedCount >= p.totalCount) {
           window.clearInterval(timer);
+          onUploaded?.();
         }
       } catch {
       }

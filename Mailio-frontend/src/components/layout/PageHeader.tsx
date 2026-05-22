@@ -65,7 +65,7 @@ function AvatarMenu() {
 
   return (
     <div ref={ref} className="relative">
-      <button
+      {/* <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
@@ -75,7 +75,7 @@ function AvatarMenu() {
           {initials}
         </span>
         <ChevronDown size={13} className={cn("text-muted-foreground transition-transform", open && "rotate-180")} />
-      </button>
+      </button> */}
 
       {open && (
         <div className="absolute right-0 top-full z-50 mt-1.5 w-48 rounded-xl border border-[#DCE6F3] bg-white py-1 shadow-lg">
@@ -124,7 +124,7 @@ export function PageHeader({ title, subtitle, onRefresh, refreshing = false }: P
   return (
     <div className="sticky top-0 z-30 -mx-4 flex flex-col gap-3 bg-[#EEF3FB] px-4 py-3 lg:-mx-6 lg:flex-row lg:items-start lg:justify-between lg:px-6 lg:py-4">
       <div className="order-2 min-w-0 flex-1 lg:order-1">
-        <h1 className="text-xl font-bold tracking-tight text-[#111827] sm:text-2xl">
+        <h1 className="text-base font-bold tracking-tight text-[#111827] sm:text-xl lg:text-2xl">
           {title}
         </h1>
         {subtitle && (
