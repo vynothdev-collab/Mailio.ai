@@ -18,6 +18,16 @@ export const BULK_BASE_PRIORITY = 100;
 
 export const PRIORITY_COUNTER_KEY = 'mailio:bulk:nowServing';
 
+const STRIDE_HIGH = 2;
+const STRIDE_MID = 3;
+const STRIDE_LOW = 6;
+
+export function bulkStrideFor(totalCount: number): number {
+  if (totalCount > 10_000) return STRIDE_LOW;
+  if (totalCount >= 5_000) return STRIDE_MID;
+  return STRIDE_HIGH;
+}
+
 const DEFAULT_BULK_BATCH_SIZE = parseInt(
   process.env.BULK_BATCH_SIZE ?? '50',
   10,
@@ -47,9 +57,17 @@ export class VerificationService {
     emailIds: string[],
     userId: string,
     listId: string,
+    totalCount?: number,
   ): Promise<void> {
     const base = await this.getEnqueueAnchor();
-    await this.addBulkInBatches(emailIds, userId, listId, base, 0);
+    await this.addBulkInBatches(
+      emailIds,
+      userId,
+      listId,
+      base,
+      0,
+      totalCount ?? emailIds.length,
+    );
   }
 
   async enqueueBulkWithBase(
@@ -58,8 +76,16 @@ export class VerificationService {
     listId: string,
     base: number,
     indexStart: number,
+    totalCount?: number,
   ): Promise<void> {
-    await this.addBulkInBatches(emailIds, userId, listId, base, indexStart);
+    await this.addBulkInBatches(
+      emailIds,
+      userId,
+      listId,
+      base,
+      indexStart,
+      totalCount ?? emailIds.length,
+    );
   }
 
   private async addBulkInBatches(
@@ -68,13 +94,15 @@ export class VerificationService {
     listId: string,
     base: number,
     indexStart: number,
+    totalCount: number,
   ): Promise<void> {
     if (emailIds.length === 0) return;
+    const stride = bulkStrideFor(totalCount);
     const jobs = emailIds.map((emailId, i) => ({
       name: 'verify' as const,
       data: { emailId, userId, listId },
       opts: {
-        priority: BULK_BASE_PRIORITY + base + indexStart + i,
+        priority: BULK_BASE_PRIORITY + base + (indexStart + i) * stride,
         jobId: `bulk-${emailId}`,
       },
     }));
@@ -89,12 +117,14 @@ export class VerificationService {
     userId: string,
     listId: string,
     batchSize: number = DEFAULT_BULK_BATCH_SIZE,
+    totalCount?: number,
   ): Promise<void> {
     if (emailIds.length === 0) return;
 
     const size = Math.max(1, Math.min(batchSize, MAX_BULK_BATCH_SIZE));
     const base = await this.getEnqueueAnchor();
     const totalBatches = Math.ceil(emailIds.length / size);
+    const stride = bulkStrideFor(totalCount ?? emailIds.length);
 
     const jobs: {
       name: 'verify.batch';
@@ -117,7 +147,7 @@ export class VerificationService {
         name: 'verify.batch',
         data: { batchId, userId, listId, emailIds: slice },
         opts: {
-          priority: BULK_BASE_PRIORITY + base + emailOffset,
+          priority: BULK_BASE_PRIORITY + base + emailOffset * stride,
           jobId: `bulk-batch-${batchId}`,
           attempts: 5,
           backoff: { type: 'exponential', delay: 250 },
@@ -141,13 +171,7 @@ export class VerificationService {
   }
 
   async getEnqueueAnchor(): Promise<number> {
-    const cursor = await this.getNowServing();
-    try {
-      const waiting = await this.bulkQueue.getWaitingCount();
-      return cursor + waiting;
-    } catch {
-      return cursor;
-    }
+    return this.getNowServing();
   }
 
   async advanceNowServing(): Promise<void> {

@@ -70,12 +70,9 @@ export class CsvParseProcessor extends WorkerHost {
     let duplicates = 0;
     let detectedColumn: string | null = null;
     const quotaTruncated = false;
-    let baseOffset: number | undefined;
+    const collectedIds: string[] = [];
 
     try {
-
-      baseOffset = await this.verification.getEnqueueAnchor();
-
       const seen = new Set<string>();
       let isFirstRow = true;
       const buffer: string[] = [];
@@ -97,13 +94,7 @@ export class CsvParseProcessor extends WorkerHost {
             listId,
             buffer.splice(0, buffer.length),
           );
-          await this.enqueueVerifyBatch(
-            ids,
-            userId,
-            listId,
-            baseOffset!,
-            inserted,
-          );
+          collectedIds.push(...ids);
           inserted += ids.length;
         } finally {
           parser.resume();
@@ -144,13 +135,7 @@ export class CsvParseProcessor extends WorkerHost {
 
       if (buffer.length > 0) {
         const ids = await this.insertBatch(userId, listId, buffer);
-        await this.enqueueVerifyBatch(
-          ids,
-          userId,
-          listId,
-          baseOffset,
-          inserted,
-        );
+        collectedIds.push(...ids);
         inserted += ids.length;
       }
 
@@ -180,6 +165,16 @@ export class CsvParseProcessor extends WorkerHost {
         detectedColumn,
         quotaTruncated,
       });
+
+      const baseOffset = await this.verification.getEnqueueAnchor();
+      await this.verification.enqueueBulkWithBase(
+        collectedIds,
+        userId,
+        listId,
+        baseOffset,
+        0,
+        inserted,
+      );
 
       this.logger.log(
         `List ${listId}: parsed ${inserted} (dup=${duplicates}, truncated=${quotaTruncated}, file=${originalFilename})`,
@@ -222,23 +217,6 @@ export class CsvParseProcessor extends WorkerHost {
     `;
     const rows: { id: string }[] = await this.dataSource.query(sql, params);
     return rows.map((r) => r.id);
-  }
-
-  private async enqueueVerifyBatch(
-    ids: string[],
-    userId: string,
-    listId: string,
-    baseOffset: number,
-    indexStart: number,
-  ): Promise<void> {
-    if (ids.length === 0) return;
-    await this.verification.enqueueBulkWithBase(
-      ids,
-      userId,
-      listId,
-      baseOffset,
-      indexStart,
-    );
   }
 
   private looksLikeEmail(v: string): boolean {

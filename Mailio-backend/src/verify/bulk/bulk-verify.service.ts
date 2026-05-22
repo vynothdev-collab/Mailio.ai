@@ -329,10 +329,12 @@ export class BulkVerifyService {
         where: { listId: jobId, status: EmailStatus.QUEUED },
         select: ['id'],
       });
+      const list = await this.emailListsService.findById(jobId, userId);
       await this.verificationService.enqueueBulk(
         failedEmails.map((e) => e.id),
         userId,
         jobId,
+        list.totalCount ?? failedEmails.length,
       );
     }
 
