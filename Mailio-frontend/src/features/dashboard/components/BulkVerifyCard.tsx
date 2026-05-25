@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Loader2, X, CheckCircle2 } from "lucide-react";
+import { FileText, Loader2, X, Trash2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -162,9 +162,9 @@ export function BulkVerifyCard({ onUploaded }: Props) {
                       reset();
                     }}
                     aria-label="Remove file"
-                    className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
                   >
-                    <X size={12} />
+                    <Trash2 size={12} />
                   </button>
                 )}
               </span>

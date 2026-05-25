@@ -1,19 +1,16 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import Image from "next/image";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  UploadCloud, FileText, X, CheckCircle2, Loader2,
-  AlertTriangle,
+  UploadCloud, FileText, X, Trash2, CheckCircle2, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/src/lib/utils";
 import { bulkVerifyService } from "@/src/services/bulkVerifyService";
-import { scanEmailFile, type FileScanResult } from "../lib/scanFile";
 import type { ApiError } from "@/src/types/auth";
-import type { BulkUploadResponse } from "@/src/types/bulk";
+import type { BulkProgressDto, BulkUploadResponse } from "@/src/types/bulk";
 
 const ACCEPTED_EXTS = [".csv", ".txt"] as const;
 const MAX_SIZE_MB   = 50;
@@ -24,91 +21,79 @@ interface Props {
 
 export function UploadCard({ onUploaded }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [file,        setFile]        = useState<File | null>(null);
-  const [scan,        setScan]        = useState<FileScanResult | null>(null);
-  const [scanError,   setScanError]   = useState<string | null>(null);
-  const [isDragging,  setIsDragging]  = useState(false);
-  const [scanning,    setScanning]    = useState(false);
-  const [uploading,   setUploading]   = useState(false);
-  const [uploadPct,   setUploadPct]   = useState(0);
-  const [uploaded,    setUploaded]    = useState<BulkUploadResponse | null>(null);
+  const [file,       setFile]       = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploading,  setUploading]  = useState(false);
+  const [uploadPct,  setUploadPct]  = useState(0);
+  const [lastUpload, setLastUpload] = useState<BulkUploadResponse | null>(null);
+  const [progress,   setProgress]   = useState<BulkProgressDto | null>(null);
+
+  useEffect(() => {
+    if (!lastUpload?.jobId) return;
+    let cancelled = false;
+
+    const tick = async () => {
+      try {
+        const p = await bulkVerifyService.getProgress(lastUpload.jobId);
+        if (cancelled) return;
+        setProgress(p);
+        if (p.totalCount > 0 && p.processedCount >= p.totalCount) {
+          window.clearInterval(timer);
+          onUploaded(lastUpload);
+        }
+      } catch { /* ignore */ }
+    };
+
+    void tick();
+    const timer = window.setInterval(tick, 2000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [lastUpload?.jobId]);
 
   const validate = (f: File): string | null => {
     const ext = `.${f.name.split(".").pop()?.toLowerCase() ?? ""}`;
-    if (!ACCEPTED_EXTS.includes(ext as ".csv" | ".txt")) {
+    if (!ACCEPTED_EXTS.includes(ext as ".csv" | ".txt"))
       return "Invalid file format. Only .csv and .txt files are supported.";
-    }
-    if (f.size > MAX_SIZE_MB * 1024 * 1024) {
+    if (f.size > MAX_SIZE_MB * 1024 * 1024)
       return `File too large. Max ${MAX_SIZE_MB} MB.`;
-    }
-    if (f.size === 0) {
-      return "File is empty.";
-    }
+    if (f.size === 0) return "File is empty.";
     return null;
   };
 
-  const handleSelect = useCallback(async (f: File) => {
+  const handleSelect = useCallback((f: File) => {
     const err = validate(f);
-    if (err) {
-      toast.error(err);
-      return;
-    }
+    if (err) { toast.error(err); return; }
     setFile(f);
-    setUploaded(null);
-    setScan(null);
-    setScanError(null);
-    setScanning(true);
-    try {
-      const result = await scanEmailFile(f);
-      if (result.validEmails.length === 0) {
-        setScanError("No valid email addresses were found in this file.");
-      }
-      setScan(result);
-    } catch {
-      setScanError("Could not read this file. It may be corrupted.");
-    } finally {
-      setScanning(false);
-    }
   }, []);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      const f = e.dataTransfer.files[0];
-      if (f) void handleSelect(f);
-    },
-    [handleSelect],
-  );
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f) handleSelect(f);
+  }, [handleSelect]);
 
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const f = e.target.files?.[0];
-      if (f) void handleSelect(f);
-    },
-    [handleSelect],
-  );
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) handleSelect(f);
+  }, [handleSelect]);
 
   const reset = () => {
     setFile(null);
-    setScan(null);
-    setScanError(null);
-    setUploaded(null);
     setUploadPct(0);
     if (inputRef.current) inputRef.current.value = "";
   };
 
   const startUpload = async () => {
-    if (!file || !scan || scan.validEmails.length === 0) return;
+    if (!file) return;
     setUploading(true);
     setUploadPct(0);
     try {
       const result = await bulkVerifyService.upload(file, setUploadPct);
-      toast.success(
-        `Queued ${scan.validEmails.length.toLocaleString()} emails — parsing on the server…`,
-      );
-      onUploaded(result);
+      toast.success("File uploaded — parsing on the server…");
+      setProgress(null);
+      setLastUpload(result);
       reset();
+      onUploaded(result);
     } catch (err) {
       const apiErr = err as ApiError;
       toast.error(apiErr?.message ?? "Upload failed.");
@@ -116,9 +101,6 @@ export function UploadCard({ onUploaded }: Props) {
       setUploading(false);
     }
   };
-
-  const canUpload = !!scan && scan.validEmails.length > 0 && !uploaded;
-  const hasInvalid = !!scan && scan.invalidEntries.length > 0;
 
   return (
     <Card>
@@ -144,6 +126,7 @@ export function UploadCard({ onUploaded }: Props) {
           </a>
         </div>
 
+        {/* Drop zone */}
         <label
           className={cn(
             "flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed cursor-pointer py-12 transition-colors",
@@ -165,11 +148,34 @@ export function UploadCard({ onUploaded }: Props) {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#E6EEFB]">
             <UploadCloud size={22} className="text-[#0F5BFF]" />
           </div>
-          <span className="mt-2 text-base font-semibold text-[#111827]">Drag &amp; drop your file here</span>
-          <span className="text-xs text-muted-foreground">CSV or TXT up to {MAX_SIZE_MB}MB</span>
-          <span className="mt-2 inline-flex items-center justify-center rounded-full bg-[#0F5BFF] px-5 py-2 text-xs font-semibold text-white hover:bg-[#0a48cc] transition-colors">
-            Choose file
-          </span>
+
+          {file ? (
+            <>
+              <span className="text-sm font-medium text-primary flex items-center gap-1.5">
+                <FileText size={14} />
+                {file.name}
+                {!uploading && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); reset(); }}
+                    aria-label="Remove file"
+                    className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </span>
+              <span className="text-xs text-muted-foreground">Click to change file</span>
+            </>
+          ) : (
+            <>
+              <span className="mt-2 text-base font-semibold text-[#111827]">Drag &amp; drop your file here</span>
+              <span className="text-xs text-muted-foreground">CSV or TXT up to {MAX_SIZE_MB}MB</span>
+              <span className="mt-2 inline-flex items-center justify-center rounded-full bg-[#0F5BFF] px-5 py-2 text-xs font-semibold text-white hover:bg-[#0a48cc] transition-colors">
+                Choose file
+              </span>
+            </>
+          )}
         </label>
 
         <div className="flex items-start gap-2 rounded-xl border border-[#DCE6F3] bg-[#F4F8FF] px-3 py-2.5 text-xs text-[#161514]">
@@ -182,111 +188,88 @@ export function UploadCard({ onUploaded }: Props) {
           Only email addresses are supported. Duplicates will be automatically removed.
         </div>
 
-        {file && (
-          <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <FileText size={15} className="text-muted-foreground shrink-0" />
-                <span className="text-sm font-medium truncate">{file.name}</span>
-                {uploaded && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                    <CheckCircle2 size={10} />
-                    Queued
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={reset}
-                disabled={uploading}
-                className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                aria-label="Remove file"
-              >
-                <X size={15} />
-              </button>
+        {/* Upload progress */}
+        {uploading && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Uploading…</span>
+              <span>{uploadPct}%</span>
             </div>
+            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div className="h-full bg-primary transition-all" style={{ width: `${uploadPct}%` }} />
+            </div>
+          </div>
+        )}
 
-            {scanning && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 size={12} className="animate-spin" />
-                Scanning file…
-              </div>
-            )}
+        {/* Upload button */}
+        <Button
+          type="button"
+          onClick={startUpload}
+          disabled={!file || uploading}
+          className="w-full gradient-brand border-0 text-white hover:opacity-90 h-11"
+        >
+          {uploading
+            ? <><Loader2 size={14} className="animate-spin" /> Uploading…</>
+            : "Upload & Verify"}
+        </Button>
 
-            {scanError && (
-              <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-xs text-red-700">
-                <p className="flex items-center gap-1.5 font-semibold">
-                  <AlertTriangle size={12} /> {scanError}
-                </p>
-                <p className="mt-1">
-                  Check the file follows the format shown above and try again.
-                </p>
-              </div>
-            )}
-
-            {scan && !scanError && (
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 border-t border-border">
-                  <Stat label="Rows scanned"     value={scan.totalRows.toLocaleString()} />
-                  <Stat label="Valid emails"     value={scan.validEmails.length.toLocaleString()} valueClass="text-emerald-600" />
-                  <Stat label="Invalid entries" value={scan.invalidEntries.length.toLocaleString()} valueClass={hasInvalid ? "text-amber-600" : ""} />
-                  <Stat label="Duplicates"       value={scan.duplicates.toLocaleString()}    valueClass={scan.duplicates > 0 ? "text-amber-600" : ""} />
+        {/* Post-upload live progress card */}
+        {lastUpload && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+            <div className="flex items-start gap-2">
+              <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-emerald-600" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-emerald-700 truncate">
+                    {lastUpload.fileName}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { setLastUpload(null); setProgress(null); }}
+                    aria-label="Dismiss"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X size={13} />
+                  </button>
                 </div>
-
-                {hasInvalid && (
-                  <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs text-amber-800">
-                    <p className="flex items-center gap-1.5 font-semibold">
-                      <AlertTriangle size={12} />
-                      {scan.invalidEntries.length} entr{scan.invalidEntries.length === 1 ? "y is" : "ies are"} not in the proper email format
+                {(() => {
+                  const isParsing = !progress || progress.totalCount === 0;
+                  const isDone    = !isParsing && progress.processedCount >= progress.totalCount;
+                  const label     = isDone ? "Completed" : isParsing ? "Parsing…" : "Processing";
+                  return (
+                    <span className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold mt-0.5",
+                      isDone
+                        ? "border-emerald-200 text-emerald-700"
+                        : "border-blue-200 bg-blue-50 text-blue-700",
+                    )}>
+                      {!isDone && <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />}
+                      {label}
+                    </span>
+                  );
+                })()}
+                <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Valid</p>
+                    <p className="font-semibold tabular-nums text-emerald-600">
+                      {(progress?.valid ?? 0).toLocaleString()}
                     </p>
-                    <p className="mt-1">
-                      These rows will be skipped during verification. Expected format: <code className="font-mono">name@example.com</code>
-                    </p>
-                    <ul className="mt-2 space-y-0.5 font-mono">
-                      {scan.invalidEntries.slice(0, 5).map((e) => (
-                        <li key={e.row} className="truncate">
-                          Row {e.row}: <span className="text-amber-900">&ldquo;{e.value || "(empty)"}&rdquo;</span>
-                        </li>
-                      ))}
-                      {scan.invalidEntries.length > 5 && (
-                        <li className="text-amber-700">+{scan.invalidEntries.length - 5} more…</li>
-                      )}
-                    </ul>
                   </div>
-                )}
-              </>
-            )}
-
-            {!uploaded && (
-              <div className="space-y-2">
-                {uploading && (
-                  <>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>Uploading…</span>
-                      <span>{uploadPct}%</span>
-                    </div>
-                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full bg-primary transition-all"
-                        style={{ width: `${uploadPct}%` }}
-                      />
-                    </div>
-                  </>
-                )}
-                <Button
-                  type="button"
-                  onClick={startUpload}
-                  disabled={!canUpload || uploading}
-                  className="w-full gradient-brand border-0 text-white hover:opacity-90"
-                >
-                  {uploading
-                    ? <><Loader2 size={14} className="animate-spin" /> Uploading…</>
-                    : scan
-                      ? `Validate ${scan.validEmails.length.toLocaleString()} email${scan.validEmails.length === 1 ? "" : "s"}`
-                      : "Validate All"}
-                </Button>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Invalid</p>
+                    <p className="font-semibold tabular-nums text-red-500">
+                      {(progress?.invalid ?? 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Risky</p>
+                    <p className="font-semibold tabular-nums text-amber-600">
+                      {(progress?.risky ?? 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
               </div>
-            )}
-
+            </div>
           </div>
         )}
 
@@ -294,15 +277,6 @@ export function UploadCard({ onUploaded }: Props) {
         <PrivacyBanner />
       </CardContent>
     </Card>
-  );
-}
-
-function Stat({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={cn("text-sm font-semibold tabular-nums truncate", valueClass)}>{value}</p>
-    </div>
   );
 }
 
