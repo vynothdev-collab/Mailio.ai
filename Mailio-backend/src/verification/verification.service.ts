@@ -17,6 +17,7 @@ const SINGLE_PRIORITY = 1;
 export const BULK_BASE_PRIORITY = 100;
 
 export const PRIORITY_COUNTER_KEY = 'mailio:bulk:nowServing';
+export const ENQUEUE_HEAD_KEY = 'mailio:bulk:enqueueHead';
 
 const STRIDE_HIGH = 2;
 const STRIDE_MID = 3;
@@ -26,7 +27,7 @@ export function bulkStrideFor(totalCount: number): number {
   if (totalCount > 5_000) return STRIDE_LOW;
   if (totalCount >= 1_000) return STRIDE_MID;
   return STRIDE_HIGH;
-}``
+}
 
 const DEFAULT_BULK_BATCH_SIZE = parseInt(
   process.env.BULK_BATCH_SIZE ?? '50',
@@ -59,15 +60,10 @@ export class VerificationService {
     listId: string,
     totalCount?: number,
   ): Promise<void> {
-    const base = await this.getEnqueueAnchor();
-    await this.addBulkInBatches(
-      emailIds,
-      userId,
-      listId,
-      base,
-      0,
-      totalCount ?? emailIds.length,
-    );
+    const total = totalCount ?? emailIds.length;
+    const stride = bulkStrideFor(total);
+    const base = await this.reserveEnqueueSlot(emailIds.length, stride);
+    await this.addBulkInBatches(emailIds, userId, listId, base, 0, total);
   }
 
   async enqueueBulkWithBase(
@@ -122,9 +118,9 @@ export class VerificationService {
     if (emailIds.length === 0) return;
 
     const size = Math.max(1, Math.min(batchSize, MAX_BULK_BATCH_SIZE));
-    const base = await this.getEnqueueAnchor();
     const totalBatches = Math.ceil(emailIds.length / size);
     const stride = bulkStrideFor(totalCount ?? emailIds.length);
+    const base = await this.reserveEnqueueSlot(emailIds.length, stride);
 
     const jobs: {
       name: 'verify.batch';
@@ -162,6 +158,15 @@ export class VerificationService {
     for (let i = 0; i < jobs.length; i += ADD_BULK_CHUNK) {
       await this.bulkQueue.addBulk(jobs.slice(i, i + ADD_BULK_CHUNK));
     }
+  }
+
+  async reserveEnqueueSlot(
+    emailCount: number,
+    stride: number,
+  ): Promise<number> {
+    const client = (await this.bulkQueue.client) as unknown as Redis;
+    const next = await client.incrby(ENQUEUE_HEAD_KEY, emailCount * stride);
+    return next - emailCount * stride;
   }
 
   async getNowServing(): Promise<number> {

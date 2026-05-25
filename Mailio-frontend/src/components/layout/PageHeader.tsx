@@ -65,7 +65,7 @@ function AvatarMenu() {
 
   return (
     <div ref={ref} className="relative">
-      {/* <button
+      <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
@@ -75,7 +75,7 @@ function AvatarMenu() {
           {initials}
         </span>
         <ChevronDown size={13} className={cn("text-muted-foreground transition-transform", open && "rotate-180")} />
-      </button> */}
+      </button>
 
       {open && (
         <div className="absolute right-0 top-full z-50 mt-1.5 w-48 rounded-xl border border-[#DCE6F3] bg-white py-1 shadow-lg">

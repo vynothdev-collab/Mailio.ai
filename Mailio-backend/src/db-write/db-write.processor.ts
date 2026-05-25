@@ -108,7 +108,7 @@ export class DbWriteProcessor extends WorkerHost {
 
     if (d.listId && transitioned) {
       await this.bumpListAndEmit(d.listId, d.result, d.disposable);
-      await this.advanceBulkCursorBy(d.stride ?? 1);
+      await this.advanceBulkCursorBy(1);
     }
 
     if (d.isSingleVerify) {
@@ -133,7 +133,7 @@ export class DbWriteProcessor extends WorkerHost {
 
     if (d.listId && transitioned) {
       await this.bumpListAndEmit(d.listId, VerificationResult.UNKNOWN, false);
-      await this.advanceBulkCursorBy(d.stride ?? 1);
+      await this.advanceBulkCursorBy(1);
       this.notifier.emitJobFailed(d.listId, {
         listId: d.listId,
         emailId: d.emailId,
@@ -194,7 +194,7 @@ export class DbWriteProcessor extends WorkerHost {
       }
     }
 
-    await this.advanceBulkCursorBy(transitioned.length * (d.stride ?? 1));
+    await this.advanceBulkCursorBy(transitioned.length);
 
     if (d.rows.some((r) => r.isSingleVerify)) {
       const transitionedIds = new Set(transitioned.map((t) => t.emailId));
@@ -243,7 +243,7 @@ export class DbWriteProcessor extends WorkerHost {
       }
     }
 
-    await this.advanceBulkCursorBy(transitioned.length * (d.stride ?? 1));
+    await this.advanceBulkCursorBy(transitioned.length);
 
     this.notifier.emitJobFailed(d.listId, {
       listId: d.listId,
