@@ -102,6 +102,10 @@ export class UsersService {
     );
   }
 
+  async updatePassword(userId: string, passwordHash: string): Promise<void> {
+    await this.usersRepo.update({ id: userId }, { passwordHash });
+  }
+
   private async touchProfile(user: User, profile: OAuthProfile): Promise<User> {
     const nameChanged = profile.name && user.name !== profile.name;
     const avatarChanged = profile.avatarUrl && user.avatarUrl !== profile.avatarUrl;

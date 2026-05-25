@@ -7,13 +7,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, MoreThan, Repository } from 'typeorm';
 import { MailService } from '../mail/mail.service';
 import { User } from '../users/entities/user.entity';
 import { EmailOtp, OtpPurpose } from './entities/email-otp.entity';
 
 const MAX_ATTEMPTS = 5;
-// Progressive resend cooldowns: 1st resend=60s, 2nd resend=180s, 3rd+ resend=300s
 const RESEND_COOLDOWNS = [60, 180, 300] as const;
 
 @Injectable()
@@ -25,9 +24,12 @@ export class EmailOtpService {
     private readonly config: ConfigService,
   ) {}
 
-  async issueAndSend(user: User, purpose = OtpPurpose.SIGNUP_VERIFY): Promise<void> {
+  async issueAndSend(
+    user: User,
+    purpose = OtpPurpose.SIGNUP_VERIFY,
+  ): Promise<void> {
     const expireMinutes =
-      this.config.get<number>('mail.otpExpireMinutes') ?? 10;
+      this.config.get<number>('mail.otpExpireMinutes') ?? 5;
 
     const otp = this.generateOtp();
     const otpHash = await bcrypt.hash(otp, 10);
@@ -42,19 +44,19 @@ export class EmailOtpService {
     });
     await this.otpRepo.save(record);
 
-    await this.mailService.sendOtpEmail(user.email, otp);
+    await this.mailService.sendOtpEmail(user.email, otp, purpose);
   }
 
-  async resend(user: User): Promise<void> {
+  async resend(user: User, purpose = OtpPurpose.SIGNUP_VERIFY): Promise<void> {
     const sentCount = await this.otpRepo.count({
-      where: { email: user.email, purpose: OtpPurpose.SIGNUP_VERIFY },
+      where: { email: user.email, purpose },
     });
 
     const cooldownIndex = Math.min(sentCount - 1, RESEND_COOLDOWNS.length - 1);
     const cooldownSeconds = RESEND_COOLDOWNS[Math.max(cooldownIndex, 0)];
 
     const recent = await this.otpRepo.findOne({
-      where: { email: user.email, purpose: OtpPurpose.SIGNUP_VERIFY },
+      where: { email: user.email, purpose },
       order: { createdAt: 'DESC' },
     });
 
@@ -68,20 +70,21 @@ export class EmailOtpService {
       }
     }
 
-    await this.issueAndSend(user);
+    await this.issueAndSend(user, purpose);
   }
 
   async getStatus(
     email: string,
+    purpose = OtpPurpose.SIGNUP_VERIFY,
   ): Promise<{ remainingSeconds: number; sendCount: number }> {
     const sendCount = await this.otpRepo.count({
-      where: { email, purpose: OtpPurpose.SIGNUP_VERIFY },
+      where: { email, purpose },
     });
 
     if (sendCount === 0) return { remainingSeconds: 0, sendCount: 0 };
 
     const recent = await this.otpRepo.findOne({
-      where: { email, purpose: OtpPurpose.SIGNUP_VERIFY },
+      where: { email, purpose },
       order: { createdAt: 'DESC' },
     });
 
@@ -98,18 +101,20 @@ export class EmailOtpService {
     return { remainingSeconds, sendCount };
   }
 
-  async verify(email: string, otp: string): Promise<EmailOtp> {
+  async verify(
+    email: string,
+    otp: string,
+    purpose = OtpPurpose.SIGNUP_VERIFY,
+  ): Promise<EmailOtp> {
     const record = await this.otpRepo.findOne({
-      where: {
-        email,
-        purpose: OtpPurpose.SIGNUP_VERIFY,
-        consumedAt: IsNull(),
-      },
+      where: { email, purpose, consumedAt: IsNull() },
       order: { createdAt: 'DESC' },
     });
 
     if (!record) {
-      throw new NotFoundException('No verification code found. Please request a new one.');
+      throw new NotFoundException(
+        'No verification code found. Please request a new one.',
+      );
     }
 
     if (record.expiresAt.getTime() < Date.now()) {
@@ -132,6 +137,17 @@ export class EmailOtpService {
     record.consumedAt = new Date();
     await this.otpRepo.save(record);
     return record;
+  }
+
+  async countRecentRequests(
+    email: string,
+    purpose: OtpPurpose,
+    windowMinutes: number,
+  ): Promise<number> {
+    const since = new Date(Date.now() - windowMinutes * 60 * 1000);
+    return this.otpRepo.count({
+      where: { email, purpose, createdAt: MoreThan(since) },
+    });
   }
 
   private generateOtp(): string {

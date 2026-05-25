@@ -2,6 +2,7 @@ import { api } from "./api";
 import { STORAGE_KEYS, clearSession, getItem, setItem } from "@/src/utils/storage";
 import type {
   AuthResponse,
+  ForgotPasswordPayload,
   GoogleLoginPayload,
   LinkedinLoginPayload,
   LoginPayload,
@@ -9,6 +10,7 @@ import type {
   RefreshPayload,
   RefreshResponse,
   ResendOtpPayload,
+  ResetPasswordPayload,
   SignupPayload,
   SignupResponse,
   VerifyEmailPayload,
@@ -35,9 +37,12 @@ export const authService = {
     return data;
   },
 
-  async getOtpStatus(email: string): Promise<{ remainingSeconds: number; sendCount: number }> {
+  async getOtpStatus(email: string, purpose?: string): Promise<{ remainingSeconds: number; sendCount: number }> {
+    const qs = purpose
+      ? `email=${encodeURIComponent(email)}&purpose=${encodeURIComponent(purpose)}`
+      : `email=${encodeURIComponent(email)}`;
     const { data } = await api.get<{ remainingSeconds: number; sendCount: number }>(
-      `/auth/otp-status?email=${encodeURIComponent(email)}`,
+      `/auth/otp-status?${qs}`,
       { _skipAuth: true },
     );
     return data;
@@ -77,6 +82,21 @@ export const authService = {
 
     setItem(STORAGE_KEYS.accessToken, data.accessToken);
     return data.accessToken;
+  },
+
+  async forgotPassword(payload: ForgotPasswordPayload): Promise<MessageResponse> {
+    const { data } = await api.post<MessageResponse>("/auth/forgot-password", payload, { _skipAuth: true });
+    return data;
+  },
+
+  async resendPasswordResetOtp(payload: ForgotPasswordPayload): Promise<MessageResponse> {
+    const { data } = await api.post<MessageResponse>("/auth/resend-password-reset-otp", payload, { _skipAuth: true });
+    return data;
+  },
+
+  async resetPassword(payload: ResetPasswordPayload): Promise<MessageResponse> {
+    const { data } = await api.post<MessageResponse>("/auth/reset-password", payload, { _skipAuth: true });
+    return data;
   },
 
   async logout(): Promise<void> {

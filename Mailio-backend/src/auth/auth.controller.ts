@@ -17,7 +17,10 @@ import { GoogleLoginDto } from './dto/google-login.dto';
 import { LinkedinLoginDto } from './dto/linkedin-login.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { OtpPurpose } from './entities/email-otp.entity';
 import { ResendVerificationOtpDto } from './dto/resend-verification-otp.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SignupDto } from './dto/signup.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 
@@ -77,8 +80,46 @@ export class AuthController {
   @Get('otp-status')
   @ApiOperation({ summary: 'Get remaining resend cooldown for an email OTP' })
   @ApiResponse({ status: 200, description: 'Returns remainingSeconds and sendCount' })
-  getOtpStatus(@Query('email') email: string) {
-    return this.authService.getOtpStatus(email);
+  getOtpStatus(
+    @Query('email') email: string,
+    @Query('purpose') purpose?: string,
+  ) {
+    const otpPurpose =
+      purpose === 'PASSWORD_RESET'
+        ? OtpPurpose.PASSWORD_RESET
+        : OtpPurpose.SIGNUP_VERIFY;
+    return this.authService.getOtpStatus(email, otpPurpose);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Send a password reset OTP to the given email' })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Reset code sent (or silently ignored for unknown emails)',
+  })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Post('resend-password-reset-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend password reset OTP' })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({ status: 200, description: 'Reset code sent' })
+  resendPasswordResetOtp(@Body() dto: ForgotPasswordDto) {
+    return this.authService.resendPasswordResetOtp(dto.email);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password using OTP' })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiResponse({ status: 200, description: 'Password reset successfully' })
+  @ApiResponse({ status: 400, description: 'OTP invalid or expired' })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.email, dto.otp, dto.newPassword);
   }
 
   @Post('resend-verification-otp')

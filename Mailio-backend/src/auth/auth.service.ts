@@ -1,4 +1,6 @@
 import {
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -6,12 +8,16 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { User } from '../users/entities/user.entity';
+import { AuthProvider, User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { SignupDto } from './dto/signup.dto';
 import { EmailOtpService } from './email-otp.service';
+import { OtpPurpose } from './entities/email-otp.entity';
 import { GoogleTokenVerifierService } from './google-token-verifier.service';
 import { LinkedinAuthService } from './linkedin-auth.service';
+
+const RESET_RATE_LIMIT = 3;
+const RESET_RATE_WINDOW_MINUTES = 15;
 
 @Injectable()
 export class AuthService {
@@ -30,9 +36,7 @@ export class AuthService {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return null;
     if (!user.emailVerified) {
-      throw new UnauthorizedException(
-        'Please verify your email before login.',
-      );
+      throw new UnauthorizedException('Please verify your email before login.');
     }
     return user;
   }
@@ -70,8 +74,60 @@ export class AuthService {
     return { success: true, message: 'Email verified successfully.' };
   }
 
-  async getOtpStatus(email: string) {
-    return this.emailOtpService.getStatus(email);
+  async getOtpStatus(email: string, purpose = OtpPurpose.SIGNUP_VERIFY) {
+    return this.emailOtpService.getStatus(email, purpose);
+  }
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const SAFE_RESPONSE = {
+      message: 'If that email is registered, a reset code has been sent.',
+    };
+
+    const user = await this.usersService.findByEmail(email);
+    if (!user || user.provider !== AuthProvider.LOCAL) {
+      return SAFE_RESPONSE;
+    }
+
+    const recentCount = await this.emailOtpService.countRecentRequests(
+      email,
+      OtpPurpose.PASSWORD_RESET,
+      RESET_RATE_WINDOW_MINUTES,
+    );
+    if (recentCount >= RESET_RATE_LIMIT) {
+      throw new HttpException(
+        'Too many password reset requests. Please try again later.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    await this.emailOtpService.issueAndSend(user, OtpPurpose.PASSWORD_RESET);
+
+    return SAFE_RESPONSE;
+  }
+
+  async resendPasswordResetOtp(email: string): Promise<{ message: string }> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user || user.provider !== AuthProvider.LOCAL) {
+      return { message: 'Verification code sent.' };
+    }
+    await this.emailOtpService.resend(user, OtpPurpose.PASSWORD_RESET);
+    return { message: 'Verification code sent.' };
+  }
+
+  async resetPassword(
+    email: string,
+    otp: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) throw new NotFoundException('User not found.');
+
+    await this.emailOtpService.verify(email, otp, OtpPurpose.PASSWORD_RESET);
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.usersService.updatePassword(user.id, passwordHash);
+
+    return { message: 'Password reset successfully. You can now sign in.' };
   }
 
   async resendVerificationOtp(email: string) {
