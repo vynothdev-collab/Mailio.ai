@@ -11,7 +11,6 @@ import { cn } from "@/src/lib/utils";
 import type { ApiError } from "@/src/types/auth";
 
 const OTP_LENGTH = 6;
-const RESEND_COOLDOWN_SECONDS = 60;
 
 export function VerifyEmailForm() {
   const router = useRouter();
@@ -29,15 +28,8 @@ export function VerifyEmailForm() {
   const otp = useMemo(() => digits.join(""), [digits]);
   const complete = otp.length === OTP_LENGTH && /^\d{6}$/.test(otp);
 
-  useEffect(() => {
-    inputsRef.current[0]?.focus();
-    return () => {
-      if (timerRef.current !== null) window.clearInterval(timerRef.current);
-    };
-  }, []);
-
-  const startCooldown = () => {
-    setCooldown(RESEND_COOLDOWN_SECONDS);
+  const startTimer = (seconds: number) => {
+    setCooldown(seconds);
     if (timerRef.current !== null) window.clearInterval(timerRef.current);
     timerRef.current = window.setInterval(() => {
       setCooldown((s) => {
@@ -49,6 +41,26 @@ export function VerifyEmailForm() {
       });
     }, 1000);
   };
+
+  useEffect(() => {
+    inputsRef.current[0]?.focus();
+    if (!email) return;
+
+    let cancelled = false;
+    authService.getOtpStatus(email)
+      .then(({ remainingSeconds }) => {
+        if (cancelled) return;
+        if (remainingSeconds > 0) startTimer(remainingSeconds);
+      })
+      .catch(() => {
+        if (!cancelled) startTimer(60);
+      });
+
+    return () => {
+      cancelled = true;
+      if (timerRef.current !== null) window.clearInterval(timerRef.current);
+    };
+  }, []);
 
   const setDigitAt = (index: number, value: string) => {
     setDigits((prev) => {
@@ -145,7 +157,8 @@ export function VerifyEmailForm() {
       toast.success(res.message ?? "Verification code sent.");
       setDigits(Array(OTP_LENGTH).fill(""));
       inputsRef.current[0]?.focus();
-      startCooldown();
+      const { remainingSeconds } = await authService.getOtpStatus(email);
+      if (remainingSeconds > 0) startTimer(remainingSeconds);
     } catch (err) {
       const apiErr = err as ApiError;
       toast.error(apiErr?.message ?? "Could not resend code.");

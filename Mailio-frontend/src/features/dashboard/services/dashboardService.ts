@@ -113,12 +113,12 @@ export async function fetchDashboardData(signal?: AbortSignal): Promise<Dashboar
   try {
     const [statsRes, chartRes, activeRes] = await Promise.all([
       apiDashboardService.getDashboardStats(signal),
-      apiDashboardService.getDashboardChart("7d", signal),
+      apiDashboardService.getDashboardChart("30d", signal),
       apiDashboardService.getActiveJob(signal).catch(() => null),
     ]);
-    stats              = mapStats(statsRes);
     chartData          = mapChart(chartRes);
-    chartTotal         = chartData.reduce((sum, p) => sum + p.value, 0);
+    chartTotal         = statsRes.totalVerified ?? chartData.reduce((sum, p) => sum + p.value, 0);
+    stats              = mapStats(statsRes);
     activeVerification = mapActiveJob(activeRes);
   } catch (err) {
     const apiErr = err as ApiError;

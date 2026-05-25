@@ -13,7 +13,8 @@ import { User } from '../users/entities/user.entity';
 import { EmailOtp, OtpPurpose } from './entities/email-otp.entity';
 
 const MAX_ATTEMPTS = 5;
-const RESEND_COOLDOWN_SECONDS = 60;
+// Progressive resend cooldowns: 1st resend=60s, 2nd resend=180s, 3rd+ resend=300s
+const RESEND_COOLDOWNS = [60, 180, 300] as const;
 
 @Injectable()
 export class EmailOtpService {
@@ -45,6 +46,13 @@ export class EmailOtpService {
   }
 
   async resend(user: User): Promise<void> {
+    const sentCount = await this.otpRepo.count({
+      where: { email: user.email, purpose: OtpPurpose.SIGNUP_VERIFY },
+    });
+
+    const cooldownIndex = Math.min(sentCount - 1, RESEND_COOLDOWNS.length - 1);
+    const cooldownSeconds = RESEND_COOLDOWNS[Math.max(cooldownIndex, 0)];
+
     const recent = await this.otpRepo.findOne({
       where: { email: user.email, purpose: OtpPurpose.SIGNUP_VERIFY },
       order: { createdAt: 'DESC' },
@@ -52,8 +60,8 @@ export class EmailOtpService {
 
     if (recent) {
       const ageMs = Date.now() - recent.createdAt.getTime();
-      if (ageMs < RESEND_COOLDOWN_SECONDS * 1000) {
-        const wait = Math.ceil((RESEND_COOLDOWN_SECONDS * 1000 - ageMs) / 1000);
+      if (ageMs < cooldownSeconds * 1000) {
+        const wait = Math.ceil((cooldownSeconds * 1000 - ageMs) / 1000);
         throw new BadRequestException(
           `Please wait ${wait} seconds before requesting another code.`,
         );
@@ -61,6 +69,33 @@ export class EmailOtpService {
     }
 
     await this.issueAndSend(user);
+  }
+
+  async getStatus(
+    email: string,
+  ): Promise<{ remainingSeconds: number; sendCount: number }> {
+    const sendCount = await this.otpRepo.count({
+      where: { email, purpose: OtpPurpose.SIGNUP_VERIFY },
+    });
+
+    if (sendCount === 0) return { remainingSeconds: 0, sendCount: 0 };
+
+    const recent = await this.otpRepo.findOne({
+      where: { email, purpose: OtpPurpose.SIGNUP_VERIFY },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!recent) return { remainingSeconds: 0, sendCount: 0 };
+
+    const cooldownIndex = Math.min(sendCount - 1, RESEND_COOLDOWNS.length - 1);
+    const cooldownSeconds = RESEND_COOLDOWNS[Math.max(cooldownIndex, 0)];
+    const ageMs = Date.now() - recent.createdAt.getTime();
+    const remainingSeconds = Math.max(
+      Math.ceil((cooldownSeconds * 1000 - ageMs) / 1000),
+      0,
+    );
+
+    return { remainingSeconds, sendCount };
   }
 
   async verify(email: string, otp: string): Promise<EmailOtp> {

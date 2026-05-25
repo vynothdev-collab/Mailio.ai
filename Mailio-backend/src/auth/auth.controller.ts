@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -70,6 +72,13 @@ export class AuthController {
   @ApiResponse({ status: 400, description: 'Invalid or expired OTP' })
   verifyEmail(@Body() dto: VerifyEmailDto) {
     return this.authService.verifyEmail(dto.email, dto.otp);
+  }
+
+  @Get('otp-status')
+  @ApiOperation({ summary: 'Get remaining resend cooldown for an email OTP' })
+  @ApiResponse({ status: 200, description: 'Returns remainingSeconds and sendCount' })
+  getOtpStatus(@Query('email') email: string) {
+    return this.authService.getOtpStatus(email);
   }
 
   @Post('resend-verification-otp')

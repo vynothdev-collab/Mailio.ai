@@ -35,6 +35,14 @@ export const authService = {
     return data;
   },
 
+  async getOtpStatus(email: string): Promise<{ remainingSeconds: number; sendCount: number }> {
+    const { data } = await api.get<{ remainingSeconds: number; sendCount: number }>(
+      `/auth/otp-status?email=${encodeURIComponent(email)}`,
+      { _skipAuth: true },
+    );
+    return data;
+  },
+
   async login(payload: LoginPayload): Promise<AuthResponse> {
     const { data } = await api.post<AuthResponse>("/auth/login", payload, { _skipAuth: true });
     persistSession(data);

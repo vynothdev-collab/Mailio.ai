@@ -70,6 +70,10 @@ export class AuthService {
     return { success: true, message: 'Email verified successfully.' };
   }
 
+  async getOtpStatus(email: string) {
+    return this.emailOtpService.getStatus(email);
+  }
+
   async resendVerificationOtp(email: string) {
     const user = await this.usersService.findByEmail(email);
     if (!user) throw new NotFoundException('User not found.');
