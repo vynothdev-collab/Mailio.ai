@@ -108,7 +108,7 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
   }
 
   private async processBatch(job: Job<EmailBatchJobPayload>): Promise<void> {
-    const { batchId, userId, listId, emailIds } = job.data;
+    const { batchId, userId, listId, emailIds, stride } = job.data;
     const startMs = Date.now();
 
     const claimed = await this.emailsService.tryClaimMany(
@@ -170,6 +170,7 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
         userId,
         listId,
         rows,
+        stride,
       });
     }
 
@@ -208,6 +209,7 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
           userId,
           listId,
           rows: failRows,
+          stride,
         });
       } catch (e) {
         this.batchLogger.error(

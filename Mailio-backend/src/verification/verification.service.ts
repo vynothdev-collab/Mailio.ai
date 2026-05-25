@@ -23,10 +23,10 @@ const STRIDE_MID = 3;
 const STRIDE_LOW = 6;
 
 export function bulkStrideFor(totalCount: number): number {
-  if (totalCount > 10_000) return STRIDE_LOW;
-  if (totalCount >= 5_000) return STRIDE_MID;
+  if (totalCount > 5_000) return STRIDE_LOW;
+  if (totalCount >= 1_000) return STRIDE_MID;
   return STRIDE_HIGH;
-}
+}``
 
 const DEFAULT_BULK_BATCH_SIZE = parseInt(
   process.env.BULK_BATCH_SIZE ?? '50',
@@ -100,7 +100,7 @@ export class VerificationService {
     const stride = bulkStrideFor(totalCount);
     const jobs = emailIds.map((emailId, i) => ({
       name: 'verify' as const,
-      data: { emailId, userId, listId },
+      data: { emailId, userId, listId, stride },
       opts: {
         priority: BULK_BASE_PRIORITY + base + (indexStart + i) * stride,
         jobId: `bulk-${emailId}`,
@@ -145,7 +145,7 @@ export class VerificationService {
       const batchId = randomUUID();
       jobs.push({
         name: 'verify.batch',
-        data: { batchId, userId, listId, emailIds: slice },
+        data: { batchId, userId, listId, emailIds: slice, stride },
         opts: {
           priority: BULK_BASE_PRIORITY + base + emailOffset * stride,
           jobId: `bulk-batch-${batchId}`,

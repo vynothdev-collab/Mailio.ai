@@ -108,7 +108,7 @@ export class DbWriteProcessor extends WorkerHost {
 
     if (d.listId && transitioned) {
       await this.bumpListAndEmit(d.listId, d.result, d.disposable);
-      await this.advanceBulkCursor();
+      await this.advanceBulkCursorBy(d.stride ?? 1);
     }
 
     if (d.isSingleVerify) {
@@ -133,7 +133,7 @@ export class DbWriteProcessor extends WorkerHost {
 
     if (d.listId && transitioned) {
       await this.bumpListAndEmit(d.listId, VerificationResult.UNKNOWN, false);
-      await this.advanceBulkCursor();
+      await this.advanceBulkCursorBy(d.stride ?? 1);
       this.notifier.emitJobFailed(d.listId, {
         listId: d.listId,
         emailId: d.emailId,
@@ -166,14 +166,6 @@ export class DbWriteProcessor extends WorkerHost {
     }
   }
 
-  private async advanceBulkCursor(): Promise<void> {
-    try {
-      await this.verificationService.advanceNowServing();
-    } catch (e) {
-      this.logger.warn(`advanceNowServing failed: ${(e as Error).message}`);
-    }
-  }
-
   private async handleSuccessBatch(d: DbWriteSuccessBatchJob): Promise<void> {
     const transitioned = await this.emailsService.saveResultsBatch(d.rows);
     if (transitioned.length === 0) return;
@@ -202,7 +194,7 @@ export class DbWriteProcessor extends WorkerHost {
       }
     }
 
-    await this.advanceBulkCursorBy(transitioned.length);
+    await this.advanceBulkCursorBy(transitioned.length * (d.stride ?? 1));
 
     if (d.rows.some((r) => r.isSingleVerify)) {
       const transitionedIds = new Set(transitioned.map((t) => t.emailId));
@@ -251,7 +243,7 @@ export class DbWriteProcessor extends WorkerHost {
       }
     }
 
-    await this.advanceBulkCursorBy(transitioned.length);
+    await this.advanceBulkCursorBy(transitioned.length * (d.stride ?? 1));
 
     this.notifier.emitJobFailed(d.listId, {
       listId: d.listId,

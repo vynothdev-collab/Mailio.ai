@@ -52,7 +52,7 @@ export abstract class VerificationBaseProcessor extends WorkerHost {
   }
 
   async process(job: Job<EmailVerificationJobPayload>): Promise<void> {
-    const { emailId, userId, listId } = job.data;
+    const { emailId, userId, listId, stride } = job.data;
 
     const email = await this.emailsService.tryClaim(emailId, String(job.id));
     if (!email) {
@@ -130,6 +130,7 @@ export abstract class VerificationBaseProcessor extends WorkerHost {
       userId,
       listId: listId ?? null,
       isSingleVerify: email.isSingleVerify,
+      stride,
       providerKeyId: slot.key.id,
       result,
       score: apiRes.score,
@@ -150,7 +151,7 @@ export abstract class VerificationBaseProcessor extends WorkerHost {
     job: Job<EmailVerificationJobPayload>,
     err: Error,
   ): Promise<void> {
-    const { emailId, userId, listId } = job.data;
+    const { emailId, userId, listId, stride } = job.data;
     const attemptsMade = job.attemptsMade ?? 0;
     const maxAttempts = job.opts?.attempts ?? 1;
     const isFinal = attemptsMade >= maxAttempts;
@@ -174,6 +175,7 @@ export abstract class VerificationBaseProcessor extends WorkerHost {
         listId: listId ?? null,
         isSingleVerify: false,
         errorMessage: err.message,
+        stride,
       });
     } catch (e) {
       this.logger.error(

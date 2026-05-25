@@ -14,7 +14,8 @@ export interface DbWriteSuccessJob {
   userId: string;
   listId: string | null;
   isSingleVerify: boolean;
-  
+  stride?: number;
+
   providerKeyId: string;
   result: VerificationResult;
   score: number;
@@ -37,6 +38,7 @@ export interface DbWriteFailureJob {
   listId: string | null;
   isSingleVerify: boolean;
   errorMessage: string;
+  stride?: number;
 }
 
 export interface BatchSuccessRow {
@@ -62,6 +64,7 @@ export interface DbWriteSuccessBatchJob {
   userId: string;
   listId: string;
   rows: BatchSuccessRow[];
+  stride?: number;
 }
 
 export interface BatchFailureRow {
@@ -75,4 +78,5 @@ export interface DbWriteFailureBatchJob {
   userId: string;
   listId: string;
   rows: BatchFailureRow[];
+  stride?: number;
 }
