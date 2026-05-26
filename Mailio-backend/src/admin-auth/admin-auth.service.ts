@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -10,7 +11,8 @@ import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { AdminOtpService } from './admin-otp.service';
 import { AdminDto } from './dto/admin-dto';
-import { Admin } from './entities/admin.entity';
+import { CreateAdminDto } from './dto/create-admin.dto';
+import { Admin, AdminRole } from './entities/admin.entity';
 
 // Dummy hash used for constant-time comparison when admin email not found
 const DUMMY_HASH =
@@ -72,7 +74,9 @@ export class AdminAuthService {
 
     // Safe response even for unknown emails to prevent enumeration
     if (!admin || !admin.isActive) {
-      return { message: 'If that email is registered, a new code has been sent.' };
+      return {
+        message: 'If that email is registered, a new code has been sent.',
+      };
     }
 
     await this.adminOtpService.resend(admin);
@@ -104,6 +108,30 @@ export class AdminAuthService {
     return { accessToken: this.signAccessToken(admin) };
   }
 
+  async createAdmin(dto: CreateAdminDto): Promise<AdminDto> {
+    const existing = await this.adminRepo.findOne({
+      where: { email: dto.email },
+      withDeleted: true,
+    });
+    if (existing) {
+      throw new ConflictException(
+        `An admin with email "${dto.email}" already exists.`,
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const admin = this.adminRepo.create({
+      name: dto.name,
+      email: dto.email.toLowerCase(),
+      passwordHash,
+      role: dto.role ?? AdminRole.ADMIN,
+      isActive: true,
+    });
+
+    await this.adminRepo.save(admin);
+    return this.toAdminDto(admin);
+  }
+
   async getMe(adminId: string): Promise<AdminDto> {
     const admin = await this.adminRepo.findOne({ where: { id: adminId } });
     if (!admin || !admin.isActive) {
@@ -114,7 +142,12 @@ export class AdminAuthService {
 
   private signAccessToken(admin: Admin): string {
     return this.jwtService.sign(
-      { sub: admin.id, email: admin.email, role: admin.role, type: 'admin-access' },
+      {
+        sub: admin.id,
+        email: admin.email,
+        role: admin.role,
+        type: 'admin-access',
+      },
       {
         secret: this.config.get<string>('jwt.adminSecret'),
         expiresIn: '15m',
@@ -141,4 +174,3 @@ export class AdminAuthService {
     };
   }
 }
-

@@ -2,11 +2,14 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Post,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AdminAuthService } from './admin-auth.service';
 import { CurrentAdmin } from './decorators/current-admin.decorator';
@@ -14,13 +17,34 @@ import { AdminLoginDto } from './dto/admin-login.dto';
 import { AdminRefreshTokenDto } from './dto/admin-refresh-token.dto';
 import { AdminResendOtpDto } from './dto/admin-resend-otp.dto';
 import { AdminVerifyOtpDto } from './dto/admin-verify-otp.dto';
+import { CreateAdminDto } from './dto/create-admin.dto';
 import { Admin } from './entities/admin.entity';
 import { AdminJwtGuard } from './guards/admin-jwt.guard';
 
 @ApiTags('admin-auth')
 @Controller('auth/admin')
 export class AdminAuthController {
-  constructor(private readonly adminAuthService: AdminAuthService) {}
+  constructor(
+    private readonly adminAuthService: AdminAuthService,
+    private readonly config: ConfigService,
+  ) {}
+
+  @Post('create')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary:
+      'Create a new admin — requires X-Admin-Create-Secret header (Postman/curl only)',
+  })
+  createAdmin(
+    @Headers('x-admin-create-secret') secret: string,
+    @Body() dto: CreateAdminDto,
+  ) {
+    const expected = this.config.get<string>('jwt.adminCreateSecret');
+    if (!expected || secret !== expected) {
+      throw new UnauthorizedException('Invalid or missing create secret.');
+    }
+    return this.adminAuthService.createAdmin(dto);
+  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
