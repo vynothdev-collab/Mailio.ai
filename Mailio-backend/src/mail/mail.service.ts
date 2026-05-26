@@ -75,7 +75,9 @@ export class MailService implements OnModuleInit {
       this.logger.error(
         `SendGrid send failed (code=${sgErr?.code ?? 'n/a'}) to ${to}: ${detail}`,
       );
-      throw new InternalServerErrorException('Failed to send password reset email');
+      throw new InternalServerErrorException(
+        'Failed to send password reset email',
+      );
     }
   }
 
@@ -119,8 +121,166 @@ export class MailService implements OnModuleInit {
       this.logger.error(
         `SendGrid send failed (code=${sgErr?.code ?? 'n/a'}) to ${to}: ${detail}`,
       );
-      throw new InternalServerErrorException('Failed to send verification email');
+      throw new InternalServerErrorException(
+        'Failed to send verification email',
+      );
     }
+  }
+
+  async sendAdminLoginOtpEmail(
+    to: string,
+    name: string,
+    otp: string,
+  ): Promise<void> {
+    if (!this.configured) {
+      throw new InternalServerErrorException('Email service is not configured');
+    }
+
+    const subject = 'Your Mailio Admin login code';
+    const text =
+      `Hi ${name},\n\n` +
+      `Your admin login verification code is: ${otp}\n\n` +
+      `It expires in ${this.otpExpireMinutes} minutes.\n\n` +
+      `If you did not attempt to sign in, please secure your account immediately.`;
+    const html = this.renderAdminOtpHtml(name, otp);
+
+    try {
+      await sgMail.send({
+        to,
+        from: { email: this.fromEmail, name: this.fromName },
+        subject,
+        text,
+        html,
+      });
+    } catch (err) {
+      const sgErr = err as {
+        message?: string;
+        code?: number;
+        response?: { body?: unknown };
+      };
+      const detail =
+        sgErr?.response?.body !== undefined
+          ? JSON.stringify(sgErr.response.body)
+          : (sgErr?.message ?? 'Unknown error');
+      this.logger.error(
+        `SendGrid admin OTP send failed (code=${sgErr?.code ?? 'n/a'}) to ${to}: ${detail}`,
+      );
+      throw new InternalServerErrorException('Failed to send admin login code');
+    }
+  }
+
+  private renderAdminOtpHtml(name: string, otp: string): string {
+    const year = new Date().getFullYear();
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mailio Admin Login Code</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #eef3fb 0%, #f8fbff 100%);
+      font-family: Arial, Helvetica, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      color: #001a66;
+    }
+    .email-wrapper {
+      width: 100%;
+      max-width: 560px;
+      background: #ffffff;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(15, 91, 255, 0.12);
+      border: 1px solid #e5ecf8;
+    }
+    .header { padding: 36px 32px 18px; text-align: center; }
+    .logo-row { width: 100%; text-align: center; }
+    .content { padding: 10px 42px 36px; text-align: center; }
+    .badge {
+      display: inline-block;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: #162D3A;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+    h1 { margin: 0; font-size: 28px; line-height: 1.25; color: #001a66; }
+    .message { margin: 16px 0 0; color: #5f6b7a; font-size: 15px; line-height: 1.7; }
+    .otp-box {
+      margin: 30px auto 22px;
+      background: #eef3fb;
+      border: 1px solid #d9e6ff;
+      border-radius: 18px;
+      padding: 20px 28px;
+      color: #162D3A;
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: 10px;
+      max-width: 310px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+    }
+    .expiry { margin: 0; color: #5f6b7a; font-size: 14px; line-height: 1.6; }
+    .expiry strong { color: #001a66; }
+    .warning {
+      margin: 18px auto 0;
+      max-width: 390px;
+      color: #c0392b;
+      font-size: 13px;
+      line-height: 1.6;
+      background: #fff5f5;
+      border: 1px solid #fdd;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+    .footer { background: #f8fbff; padding: 22px 32px; text-align: center; border-top: 1px solid #edf2f7; }
+    .footer p { margin: 0; color: #9aa4b2; font-size: 12px; line-height: 1.6; }
+    @media (max-width: 480px) {
+      .content { padding: 8px 24px 32px; }
+      h1 { font-size: 24px; }
+      .otp-box { font-size: 30px; letter-spacing: 7px; padding: 18px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="email-wrapper">
+    <section class="header">
+      <div class="logo-row" aria-label="Mailio Admin">
+        <img src="${this.frontendUrl}/brand-logo.svg" alt="Mailio" width="270" style="width:270px;max-width:100%;height:auto;display:inline-block;border:0;outline:none;text-decoration:none;" />
+      </div>
+    </section>
+
+    <section class="content">
+      <div class="badge">Admin Access</div>
+      <h1>Your login code</h1>
+      <p class="message">
+        Hi ${name}, use the code below to complete your admin sign-in.
+      </p>
+
+      <div class="otp-box">${otp}</div>
+
+      <p class="expiry">
+        This code will expire in <strong>${this.otpExpireMinutes} minutes</strong>.
+      </p>
+      <p class="warning">
+        If you did not attempt to sign in to the Mailio Admin panel, please secure your account immediately and contact your system administrator.
+      </p>
+    </section>
+
+    <section class="footer">
+      <p>&copy; ${year} Mailio. All rights reserved.</p>
+      <p>This is an automated security email. Please do not reply.</p>
+    </section>
+  </main>
+</body>
+</html>`;
   }
 
   private renderPasswordResetHtml(resetLink: string): string {

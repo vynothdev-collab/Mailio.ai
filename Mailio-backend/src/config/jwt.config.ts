@@ -3,4 +3,5 @@ import { registerAs } from '@nestjs/config';
 export default registerAs('jwt', () => ({
   secret: process.env.JWT_SECRET ?? 'change_me',
   expiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
+  adminSecret: process.env.ADMIN_JWT_SECRET ?? 'admin_change_me',
 }));
