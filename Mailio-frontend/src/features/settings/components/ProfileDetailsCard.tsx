@@ -1,23 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, LogOut } from "lucide-react";
+import { Loader2, LogOut, User, Mail, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/src/hooks/useAuth";
 import { userService } from "@/src/services/userService";
 import type { UserProfile } from "@/src/types/user";
 import type { ApiError } from "@/src/types/auth";
 
 function initials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
 function formatDate(iso: string): string {
@@ -27,7 +21,11 @@ function formatDate(iso: string): string {
     : d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 }
 
-function ProfileForm({ user, onSaved, onLogout }: { user: UserProfile; onSaved: () => Promise<unknown>; onLogout: () => Promise<void> }) {
+function ProfileForm({ user, onSaved, onLogout }: {
+  user: UserProfile;
+  onSaved: () => Promise<unknown>;
+  onLogout: () => Promise<void>;
+}) {
   const [name,       setName]       = useState(user.name);
   const [saving,     setSaving]     = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -50,75 +48,81 @@ function ProfileForm({ user, onSaved, onLogout }: { user: UserProfile; onSaved: 
 
   async function handleLogout() {
     setLoggingOut(true);
-    try {
-      await onLogout();
-    } finally {
-      setLoggingOut(false);
-    }
+    try { await onLogout(); } finally { setLoggingOut(false); }
   }
 
   return (
-    <>
-      <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#0B47CF] text-white text-base font-bold select-none">
+    <div className="space-y-5">
+      {/* Avatar row */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-xl bg-[#F4F8FF] px-4 py-4">
+        <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-full bg-[#0B47CF] text-white text-base sm:text-lg font-bold select-none shadow-sm">
           {initials(user.name)}
         </div>
-        <div>
-          <p className="text-sm font-semibold">{user.name}</p>
-          <p className="text-xs text-muted-foreground">{user.email}</p>
-          <span className="mt-1 inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 capitalize">
-            {user.plan}
-          </span>
+        <div className="min-w-0">
+          <p className="text-sm sm:text-base font-semibold text-[#111827] truncate">{user.name}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground truncate">{user.email}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Full Name</label>
+      {/* Fields */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            <User size={11} /> Full Name
+          </label>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Your full name"
-            className="h-9 text-sm"
+            className="h-9 sm:h-10 text-sm"
           />
         </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Email</label>
-          <Input value={user.email} readOnly disabled className="h-9 text-sm bg-muted/50 cursor-not-allowed" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Plan</label>
-          <Input value={user.plan} readOnly disabled className="h-9 text-sm bg-muted/50 cursor-not-allowed capitalize" />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Member Since</label>
-          <Input value={formatDate(user.createdAt)} readOnly disabled className="h-9 text-sm bg-muted/50 cursor-not-allowed" />
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            <Mail size={11} /> Email
+          </label>
+          <Input
+            value={user.email}
+            readOnly
+            disabled
+            className="h-9 sm:h-10 text-sm bg-muted/40 cursor-not-allowed"
+          />
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-1 border-t border-border">
+      {/* Member Since info row */}
+      <div className="flex items-center gap-2.5 rounded-lg border border-[#DCE6F3] bg-[#F4F8FF]/60 px-3 py-2.5">
+        <CalendarDays size={14} className="shrink-0 text-muted-foreground" />
+        <div className="flex flex-col xs:flex-row xs:items-center gap-0.5 xs:gap-2 min-w-0">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Member since</span>
+          <span className="text-xs sm:text-sm font-medium text-[#111827] truncate">{formatDate(user.createdAt)}</span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-1 border-t border-[#DCE6F3]">
         <Button
           variant="outline"
           size="sm"
           onClick={handleLogout}
           disabled={loggingOut}
-          className="gap-2 text-sm text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 disabled:opacity-50"
+          className="w-full sm:w-auto gap-2 text-xs sm:text-sm text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 disabled:opacity-50"
         >
           {loggingOut
-            ? <><Loader2 size={14} className="animate-spin" /> Signing out…</>
-            : <><LogOut size={14} /> Sign Out</>
-          }
+            ? <><Loader2 size={13} className="animate-spin" /> Signing out…</>
+            : <><LogOut size={13} /> Sign Out</>}
         </Button>
 
         <Button
           onClick={handleSave}
           disabled={!isDirty || saving}
-          className="gradient-brand border-0 text-white hover:opacity-90 text-sm disabled:opacity-40"
+          className="w-full sm:w-auto gradient-brand border-0 text-white hover:opacity-90 text-xs sm:text-sm disabled:opacity-40"
         >
-          {saving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : "Save Changes"}
+          {saving ? <><Loader2 size={13} className="animate-spin" /> Saving…</> : "Save Changes"}
         </Button>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -126,23 +130,24 @@ export function ProfileDetailsCard() {
   const { user, loading, refresh, logout } = useAuth();
 
   return (
-    <Card>
-      <CardContent className="pt-3 space-y-5">
-        <div>
-          <h2 className="text-sm font-semibold">Profile Details</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Your personal information tied to this account.</p>
-        </div>
+    <div className="rounded-2xl border border-[#DCE6F3] bg-white shadow-sm overflow-hidden">
+      {/* Card header */}
+      <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-[#DCE6F3]">
+        <h2 className="text-sm sm:text-base font-semibold text-[#111827]">Profile Details</h2>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Your personal information tied to this account.</p>
+      </div>
 
+      <div className="px-4 sm:px-6 py-4 sm:py-5">
         {loading && !user ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-            <Loader2 size={14} className="animate-spin" /> Loading profile…
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
+            <Loader2 size={15} className="animate-spin" /> Loading profile…
           </div>
         ) : user ? (
           <ProfileForm key={user.id} user={user} onSaved={refresh} onLogout={logout} />
         ) : (
-          <p className="text-sm text-muted-foreground">Could not load profile.</p>
+          <p className="text-sm text-muted-foreground py-4 text-center">Could not load profile.</p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

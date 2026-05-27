@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ResultsView } from "@/src/features/results/components/ResultsView";
 
 export const metadata: Metadata = {
   title: "Results · Mailio.ai",
@@ -8,17 +7,12 @@ export const metadata: Metadata = {
 
 export default function ResultsPage() {
   return (
-    <>
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-foreground sm:text-2xl">
-          Verification Results
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          All single and bulk verification results in one place.
-        </p>
-      </div>
-
-      <ResultsView />
-    </>
+    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
+      <img src="/brand-logo.svg" alt="Mailio.ai" className="h-12 w-auto mb-10" />
+      <h1 className="text-3xl font-bold text-foreground mb-3">Coming Soon</h1>
+      <p className="text-muted-foreground text-sm max-w-sm">
+        Results is currently under development. Check back soon!
+      </p>
+    </div>
   );
 }
