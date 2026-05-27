@@ -10,6 +10,7 @@ import {
 export enum OtpPurpose {
   SIGNUP_VERIFY = 'SIGNUP_VERIFY',
   PASSWORD_RESET = 'PASSWORD_RESET',
+  PASSWORD_CHANGE = 'PASSWORD_CHANGE',
 }
 
 @Entity('email_otps')

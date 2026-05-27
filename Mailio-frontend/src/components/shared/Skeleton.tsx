@@ -141,6 +141,65 @@ export function SingleVerifySkeleton() {
   );
 }
 
+export function ProfileSkeleton() {
+  return (
+    <div className="rounded-2xl border border-[#DCE6F3] bg-white shadow-sm overflow-hidden">
+      <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-[#DCE6F3] space-y-1">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-3 w-64" />
+      </div>
+      <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-4">
+        <div className="rounded-xl bg-[#F4F8FF] px-4 py-4 flex items-center gap-3">
+          <Skeleton className="h-14 w-14 sm:h-16 sm:w-16 rounded-full shrink-0" />
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-48" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="space-y-1.5">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-9 sm:h-10 w-full rounded-md" />
+            </div>
+          ))}
+        </div>
+        <Skeleton className="h-10 w-full rounded-lg" />
+        <div className="flex items-center justify-between pt-1 border-t border-[#DCE6F3]">
+          <Skeleton className="h-9 w-24 rounded-full" />
+          <Skeleton className="h-9 w-28 rounded-full" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function SettingsSkeleton() {
+  return (
+    <div className="space-y-3 sm:space-y-4">
+      <ProfileSkeleton />
+      {/* Password & Security card */}
+      <div className="rounded-2xl border border-[#DCE6F3] bg-white shadow-sm overflow-hidden">
+        <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-[#DCE6F3] space-y-1">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-3 w-72" />
+        </div>
+        <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="space-y-1.5">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-9 sm:h-10 w-full rounded-md" />
+            </div>
+          ))}
+          <div className="flex justify-end pt-1 border-t border-[#DCE6F3]">
+            <Skeleton className="h-9 w-44 rounded-full" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DashboardSkeleton() {
   return (
     <div className="space-y-4 md:space-y-5">

@@ -1,6 +1,14 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
+import { EmailOtpService } from '../auth/email-otp.service';
+import { OtpPurpose } from '../auth/entities/email-otp.entity';
 import { AuthProvider, User } from './entities/user.entity';
 
 export interface OAuthProfile {
@@ -27,6 +35,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepo: Repository<User>,
+    private readonly emailOtpService: EmailOtpService,
   ) {}
 
   async findByEmail(email: string): Promise<User | null> {
@@ -104,6 +113,45 @@ export class UsersService {
 
   async updatePassword(userId: string, passwordHash: string): Promise<void> {
     await this.usersRepo.update({ id: userId }, { passwordHash });
+  }
+
+  async updateProfile(userId: string, name: string): Promise<User> {
+    await this.usersRepo.update({ id: userId }, { name });
+    return this.usersRepo.findOneOrFail({ where: { id: userId } });
+  }
+
+  async sendPasswordChangeOtp(user: User): Promise<{ message: string }> {
+    await this.emailOtpService.issueAndSend(user, OtpPurpose.PASSWORD_CHANGE);
+    return { message: 'Verification code sent to your email.' };
+  }
+
+  async changePassword(
+    user: User,
+    dto: { currentPassword?: string; newPassword: string; otp: string },
+  ): Promise<{ message: string }> {
+    if (user.passwordHash) {
+      if (!dto.currentPassword) {
+        throw new BadRequestException('Current password is required.');
+      }
+      const valid = await bcrypt.compare(
+        dto.currentPassword,
+        user.passwordHash,
+      );
+      if (!valid) {
+        throw new UnauthorizedException('Current password is incorrect.');
+      }
+    }
+
+    await this.emailOtpService.verify(
+      user.email,
+      dto.otp,
+      OtpPurpose.PASSWORD_CHANGE,
+    );
+
+    const hash = await bcrypt.hash(dto.newPassword, 10);
+    await this.updatePassword(user.id, hash);
+
+    return { message: 'Password changed successfully.' };
   }
 
   private async touchProfile(user: User, profile: OAuthProfile): Promise<User> {

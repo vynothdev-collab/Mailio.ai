@@ -122,7 +122,7 @@ export function PageHeader({ title, subtitle, onRefresh, refreshing = false }: P
     return mobileMenu.registerHeader();
   }, [mobileMenu]);
   return (
-    <div className="sticky top-0 z-30 -mx-4 flex flex-col gap-3 bg-[#EEF3FB] px-4 py-3 lg:-mx-6 lg:flex-row lg:items-start lg:justify-between lg:px-6 lg:py-4">
+    <div className="sticky top-0 z-30 -mx-4 flex flex-col gap-3 border-b border-[#DCE6F3] bg-[#EEF3FB] px-4 py-3 lg:-mx-6 lg:flex-row lg:items-start lg:justify-between lg:px-6 lg:py-4">
       <div className="order-2 min-w-0 flex-1 lg:order-1">
         <h1 className="text-base font-bold tracking-tight text-[#111827] sm:text-xl lg:text-2xl">
           {title}
@@ -151,7 +151,7 @@ export function PageHeader({ title, subtitle, onRefresh, refreshing = false }: P
             <span className="hidden sm:inline">Refresh</span>
           </Button>
         )}
-        <NotificationButton />
+        {/* <NotificationButton /> */}
         <AvatarMenu />
       </div>
     </div>

@@ -11,4 +11,18 @@ export const userService = {
     const { data } = await api.patch<UserProfile>("/users/me", payload);
     return data;
   },
+
+  async requestPasswordChangeOtp(): Promise<{ message: string }> {
+    const { data } = await api.post<{ message: string }>("/users/me/change-password/send-otp");
+    return data;
+  },
+
+  async changePassword(payload: {
+    currentPassword?: string;
+    newPassword: string;
+    otp: string;
+  }): Promise<{ message: string }> {
+    const { data } = await api.post<{ message: string }>("/users/me/change-password", payload);
+    return data;
+  },
 };
