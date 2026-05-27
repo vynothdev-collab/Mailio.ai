@@ -3,7 +3,10 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminModule } from './admin/admin.module';
+import { AdminActivityLogsModule } from './admin-activity-logs/admin-activity-logs.module';
 import { AdminAuthModule } from './admin-auth/admin-auth.module';
+import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
+import { AdminUsersModule } from './admin-users/admin-users.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -81,6 +84,9 @@ import { VerifyModule } from './verify/verify.module';
     ResultsModule,
     AdminModule,
     AdminAuthModule,
+    AdminDashboardModule,
+    AdminActivityLogsModule,
+    AdminUsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

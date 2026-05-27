@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { COOKIE_NAMES, ROUTES } from "@/constants";
 
-const PROTECTED_PATHS = ["/dashboard"];
+const PROTECTED_PATHS = [
+  "/dashboard",
+  "/users",
+  "/enterprise",
+  "/plans",
+  "/offers",
+  "/credits",
+  "/reports",
+  "/expiry",
+  "/settings",
+  "/activity-logs",
+];
 const AUTH_ONLY_PATHS = ["/login"];
 
 function isProtected(pathname: string) {

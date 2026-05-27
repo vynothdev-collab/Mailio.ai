@@ -12,7 +12,10 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   app.use(helmet());
+
   app.enableCors({
+    origin: true,
+    credentials: true,
     exposedHeaders: ['Content-Disposition'],
   });
 
