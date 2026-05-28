@@ -33,7 +33,10 @@ const DEFAULT_BULK_BATCH_SIZE = parseInt(
   process.env.BULK_BATCH_SIZE ?? '50',
   10,
 );
-const MAX_BULK_BATCH_SIZE = 100;
+const MAX_BULK_BATCH_SIZE = parseInt(
+  process.env.MAX_BULK_BATCH_SIZE ?? '1000',
+  10,
+);
 
 @Injectable()
 export class VerificationService {

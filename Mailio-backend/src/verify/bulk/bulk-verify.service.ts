@@ -330,12 +330,22 @@ export class BulkVerifyService {
         select: ['id'],
       });
       const list = await this.emailListsService.findById(jobId, userId);
-      await this.verificationService.enqueueBulk(
-        failedEmails.map((e) => e.id),
-        userId,
-        jobId,
-        list.totalCount ?? failedEmails.length,
-      );
+      if (process.env.BULK_BATCH_ENABLED === 'true') {
+        await this.verificationService.enqueueBulkBatches(
+          failedEmails.map((e) => e.id),
+          userId,
+          jobId,
+          undefined,
+          list.totalCount ?? failedEmails.length,
+        );
+      } else {
+        await this.verificationService.enqueueBulk(
+          failedEmails.map((e) => e.id),
+          userId,
+          jobId,
+          list.totalCount ?? failedEmails.length,
+        );
+      }
     }
 
     return { jobId, status: 'queued', requeuedCount };

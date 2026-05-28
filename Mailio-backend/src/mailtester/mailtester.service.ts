@@ -126,8 +126,18 @@ export class MailTesterService implements EmailVerificationProvider {
         const n = Number(ra);
         if (Number.isFinite(n)) retryAfterMs = n * 1000;
       }
-    } else if (status === 401 || status === 403 || status === 402) {
+    } else if (status === 401 || status === 402) {
       kind = 'auth';
+    } else if (status === 403) {
+      const lower = msg.toLowerCase();
+      const looksLikeKeyAuth =
+        lower.includes('api key') ||
+        lower.includes('apikey') ||
+        lower.includes('unauthorized') ||
+        lower.includes('forbidden key') ||
+        lower.includes('invalid key') ||
+        lower.includes('expired');
+      kind = looksLikeKeyAuth ? 'auth' : 'bad-request';
     } else if (status >= 500) {
       kind = 'server';
     } else if (status === 400 || status === 422) {

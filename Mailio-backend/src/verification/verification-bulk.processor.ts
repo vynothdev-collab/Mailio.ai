@@ -3,7 +3,7 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Job, RateLimitError, WorkerOptions } from 'bullmq';
 import { VerificationResult } from '../common/types/verification-result.enum';
 import { DbWriteService } from '../db-write/db-write.service';
-import { BatchFailureRow, BatchSuccessRow } from '../db-write/db-write.types';
+import { BatchFailureRow } from '../db-write/db-write.types';
 import { DlqService } from '../dlq/dlq.service';
 import { EmailsService } from '../emails/emails.service';
 import { ClaimedEmailRow } from '../emails/emails.service';
@@ -124,54 +124,29 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
 
     const settled = await Promise.allSettled(
       claimed.map((email) =>
-        this.innerLimit(() => this.verifyOneForBatch(email)),
+        this.innerLimit(() =>
+          this.verifyOneForBatch(email).then((success) =>
+            this.flushSuccessStream(success, userId, listId, stride).then(
+              () => success,
+            ),
+          ),
+        ),
       ),
     );
 
-    const successes: PerEmailSuccess[] = [];
     const failures: PerEmailFailure[] = [];
     let rateLimitRetryMs: number | null = null;
 
     for (let i = 0; i < settled.length; i++) {
       const r = settled[i];
       const email = claimed[i];
-      if (r.status === 'fulfilled') {
-        successes.push(r.value);
-        continue;
-      }
+      if (r.status === 'fulfilled') continue;
       const err = r.reason as Error;
       failures.push({ email, err });
       if (err instanceof ProviderError && err.kind === 'rate-limit') {
         const ra = err.retryAfterMs ?? 5000;
         rateLimitRetryMs = Math.max(rateLimitRetryMs ?? 0, ra);
       }
-    }
-
-    if (successes.length > 0) {
-      const rows: BatchSuccessRow[] = successes.map((s) => ({
-        emailId: s.email.id,
-        emailAddress: s.email.address,
-        isSingleVerify: s.email.isSingleVerify,
-        providerKeyId: s.keyId,
-        result: RESULT_MAP[s.res.result] ?? VerificationResult.UNKNOWN,
-        score: s.res.score,
-        mxFound: s.res.mx_found,
-        smtpCheck: s.res.smtp_check,
-        disposable: s.res.disposable,
-        catchAll: s.res.catch_all ?? null,
-        freeProvider: s.res.free,
-        apiRawResponse: s.res.raw as unknown as Record<string, unknown>,
-        durationMs: s.durationMs,
-        processedAt: new Date().toISOString(),
-      }));
-      await this.dbWrite.enqueueBatch({
-        kind: 'success-batch',
-        batchId,
-        userId,
-        listId,
-        rows,
-        stride,
-      });
     }
 
     this.metrics?.batchSize
@@ -248,9 +223,49 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
     );
   }
 
+  private async flushSuccessStream(
+    s: PerEmailSuccess,
+    userId: string,
+    listId: string,
+    stride: number | undefined,
+  ): Promise<void> {
+    try {
+      await this.dbWrite.enqueue({
+        kind: 'success',
+        emailId: s.email.id,
+        userId,
+        listId: listId ?? null,
+        isSingleVerify: s.email.isSingleVerify,
+        stride,
+        providerKeyId: s.keyId,
+        result: RESULT_MAP[s.res.result] ?? VerificationResult.UNKNOWN,
+        score: s.res.score,
+        mxFound: s.res.mx_found,
+        smtpCheck: s.res.smtp_check,
+        disposable: s.res.disposable,
+        catchAll: s.res.catch_all ?? null,
+        freeProvider: s.res.free,
+        apiRawResponse: s.res.raw as unknown as Record<string, unknown>,
+        durationMs: s.durationMs,
+        processedAt: new Date().toISOString(),
+        emailAddress: s.email.address,
+      });
+    } catch (e) {
+      this.batchLogger.warn(
+        `stream db.write enqueue failed for ${s.email.id}: ${(e as Error).message}`,
+      );
+    }
+  }
+
   private async verifyOneForBatch(
     email: ClaimedEmailRow,
   ): Promise<PerEmailSuccess> {
+    if (!email || !email.address || typeof email.address !== 'string') {
+      throw new ProviderError(
+        'bad-request',
+        `Skipping email with missing address (id=${email?.id ?? 'unknown'})`,
+      );
+    }
     const MAX_ACQUIRE_WAIT_MS = 30_000;
     const waitStart = Date.now();
     let slot = await this.keyPool.acquireKey(MAILTESTER_PROVIDER);
