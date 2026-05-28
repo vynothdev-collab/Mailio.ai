@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import { COOKIE_NAMES } from "@/constants";
 import type { AdminUser } from "@/types";
 
-const IS_PROD = process.env.NODE_ENV === "production";
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 const ACCESS_MAX_AGE = 60 * 60; // 1 hour
 
@@ -26,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     cookieStore.set(COOKIE_NAMES.SESSION_TOKEN, sessionToken, {
       httpOnly: true,
-      secure: IS_PROD,
+      secure: false,
       sameSite: "lax",
       maxAge: SESSION_MAX_AGE,
       path: "/",
@@ -34,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     cookieStore.set(COOKIE_NAMES.ACCESS_TOKEN, accessToken, {
       httpOnly: false,
-      secure: IS_PROD,
+      secure: false,
       sameSite: "strict",
       maxAge: ACCESS_MAX_AGE,
       path: "/",
@@ -42,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     cookieStore.set(COOKIE_NAMES.USER, JSON.stringify(user), {
       httpOnly: false,
-      secure: IS_PROD,
+      secure: false,
       sameSite: "strict",
       maxAge: SESSION_MAX_AGE,
       path: "/",

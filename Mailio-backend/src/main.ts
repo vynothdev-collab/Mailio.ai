@@ -13,11 +13,7 @@ async function bootstrap() {
 
   app.use(helmet());
 
-  app.enableCors({
-    origin: true,
-    credentials: true,
-    exposedHeaders: ['Content-Disposition'],
-  });
+  app.enableCors({ origin: '*', credentials: false, exposedHeaders: ['Content-Disposition'] });
 
   app.useWebSocketAdapter(new IoAdapter(app));
   app.useGlobalFilters(new GlobalExceptionFilter());

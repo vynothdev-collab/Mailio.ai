@@ -1,127 +1,107 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { Download, Calendar, Eye } from "lucide-react";
 import Card from "@/components/ui/Card";
-import Pagination from "@/components/ui/Pagination";
-import { adminActivityLogsService } from "@/services/admin.service";
-import type { ActivityLog } from "@/types";
+import Button from "@/components/ui/Button";
+import SearchInput from "@/components/ui/SearchInput";
+import Select from "@/components/ui/Select";
+import Tabs from "@/components/ui/Tabs";
+import Drawer from "@/components/ui/Drawer";
+import DateRangeFilter from "@/components/ui/DateRangeFilter";
+import StatusBadge from "@/components/ui/StatusBadge";
+import { MOCK_ACTIVITY_LOGS, type MockActivityLog } from "@/mocks/activity";
+
+const TABS = [
+  { key: "single", label: "Single Users" },
+  { key: "enterprise", label: "Enterprises" },
+];
 
 export default function ActivityLogsPage() {
-  const [logs, setLogs] = useState<ActivityLog[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [typeFilter, setTypeFilter] = useState("");
-  const [moduleFilter, setModuleFilter] = useState("");
-  const [modules, setModules] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    adminActivityLogsService.getModules().then(setModules).catch(() => {});
-  }, []);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    setError("");
-    adminActivityLogsService
-      .findAll({ type: typeFilter, module: moduleFilter, page, limit: 20 })
-      .then((res) => {
-        setLogs(res.data);
-        setTotal(res.total);
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [typeFilter, moduleFilter, page]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [typeFilter, moduleFilter]);
+  const [tab, setTab] = useState("single");
+  const [search, setSearch] = useState("");
+  const [period, setPeriod] = useState("7d");
+  const [actionFilter, setActionFilter] = useState("");
+  const [selected, setSelected] = useState<MockActivityLog | null>(null);
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-text-primary mb-6">Activity Logs</h1>
+      <Tabs
+        tabs={TABS}
+        active={tab}
+        onChange={setTab}
+        actions={<DateRangeFilter value={period} onChange={setPeriod} className="w-44" />}
+        className="mb-6"
+      />
 
-      <Card className="p-4 mb-4">
-        <div className="flex flex-wrap gap-3">
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/30"
-          >
-            <option value="">All Types</option>
-            <option value="SINGLE_USER">Single User</option>
-            <option value="SYSTEM">System</option>
-          </select>
-          {modules.length > 0 && (
-            <select
-              value={moduleFilter}
-              onChange={(e) => setModuleFilter(e.target.value)}
-              className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/30"
-            >
-              <option value="">All Modules</option>
-              {modules.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          )}
+      <Card noPadding>
+        <div className="grid grid-cols-2 md:grid-cols-12 gap-2 sm:gap-3 p-2.5 sm:p-4">
+          <div className="col-span-2 md:col-span-3"><label className="block text-[10px] sm:text-xs text-text-muted mb-1">Date & Time</label><div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 border border-gray-200 rounded-lg text-xs sm:text-sm"><Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-text-muted flex-shrink-0" /><span className="truncate">May 20 — May 26, 2025</span></div></div>
+          <div className="col-span-2 md:col-span-4"><label className="block text-[10px] sm:text-xs text-text-muted mb-1">User or Enterprise</label><SearchInput value={search} onChange={setSearch} placeholder="Search user or enterprise..." /></div>
+          <div className="col-span-1 md:col-span-3"><label className="block text-[10px] sm:text-xs text-text-muted mb-1">Action</label><Select value={actionFilter} onChange={setActionFilter} placeholder="All Actions" options={[{ value: "login", label: "Logged In" }, { value: "update", label: "Updated" }, { value: "create", label: "Created" }]} /></div>
+          <div className="col-span-1 md:col-span-2 flex items-end"><Button variant="secondary" size="sm" className="w-full justify-center"><Download className="w-3.5 h-3.5 mr-1" />Export</Button></div>
         </div>
-      </Card>
-
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
-      )}
-
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto border-t border-gray-100">
+          <table className="w-full text-xs sm:text-sm">
             <thead>
-              <tr className="border-b border-gray-100">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">Time</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">Module</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">Action</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">Admin</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">Target ID</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">IP</th>
+              <tr className="bg-gray-50/50">
+                {["Date & Time", "User or Enterprise", "Action", "Module", "Details", "IP Address", ""].map((h) => (
+                  <th key={h} className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wide whitespace-nowrap">{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-text-muted">Loading…</td>
+              {MOCK_ACTIVITY_LOGS.map((l) => (
+                <tr key={l.id} className="border-t border-gray-50 hover:bg-gray-50/60">
+                  <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary text-xs whitespace-nowrap">{l.dateTime}</td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3 font-medium text-text-primary">{l.user}</td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary">{l.action}</td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3"><StatusBadge label={l.module} tone="blue" /></td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary text-xs">{l.details}</td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary text-xs font-mono">{l.ipAddress}</td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3">
+                    <button onClick={() => setSelected(l)} className="p-1.5 rounded hover:bg-gray-100"><Eye className="w-4 h-4 text-text-muted" /></button>
+                  </td>
                 </tr>
-              ) : logs.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-text-muted">No activity logs found.</td>
-                </tr>
-              ) : (
-                logs.map((log) => (
-                  <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
-                    <td className="px-4 py-3 text-text-secondary text-xs whitespace-nowrap">
-                      {new Date(log.createdAt).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
-                        {log.module}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-medium text-text-primary">{log.action}</td>
-                    <td className="px-4 py-3 text-text-secondary">{log.changedByAdminName}</td>
-                    <td className="px-4 py-3 text-text-muted text-xs font-mono">
-                      {log.targetId ? log.targetId.slice(0, 8) + "…" : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-text-muted text-xs">{log.ipAddress ?? "—"}</td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
-        <Pagination page={page} total={total} limit={20} onChange={setPage} />
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+          <p className="text-xs text-text-muted">Showing 1 to 10 of 1,000 logs</p>
+          <div className="flex gap-1">
+            <button className="w-8 h-8 rounded-md bg-primary-600 text-white text-xs font-medium">1</button>
+            <button className="w-8 h-8 rounded-md border border-gray-200 text-xs hover:bg-gray-50">2</button>
+            <button className="w-8 h-8 rounded-md border border-gray-200 text-xs hover:bg-gray-50">3</button>
+            <span className="px-2 text-text-muted text-xs flex items-center">...</span>
+            <button className="w-10 h-8 rounded-md border border-gray-200 text-xs hover:bg-gray-50">100</button>
+          </div>
+        </div>
       </Card>
+
+      {/* Details drawer */}
+      <Drawer open={!!selected} onClose={() => setSelected(null)} title="Activity Details" width="md">
+        {selected && (
+          <dl className="space-y-3 text-sm">
+            <Row k="Date & Time" v={selected.dateTime} />
+            <Row k="User" v={selected.user} />
+            <Row k="Action" v={selected.action} />
+            <Row k="Module" v={selected.module} />
+            <Row k="Details" v={selected.details} />
+            <Row k="IP Address" v={<span className="font-mono">{selected.ipAddress}</span>} />
+            <Row k="Status" v={<StatusBadge label={selected.status} tone="green" />} />
+          </dl>
+        )}
+      </Drawer>
+    </div>
+  );
+}
+
+function Row({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div className="py-2 border-b border-gray-50 last:border-0">
+      <dt className="text-xs text-text-muted mb-1">{k}</dt>
+      <dd className="font-medium text-text-primary">{v}</dd>
     </div>
   );
 }

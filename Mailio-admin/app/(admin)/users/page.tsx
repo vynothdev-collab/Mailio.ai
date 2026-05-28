@@ -1,225 +1,202 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { Plus, Download, Filter, Users, UserCheck, UserPlus, CalendarClock, KeyRound, Coins, Eye, UserX } from "lucide-react";
+import PageHeader from "@/components/ui/PageHeader";
+import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
-import AdminStatusBadge from "@/components/ui/AdminStatusBadge";
-import Pagination from "@/components/ui/Pagination";
-import { adminUsersService } from "@/services/admin.service";
-import type { UserRow } from "@/types";
-import { PLAN_LABELS, PLAN_COLORS } from "@/constants";
-
-const PLANS = ["", "FREE", "PRO", "ULTIMATE"];
+import Button from "@/components/ui/Button";
+import SearchInput from "@/components/ui/SearchInput";
+import Select from "@/components/ui/Select";
+import StatusBadge from "@/components/ui/StatusBadge";
+import Avatar from "@/components/ui/Avatar";
+import ActionDropdown from "@/components/ui/ActionDropdown";
+import Drawer from "@/components/ui/Drawer";
+import { MOCK_USERS, type MockUser } from "@/mocks/users";
+import { PLAN_COLORS, PLAN_LABELS } from "@/constants";
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [plan, setPlan] = useState("");
-  const [isActive, setIsActive] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [planFilter, setPlanFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [expiryFilter, setExpiryFilter] = useState("");
+  const [selectedUser, setSelectedUser] = useState<MockUser | null>(null);
 
-  // action states
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [tempPassword, setTempPassword] = useState<{ id: string; pwd: string } | null>(null);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    setError("");
-    adminUsersService
-      .findAll({ search, plan, isActive, page, limit: 20 })
-      .then((res) => {
-        setUsers(res.data);
-        setTotal(res.total);
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [search, plan, isActive, page]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // reset to page 1 when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [search, plan, isActive]);
-
-  async function toggleStatus(user: UserRow) {
-    setActionLoading(user.id + "-status");
-    try {
-      await adminUsersService.updateStatus(user.id, !user.isActive);
-      setUsers((prev) =>
-        prev.map((u) => (u.id === user.id ? { ...u, isActive: !u.isActive } : u))
-      );
-    } catch (e) {
-      alert((e as Error).message);
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  async function resetPassword(id: string) {
-    if (!confirm("Reset this user's password? A temporary password will be generated.")) return;
-    setActionLoading(id + "-reset");
-    try {
-      const res = await adminUsersService.resetPassword(id);
-      setTempPassword({ id, pwd: res.tempPassword });
-    } catch (e) {
-      alert((e as Error).message);
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  async function deleteUser(id: string) {
-    if (!confirm("Deactivate this user?")) return;
-    setActionLoading(id + "-delete");
-    try {
-      await adminUsersService.softDelete(id);
-      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, isActive: false } : u)));
-    } catch (e) {
-      alert((e as Error).message);
-    } finally {
-      setActionLoading(null);
-    }
-  }
+  const filtered = useMemo(() => {
+    return MOCK_USERS.filter((u) => {
+      if (search && !`${u.name} ${u.email}`.toLowerCase().includes(search.toLowerCase())) return false;
+      if (planFilter && u.plan !== planFilter) return false;
+      if (statusFilter && u.status !== statusFilter) return false;
+      return true;
+    });
+  }, [search, planFilter, statusFilter, expiryFilter]);
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-text-primary mb-6">Users</h1>
+      <PageHeader
+        actions={
+          <>
+            <Button variant="secondary" size="md"><Download className="w-4 h-4 mr-1.5" />Export</Button>
+            <Button variant="primary" size="md"><Plus className="w-4 h-4 mr-1.5" />Add User</Button>
+          </>
+        }
+      />
 
-      {/* Filters */}
-      <Card className="p-4 mb-4">
-        <div className="flex flex-wrap gap-3">
-          <input
-            type="text"
-            placeholder="Search by name or email…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 min-w-48 h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/30"
-          />
-          <select
-            value={plan}
-            onChange={(e) => setPlan(e.target.value)}
-            className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/30"
-          >
-            <option value="">All Plans</option>
-            {PLANS.filter(Boolean).map((p) => (
-              <option key={p} value={p}>{PLAN_LABELS[p] ?? p}</option>
-            ))}
-          </select>
-          <select
-            value={isActive}
-            onChange={(e) => setIsActive(e.target.value)}
-            className="h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/30"
-          >
-            <option value="">All Status</option>
-            <option value="true">Active</option>
-            <option value="false">Inactive</option>
-          </select>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <StatCard label="Total Single Users" value="12,458" icon={Users} accent="blue" delta={14.8} deltaLabel="vs last week" />
+        <StatCard label="Active Users" value="8,932" icon={UserCheck} accent="green" delta={8.7} deltaLabel="vs last week" />
+        <StatCard label="New Users Today" value="32" icon={UserPlus} accent="purple" delta={18.6} deltaLabel="vs yesterday" />
+        <StatCard label="Expiring Soon" value="58" icon={CalendarClock} accent="orange" delta={7.3} deltaLabel="Within 7 days" />
+      </div>
+
+      <Card className="p-2.5 sm:p-4 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-12 gap-2 sm:gap-3">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search by name or email..." className="col-span-2 md:col-span-4" />
+          <Select value={planFilter} onChange={setPlanFilter} placeholder="All Plans" className="col-span-1 md:col-span-2" options={[
+            { value: "FREE", label: "Free" }, { value: "BASIC", label: "Basic" }, { value: "PRO", label: "Pro" }, { value: "BUSINESS", label: "Business" }
+          ]} />
+          <Select value={statusFilter} onChange={setStatusFilter} placeholder="All Statuses" className="col-span-1 md:col-span-2" options={[
+            { value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" }, { value: "Expiring Soon", label: "Expiring Soon" }
+          ]} />
+          <Select value={expiryFilter} onChange={setExpiryFilter} placeholder="Expiry Date" className="col-span-1 md:col-span-2" options={[
+            { value: "7d", label: "Next 7 days" }, { value: "30d", label: "Next 30 days" }, { value: "expired", label: "Expired" }
+          ]} />
+          <Button variant="secondary" size="sm" className="col-span-1 md:col-span-2 justify-center"><Filter className="w-3.5 h-3.5 mr-1" />More Filters</Button>
         </div>
       </Card>
 
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
-      )}
-
-      {/* Temp password toast */}
-      {tempPassword && (
-        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
-          <p className="font-semibold text-yellow-800 mb-1">Temporary Password Generated</p>
-          <p className="text-yellow-700">
-            Share this with the user:{" "}
-            <code className="bg-yellow-100 px-2 py-0.5 rounded font-mono font-bold">
-              {tempPassword.pwd}
-            </code>
-          </p>
-          <button
-            onClick={() => setTempPassword(null)}
-            className="mt-2 text-xs text-yellow-600 underline"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      <Card>
+      <Card noPadding>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs sm:text-sm">
             <thead>
-              <tr className="border-b border-gray-100">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">Email</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">Plan</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">Provider</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">Joined</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wide">Actions</th>
+              <tr className="border-b border-gray-100 bg-gray-50/50">
+                {["User", "Email", "Plan", "Credits Used", "Credits Remaining", "Status", "Last Active", "Expiry Date", "Permissions", "Actions"].map((h) => (
+                  <th key={h} className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wide whitespace-nowrap">{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-text-muted">Loading…</td>
+              {filtered.map((u) => (
+                <tr
+                  key={u.id}
+                  className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 cursor-pointer"
+                  onClick={() => setSelectedUser(u)}
+                >
+                  <td className="px-3 sm:px-4 py-2 sm:py-3">
+                    <div className="flex items-center gap-2.5">
+                      <Avatar name={u.name} size="sm" />
+                      <p className="font-medium text-text-primary whitespace-nowrap">{u.name}</p>
+                    </div>
+                  </td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary whitespace-nowrap">{u.email}</td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${PLAN_COLORS[u.plan]}`}>{PLAN_LABELS[u.plan]}</span></td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-primary font-medium">{u.creditsUsed.toLocaleString()}</td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-primary font-medium">{u.creditsRemaining.toLocaleString()}</td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3">
+                    <StatusBadge label={u.status} tone={u.status === "Active" ? "green" : u.status === "Expiring Soon" ? "amber" : "red"} />
+                  </td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary whitespace-nowrap text-xs">{u.lastActive}</td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary whitespace-nowrap text-xs">
+                    {u.expiryDate}
+                    {u.expiryInDays !== null && <p className="text-text-muted text-[10px]">In {u.expiryInDays} days</p>}
+                  </td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3"><StatusBadge label={u.role} tone={u.role === "Admin" ? "blue" : "gray"} /></td>
+                  <td className="px-3 sm:px-4 py-2 sm:py-3" onClick={(e) => e.stopPropagation()}>
+                    <ActionDropdown
+                      actions={[
+                        { label: "View Profile", onClick: () => setSelectedUser(u) },
+                        { label: "Assign Credits", onClick: () => {} },
+                        { label: "Reset Password", onClick: () => {} },
+                        { label: "Update Status", onClick: () => {} },
+                        { label: "Delete User", onClick: () => {}, danger: true },
+                      ]}
+                    />
+                  </td>
                 </tr>
-              ) : users.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-text-muted">No users found.</td>
-                </tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
-                    <td className="px-4 py-3 font-medium text-text-primary">{user.name}</td>
-                    <td className="px-4 py-3 text-text-secondary">{user.email}</td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PLAN_COLORS[user.plan] ?? "bg-gray-100 text-gray-600"}`}>
-                        {PLAN_LABELS[user.plan] ?? user.plan}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <AdminStatusBadge active={user.isActive} />
-                    </td>
-                    <td className="px-4 py-3 text-text-secondary text-xs uppercase">{user.provider}</td>
-                    <td className="px-4 py-3 text-text-secondary text-xs">
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => toggleStatus(user)}
-                          disabled={actionLoading === user.id + "-status"}
-                          className="text-xs px-2.5 py-1 rounded border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-40"
-                        >
-                          {user.isActive ? "Deactivate" : "Activate"}
-                        </button>
-                        {user.provider === "LOCAL" && (
-                          <button
-                            onClick={() => resetPassword(user.id)}
-                            disabled={actionLoading === user.id + "-reset"}
-                            className="text-xs px-2.5 py-1 rounded border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-40"
-                          >
-                            Reset Pwd
-                          </button>
-                        )}
-                        <button
-                          onClick={() => deleteUser(user.id)}
-                          disabled={actionLoading === user.id + "-delete"}
-                          className="text-xs px-2.5 py-1 rounded border border-red-200 text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
-        <Pagination page={page} total={total} limit={20} onChange={setPage} />
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+          <p className="text-xs text-text-muted">Showing 1 to {filtered.length} of 12,458 users</p>
+          <div className="flex gap-1">
+            <button className="w-8 h-8 rounded-md bg-primary-600 text-white text-xs font-medium">1</button>
+            <button className="w-8 h-8 rounded-md border border-gray-200 text-xs hover:bg-gray-50">2</button>
+            <button className="w-8 h-8 rounded-md border border-gray-200 text-xs hover:bg-gray-50">3</button>
+            <span className="px-2 text-text-muted text-xs flex items-center">...</span>
+            <button className="w-12 h-8 rounded-md border border-gray-200 text-xs hover:bg-gray-50">1,246</button>
+          </div>
+        </div>
       </Card>
+
+      <UserDetailDrawer user={selectedUser} onClose={() => setSelectedUser(null)} />
+    </div>
+  );
+}
+
+function UserDetailDrawer({ user, onClose }: { user: MockUser | null; onClose: () => void }) {
+  if (!user) return null;
+  return (
+    <Drawer
+      open={!!user}
+      onClose={onClose}
+      title="User Profile"
+      width="lg"
+      footer={
+        <div className="flex gap-2">
+          <Button variant="primary" className="flex-1"><KeyRound className="w-4 h-4 mr-1.5" />Reset Password</Button>
+          <Button variant="secondary" className="flex-1"><Coins className="w-4 h-4 mr-1.5" />Assign Credits</Button>
+          <Button variant="danger"><UserX className="w-4 h-4 mr-1.5" />Deactivate</Button>
+        </div>
+      }
+    >
+      <div className="flex items-center gap-3 pb-5 border-b border-gray-100">
+        <Avatar name={user.name} size="lg" />
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-text-primary">{user.name}</h2>
+            <StatusBadge label={user.status} tone={user.status === "Active" ? "green" : "amber"} />
+          </div>
+          <p className="text-sm text-text-muted mt-0.5">{user.email}</p>
+          <p className="text-xs text-text-muted mt-0.5">User ID: {user.id}</p>
+        </div>
+      </div>
+
+      <div className="py-5 border-b border-gray-100">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-text-primary">Plan & Subscription</h3>
+          <button className="text-xs text-primary-600 font-medium hover:underline flex items-center gap-1"><Eye className="w-3 h-3" />View Plan Details</button>
+        </div>
+        <dl className="space-y-2.5 text-sm">
+          <Row k="Plan" v={<span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${PLAN_COLORS[user.plan]}`}>{PLAN_LABELS[user.plan]}</span>} />
+          <Row k="Status" v={<StatusBadge label={user.status} tone="green" />} />
+          <Row k="Expiry Date" v={<>{user.expiryDate} <span className="text-text-muted text-xs">(In {user.expiryInDays} days)</span></>} />
+        </dl>
+      </div>
+
+      <div className="py-5">
+        <h3 className="text-sm font-semibold text-text-primary mb-3">Credit Summary</h3>
+        <dl className="space-y-2.5 text-sm">
+          <Row k="Total Credits" v={<strong>{user.totalCredits.toLocaleString()}</strong>} />
+          <Row k="Credits Used" v={user.creditsUsed.toLocaleString()} />
+          <Row k="Credits Remaining" v={<strong>{user.creditsRemaining.toLocaleString()}</strong>} />
+        </dl>
+        <div className="mt-3">
+          <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+            <div className="h-full bg-primary-600" style={{ width: `${(user.creditsUsed / user.totalCredits) * 100}%` }} />
+          </div>
+          <p className="text-xs text-text-muted mt-1.5 text-right">{Math.round((user.creditsUsed / user.totalCredits) * 1000) / 10}% used</p>
+        </div>
+      </div>
+    </Drawer>
+  );
+}
+
+function Row({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between">
+      <dt className="text-text-muted">{k}</dt>
+      <dd className="font-medium text-text-primary">{v}</dd>
     </div>
   );
 }

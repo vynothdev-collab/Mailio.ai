@@ -4,7 +4,6 @@ import { COOKIE_NAMES, AUTH_ENDPOINTS } from "@/constants";
 import type { RefreshTokenResponse } from "@/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ;
-const IS_PROD = process.env.NODE_ENV === "production";
 
 export async function POST() {
   try {
@@ -32,7 +31,7 @@ export async function POST() {
 
     cookieStore.set(COOKIE_NAMES.ACCESS_TOKEN, accessToken, {
       httpOnly: false,
-      secure: IS_PROD,
+      secure: false,
       sameSite: "strict",
       maxAge: 60 * 60,
       path: "/",

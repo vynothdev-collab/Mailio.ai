@@ -12,9 +12,8 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   app.use(helmet());
-  app.enableCors({
-    exposedHeaders: ['Content-Disposition'],
-  });
+
+  app.enableCors({ origin: '*', credentials: false, exposedHeaders: ['Content-Disposition'] });
 
   app.useWebSocketAdapter(new IoAdapter(app));
   app.useGlobalFilters(new GlobalExceptionFilter());

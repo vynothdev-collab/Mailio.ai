@@ -10,7 +10,7 @@ export default function Card({ children, className, noPadding, ...props }: CardP
     <div
       className={cn(
         "bg-white rounded-xl shadow-sm border border-gray-100",
-        !noPadding && "p-4",
+        !noPadding && "p-3 sm:p-4",
         className
       )}
       {...props}
