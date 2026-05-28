@@ -38,6 +38,15 @@ const MAX_BULK_BATCH_SIZE = parseInt(
   10,
 );
 
+const RATE_WINDOW_MS = (() => {
+  const raw = parseInt(process.env.MAILTESTER_RATE_WINDOW_MS ?? '10000', 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : 10000;
+})();
+const RATE_LIMIT_PER_WINDOW = (() => {
+  const raw = parseInt(process.env.MAILTESTER_RATE_LIMIT ?? '228', 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : 228;
+})();
+
 @Injectable()
 export class VerificationService {
   constructor(
@@ -120,7 +129,11 @@ export class VerificationService {
   ): Promise<void> {
     if (emailIds.length === 0) return;
 
-    const size = Math.max(1, Math.min(batchSize, MAX_BULK_BATCH_SIZE));
+    const cappedRequested = Math.max(
+      1,
+      Math.min(batchSize, MAX_BULK_BATCH_SIZE),
+    );
+    const size = Math.min(cappedRequested, RATE_LIMIT_PER_WINDOW);
     const totalBatches = Math.ceil(emailIds.length / size);
     const stride = bulkStrideFor(totalCount ?? emailIds.length);
     const base = await this.reserveEnqueueSlot(emailIds.length, stride);
@@ -135,6 +148,7 @@ export class VerificationService {
         backoff: { type: 'exponential'; delay: number };
         removeOnComplete: { age: number; count: number };
         removeOnFail: { age: number; count: number };
+        delay?: number;
       };
     }[] = [];
     let emailOffset = 0;
@@ -152,6 +166,7 @@ export class VerificationService {
           backoff: { type: 'exponential', delay: 250 },
           removeOnComplete: { age: 3600, count: 1000 },
           removeOnFail: { age: 86400, count: 5000 },
+          delay: b * RATE_WINDOW_MS,
         },
       });
       emailOffset += slice.length;
