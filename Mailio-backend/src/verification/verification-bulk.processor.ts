@@ -177,7 +177,7 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
         if (err.kind === 'rate-limit') {
           const ra = err.retryAfterMs ?? 5000;
           rateLimitRetryMs = Math.max(rateLimitRetryMs ?? 0, ra);
-        } else if (err.kind === 'server') {
+        } else if (err.kind === 'server' || err.kind === 'network') {
           hasRetryableInfra = true;
         }
       } else {

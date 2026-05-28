@@ -82,7 +82,7 @@ export class BulkVerifyService {
       etaSeconds,
       valid: list.validCount,
       invalid: list.invalidCount,
-      risky: list.riskyCount,
+      risky: list.riskyCount + list.unknownCount,
       disposable: list.disposableCount,
     };
   }
@@ -108,7 +108,7 @@ export class BulkVerifyService {
       processedCount: l.processedCount,
       valid: l.validCount,
       invalid: l.invalidCount,
-      risky: l.riskyCount,
+      risky: l.riskyCount + l.unknownCount,
       disposable: l.disposableCount,
       createdAt: l.createdAt,
       completedAt: l.status === EmailListStatus.COMPLETED ? l.updatedAt : null,
@@ -232,7 +232,7 @@ export class BulkVerifyService {
     for (const r of rows) {
       if (r.verificationResult === VerificationResult.VALID) valid++;
       else if (r.verificationResult === VerificationResult.INVALID) invalid++;
-      else if (r.verificationResult === VerificationResult.RISKY) risky++;
+      else risky++;
     }
 
     const total = valid + invalid + risky;
@@ -287,8 +287,8 @@ export class BulkVerifyService {
         },
         {
           name: 'Risky',
-          value: list.riskyCount,
-          percentage: pct(list.riskyCount),
+          value: list.riskyCount + list.unknownCount,
+          percentage: pct(list.riskyCount + list.unknownCount),
           color: CHART_COLORS.risky,
         },
         {
@@ -381,7 +381,7 @@ export class BulkVerifyService {
       startedAt: list.startedAt,
       valid: list.validCount,
       invalid: list.invalidCount,
-      risky: list.riskyCount,
+      risky: list.riskyCount + list.unknownCount,
       disposable: list.disposableCount,
     };
   }

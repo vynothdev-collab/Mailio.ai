@@ -287,12 +287,16 @@ export class EmailListsService {
       .createQueryBuilder('e')
       .select(['e.address', 'e.verificationResult', 'e.apiRawResponse'])
       .where('e.list_id = :listId', { listId })
-      .andWhere('e.is_deleted = FALSE')
-      .andWhere('e.status = :status', { status: EmailStatus.COMPLETED });
+      .andWhere('e.is_deleted = FALSE');
 
     if (type === 'verified') {
+      qb.andWhere('e.status = :status', { status: EmailStatus.COMPLETED });
       qb.andWhere('e.verification_result = :result', {
         result: VerificationResult.VALID,
+      });
+    } else {
+      qb.andWhere('e.status IN (:...statuses)', {
+        statuses: [EmailStatus.COMPLETED, EmailStatus.FAILED],
       });
     }
 
@@ -302,7 +306,7 @@ export class EmailListsService {
       if (r === VerificationResult.VALID) return 'valid';
       if (r === VerificationResult.INVALID) return 'invalid';
       if (r === VerificationResult.RISKY) return 'risky';
-      return 'unknown';
+      return 'risky';
     };
 
     

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RedisRateLimiter } from '../limiter/redis-rate-limiter.service';
@@ -30,8 +30,6 @@ interface KeyState {
 
 @Injectable()
 export class KeyPoolService {
-  private readonly logger = new Logger(KeyPoolService.name);
-
   private snapshot = new Map<string, KeyState[]>();
 
   private localCursor = 0;
@@ -162,14 +160,6 @@ export class KeyPoolService {
     const key = await this.repo.findOne({ where: { id: keyId } });
     if (!key) return;
 
-    const FAILURE_COOLDOWN_THRESHOLD = parseInt(
-      process.env.KEY_FAILURE_COOLDOWN_THRESHOLD ?? '5',
-      10,
-    );
-    const TRANSIENT_COOLDOWN_MS = parseInt(
-      process.env.KEY_TRANSIENT_COOLDOWN_MS ?? '60000',
-      10,
-    );
     const DEFAULT_RATE_LIMIT_COOLDOWN_MS = parseInt(
       process.env.KEY_RATE_LIMIT_COOLDOWN_MS ?? '2000',
       10,
@@ -188,19 +178,9 @@ export class KeyPoolService {
         update.status = ApiKeyStatus.DISABLED;
         break;
       case 'server':
-      case 'network': {
-        const nextCount = (key.failureCount ?? 0) + 1;
-        update.failureCount = nextCount;
-        if (nextCount >= FAILURE_COOLDOWN_THRESHOLD) {
-          update.status = ApiKeyStatus.COOLDOWN;
-          update.cooldownUntil = new Date(Date.now() + TRANSIENT_COOLDOWN_MS);
-          update.failureCount = 0;
-          this.logger.warn(
-            `Key ${keyId}: ${nextCount} consecutive failures → cooldown ${TRANSIENT_COOLDOWN_MS}ms`,
-          );
-        }
+      case 'network':
+        update.failureCount = (key.failureCount ?? 0) + 1;
         break;
-      }
       case 'bad-request':
         break;
     }

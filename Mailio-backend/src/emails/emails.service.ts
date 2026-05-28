@@ -124,11 +124,14 @@ export class EmailsService {
     const result = await this.emailsRepo
       .createQueryBuilder()
       .update(Email)
-      .set({ status: EmailStatus.FAILED, errorMessage })
-      .where('id = :id AND status != :completed AND status != :failed', {
+      .set({
+        status: EmailStatus.COMPLETED,
+        verificationResult: VerificationResult.UNKNOWN,
+        errorMessage,
+      })
+      .where('id = :id AND status != :completed', {
         id,
         completed: EmailStatus.COMPLETED,
-        failed: EmailStatus.FAILED,
       })
       .execute();
     return (result.affected ?? 0) > 0;
@@ -258,18 +261,16 @@ export class EmailsService {
 
     const raw: unknown = await this.emailsRepo.manager.query(
       `UPDATE emails AS e
-          SET status        = 'FAILED'::emails_status_enum,
-              error_message = u.msg
+          SET status              = 'COMPLETED'::emails_status_enum,
+              verification_result = 'UNKNOWN'::emails_verification_result_enum,
+              error_message       = u.msg
          FROM UNNEST($1::uuid[], $2::text[]) AS u(id, msg)
         WHERE e.id = u.id
-          AND e.status NOT IN (
-                'COMPLETED'::emails_status_enum,
-                'FAILED'::emails_status_enum
-              )
-       RETURNING e.id      AS "emailId",
-                 e.list_id AS "listId",
-                 NULL::text AS "result",
-                 e.disposable AS "disposable"`,
+          AND e.status != 'COMPLETED'::emails_status_enum
+       RETURNING e.id                  AS "emailId",
+                 e.list_id             AS "listId",
+                 e.verification_result AS "result",
+                 e.disposable          AS "disposable"`,
       [ids, msgs],
     );
 
