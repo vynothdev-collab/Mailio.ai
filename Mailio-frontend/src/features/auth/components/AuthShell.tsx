@@ -1,6 +1,37 @@
 import Image from "next/image";
 import Link from "next/link";
 
+function MobileBrandPanel() {
+  return (
+    <div className="relative flex flex-col overflow-hidden bg-gradient-to-b from-[#0B47CF] to-[#082E9E] px-6 pb-8 pt-8 text-white lg:hidden">
+      <div className="pointer-events-none absolute -top-24 -left-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 -right-16 h-56 w-56 rounded-full bg-white/5 blur-3xl" />
+
+      <Link href="/" className="relative w-fit" aria-label="emailanswers.ai home">
+        <Image
+          src="/auth-brand.svg"
+          alt="emailanswers.ai"
+          width={220}
+          height={45}
+          className="h-auto w-[180px] sm:w-[220px]"
+          priority
+        />
+      </Link>
+
+      <div className="relative mt-5">
+        <h1 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
+          AI-Powered Answers.
+          <br />
+          Smarter Workflows.
+        </h1>
+        <p className="mt-3 text-sm leading-relaxed text-white/85 sm:text-base">
+          Automate responses, manage project and grow your business — all in one place
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function BrandPanel() {
   return (
     <div className="relative hidden lg:flex lg:w-1/2 flex-col overflow-hidden bg-gradient-to-b from-[#0B47CF] to-[#082E9E] px-12 py-10 text-white">
@@ -50,24 +81,11 @@ interface AuthShellProps {
 
 export function AuthShell({ children }: AuthShellProps) {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col lg:flex-row">
       <BrandPanel />
+      <MobileBrandPanel />
 
-      <div className="flex flex-1 flex-col items-center justify-center bg-[#EEF3FB] px-5 py-8 sm:px-6 sm:py-10 lg:px-16">
-        <Link
-          href="/"
-          className="mb-6 lg:hidden"
-          aria-label="emailanswers.ai home"
-        >
-          <Image
-            src="/brand-logo-mobile.svg"
-            alt="emailanswers.ai"
-            width={200}
-            height={46}
-            className="h-auto w-[180px] sm:w-[200px]"
-            priority
-          />
-        </Link>
+      <div className="flex flex-1 flex-col items-center justify-start bg-[#EEF3FB] px-5 pb-8 pt-5 sm:px-6 sm:pb-10 sm:pt-6 lg:justify-center lg:px-16 lg:py-10">
         <div className="w-full max-w-md">{children}</div>
       </div>
     </div>
