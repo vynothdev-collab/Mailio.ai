@@ -29,10 +29,10 @@ export function bulkStrideFor(totalCount: number): number {
   return STRIDE_HIGH;
 }
 
-const DEFAULT_BULK_BATCH_SIZE = parseInt(
-  process.env.BULK_BATCH_SIZE ?? '50',
-  10,
-);
+const DEFAULT_BULK_BATCH_SIZE = (() => {
+  const raw = parseInt(process.env.BULK_BATCH_SIZE ?? '228', 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : 228;
+})();
 const MAX_BULK_BATCH_SIZE = parseInt(
   process.env.MAX_BULK_BATCH_SIZE ?? '1000',
   10,

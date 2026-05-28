@@ -79,9 +79,11 @@ function createLimiter(max: number): <T>(fn: () => Promise<T>) => Promise<T> {
 >)
 export class VerificationBulkProcessor extends VerificationBaseProcessor {
   private readonly batchLogger = new Logger(VerificationBulkProcessor.name);
-  private readonly innerLimit = createLimiter(
-    parseInt(process.env.BATCH_INNER_CONCURRENCY ?? '10', 10),
-  );
+  private readonly innerConcurrency = (() => {
+    const raw = parseInt(process.env.BATCH_INNER_CONCURRENCY ?? '228', 10);
+    return Number.isFinite(raw) && raw > 0 ? raw : 228;
+  })();
+  private readonly innerLimit = createLimiter(this.innerConcurrency);
 
   constructor(
     emailsService: EmailsService,
@@ -92,6 +94,12 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
     @Optional() metrics?: MetricsService,
   ) {
     super(emailsService, mailTesterService, keyPool, dbWrite, dlq, metrics);
+    this.batchLogger.log(
+      `VerificationBulkProcessor started ` +
+        `(workerConcurrency=${process.env.VERIFY_BULK_CONCURRENCY ?? '8'}, ` +
+        `innerConcurrency=${this.innerConcurrency}, ` +
+        `batchSize=${process.env.BULK_BATCH_SIZE ?? '50'})`,
+    );
   }
 
   protected sourceQueueName(): string {
