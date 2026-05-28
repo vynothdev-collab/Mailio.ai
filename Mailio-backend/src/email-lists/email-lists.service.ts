@@ -110,33 +110,34 @@ export class EmailListsService {
       [VerificationResult.UNKNOWN]: 'unknown_count',
     }[result];
 
-    const disposableClause = isDisposable
-      ? ', disposable_count = disposable_count + 1'
-      : '';
+    const disposableInc = isDisposable ? 1 : 0;
 
-    await this.listsRepo.manager.query(
+    const rows: Array<{
+      processed: number;
+      total: number;
+      status: EmailListStatus;
+    }> = await this.listsRepo.manager.query(
       `UPDATE email_lists
-       SET processed_count = processed_count + 1,
-           ${resultCol} = ${resultCol} + 1
-           ${disposableClause}
-       WHERE id = $1`,
-      [listId],
+          SET processed_count  = processed_count + 1,
+              ${resultCol}     = ${resultCol} + 1,
+              disposable_count = disposable_count + $2,
+              status = CASE
+                         WHEN processed_count + 1 >= total_count
+                              AND status != 'COMPLETED'
+                           THEN 'COMPLETED'::email_lists_status_enum
+                         ELSE status
+                       END
+        WHERE id = $1
+        RETURNING processed_count AS "processed",
+                  total_count    AS "total",
+                  status         AS "status"`,
+      [listId, disposableInc],
     );
 
-    const list = await this.listsRepo.findOneOrFail({ where: { id: listId } });
-
-    if (list.processedCount >= list.totalCount) {
-      await this.listsRepo.update(listId, {
-        status: EmailListStatus.COMPLETED,
-      });
-      list.status = EmailListStatus.COMPLETED;
+    if (rows.length === 0) {
+      return { processed: 0, total: 0, status: EmailListStatus.FAILED };
     }
-
-    return {
-      processed: list.processedCount,
-      total: list.totalCount,
-      status: list.status,
-    };
+    return rows[0];
   }
 
   async incrementProcessedBatch(

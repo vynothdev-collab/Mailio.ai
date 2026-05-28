@@ -29,6 +29,14 @@ export function bulkStrideFor(totalCount: number): number {
   return STRIDE_HIGH;
 }
 
+function hashUserIdForPriority(userId: string): number {
+  let h = 0;
+  for (let i = 0; i < userId.length; i++) {
+    h = (h * 31 + userId.charCodeAt(i)) >>> 0;
+  }
+  return h % 1000;
+}
+
 const DEFAULT_BULK_BATCH_SIZE = (() => {
   const raw = parseInt(process.env.BULK_BATCH_SIZE ?? '228', 10);
   return Number.isFinite(raw) && raw > 0 ? raw : 228;
@@ -38,10 +46,6 @@ const MAX_BULK_BATCH_SIZE = parseInt(
   10,
 );
 
-const RATE_WINDOW_MS = (() => {
-  const raw = parseInt(process.env.MAILTESTER_RATE_WINDOW_MS ?? '10000', 10);
-  return Number.isFinite(raw) && raw > 0 ? raw : 10000;
-})();
 const RATE_LIMIT_PER_WINDOW = (() => {
   const raw = parseInt(process.env.MAILTESTER_RATE_LIMIT ?? '228', 10);
   return Number.isFinite(raw) && raw > 0 ? raw : 228;
@@ -137,6 +141,7 @@ export class VerificationService {
     const totalBatches = Math.ceil(emailIds.length / size);
     const stride = bulkStrideFor(totalCount ?? emailIds.length);
     const base = await this.reserveEnqueueSlot(emailIds.length, stride);
+    const userPriorityNonce = hashUserIdForPriority(userId);
 
     const jobs: {
       name: 'verify.batch';
@@ -148,10 +153,8 @@ export class VerificationService {
         backoff: { type: 'exponential'; delay: number };
         removeOnComplete: { age: number; count: number };
         removeOnFail: { age: number; count: number };
-        delay?: number;
       };
     }[] = [];
-    let emailOffset = 0;
 
     for (let b = 0; b < totalBatches; b++) {
       const slice = emailIds.slice(b * size, (b + 1) * size);
@@ -160,16 +163,15 @@ export class VerificationService {
         name: 'verify.batch',
         data: { batchId, userId, listId, emailIds: slice, stride },
         opts: {
-          priority: BULK_BASE_PRIORITY + base + emailOffset * stride,
+          priority:
+            BULK_BASE_PRIORITY + b * 1000 + userPriorityNonce + (base % 1000),
           jobId: `bulk-batch-${batchId}`,
           attempts: 3,
           backoff: { type: 'exponential', delay: 250 },
           removeOnComplete: { age: 3600, count: 1000 },
           removeOnFail: { age: 86400, count: 5000 },
-          delay: b * RATE_WINDOW_MS,
         },
       });
-      emailOffset += slice.length;
     }
 
     const ADD_BULK_CHUNK = 1000;

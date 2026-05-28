@@ -210,5 +210,23 @@ export class KeyPoolService {
     if (kind === 'server' || kind === 'network' || kind === 'rate-limit') {
       this.dirtyFailureKeys.add(keyId);
     }
+
+    // Mirror cooldownUntil into the in-memory snapshot immediately so that
+    // subsequent acquireKey calls stop hammering a key that just returned 429.
+    // Status is intentionally left as ACTIVE in memory — acquireKey already
+    // gates on cooldownUntil > now, so the key self-heals once the cooldown
+    // timestamp passes without needing a snapshot reload.
+    if (update.cooldownUntil) {
+      const snaps = this.snapshot.get(key.provider);
+      if (snaps) {
+        const idx = snaps.findIndex((s) => s.id === keyId);
+        if (idx >= 0) {
+          snaps[idx] = {
+            ...snaps[idx],
+            cooldownUntil: update.cooldownUntil.getTime(),
+          };
+        }
+      }
+    }
   }
 }

@@ -70,8 +70,8 @@ function createLimiter(max: number): <T>(fn: () => Promise<T>) => Promise<T> {
 @Injectable()
 @Processor(VERIFY_BULK_QUEUE, {
   concurrency: parseInt(process.env.VERIFY_BULK_CONCURRENCY ?? '8', 10),
-  lockDuration: 60_000,
-  stalledInterval: 30_000,
+  lockDuration: 300_000,
+  stalledInterval: 60_000,
   drainDelay: 5,
 } satisfies Pick<
   WorkerOptions,
@@ -79,11 +79,19 @@ function createLimiter(max: number): <T>(fn: () => Promise<T>) => Promise<T> {
 >)
 export class VerificationBulkProcessor extends VerificationBaseProcessor {
   private readonly batchLogger = new Logger(VerificationBulkProcessor.name);
-  private readonly innerConcurrency = (() => {
-    const raw = parseInt(process.env.BATCH_INNER_CONCURRENCY ?? '228', 10);
-    return Number.isFinite(raw) && raw > 0 ? raw : 228;
+
+  private readonly perBatchConcurrency = (() => {
+    const raw = parseInt(process.env.BATCH_INNER_CONCURRENCY ?? '57', 10);
+    return Number.isFinite(raw) && raw > 0 ? raw : 57;
   })();
-  private readonly innerLimit = createLimiter(this.innerConcurrency);
+
+  // Interval between successive HTTP dispatch starts (matches token-bucket refill rate).
+  // Staggering the initial burst prevents sending 57+ simultaneous requests to the
+  // API which triggers 429 with a large Retry-After, causing multi-second stalls.
+  private readonly dispatchIntervalMs = Math.ceil(
+    parseInt(process.env.MAILTESTER_RATE_WINDOW_MS ?? '10000', 10) /
+      Math.max(1, parseInt(process.env.MAILTESTER_RATE_LIMIT ?? '228', 10)),
+  );
 
   constructor(
     emailsService: EmailsService,
@@ -97,8 +105,8 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
     this.batchLogger.log(
       `VerificationBulkProcessor started ` +
         `(workerConcurrency=${process.env.VERIFY_BULK_CONCURRENCY ?? '8'}, ` +
-        `innerConcurrency=${this.innerConcurrency}, ` +
-        `batchSize=${process.env.BULK_BATCH_SIZE ?? '50'})`,
+        `perBatchConcurrency=${this.perBatchConcurrency}, ` +
+        `batchSize=${process.env.BULK_BATCH_SIZE ?? '228'})`,
     );
   }
 
@@ -130,15 +138,28 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
       return;
     }
 
+    const batchLimit = createLimiter(this.perBatchConcurrency);
+
     const settled = await Promise.allSettled(
-      claimed.map((email) =>
-        this.innerLimit(() =>
-          this.verifyOneForBatch(email).then((success) =>
+      claimed.map((email, i) =>
+        batchLimit(async () => {
+          // Stagger the first perBatchConcurrency emails so they start HTTP
+          // calls at dispatchIntervalMs apart (~44ms) instead of simultaneously.
+          // Without this, 57+ requests hit the API at once → 429 Retry-After N
+          // → all verifications stall for N seconds.  After the initial window
+          // the natural pipeline cadence (slots free as HTTP calls complete)
+          // maintains the correct spacing automatically.
+          if (i < this.perBatchConcurrency) {
+            await new Promise<void>((r) =>
+              setTimeout(r, i * this.dispatchIntervalMs),
+            );
+          }
+          return this.verifyOneForBatch(email).then((success) =>
             this.flushSuccessStream(success, userId, listId, stride).then(
               () => success,
             ),
-          ),
-        ),
+          );
+        }),
       ),
     );
 
@@ -244,32 +265,30 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
     listId: string,
     stride: number | undefined,
   ): Promise<void> {
-    try {
-      await this.dbWrite.enqueue({
-        kind: 'success',
-        emailId: s.email.id,
-        userId,
-        listId: listId ?? null,
-        isSingleVerify: s.email.isSingleVerify,
-        stride,
-        providerKeyId: s.keyId,
-        result: RESULT_MAP[s.res.result] ?? VerificationResult.UNKNOWN,
-        score: s.res.score,
-        mxFound: s.res.mx_found,
-        smtpCheck: s.res.smtp_check,
-        disposable: s.res.disposable,
-        catchAll: s.res.catch_all ?? null,
-        freeProvider: s.res.free,
-        apiRawResponse: s.res.raw as unknown as Record<string, unknown>,
-        durationMs: s.durationMs,
-        processedAt: new Date().toISOString(),
-        emailAddress: s.email.address,
-      });
-    } catch (e) {
-      this.batchLogger.warn(
-        `stream db.write enqueue failed for ${s.email.id}: ${(e as Error).message}`,
-      );
-    }
+    // No try-catch here — if enqueue throws (e.g. Redis down), the error
+    // propagates to Promise.allSettled in processBatch, the email appears in
+    // `failures`, releaseClaimMany resets it to QUEUED, and BullMQ retries the
+    // batch job. Silent catch would leave the email stuck in PROCESSING forever.
+    await this.dbWrite.enqueue({
+      kind: 'success',
+      emailId: s.email.id,
+      userId,
+      listId: listId ?? null,
+      isSingleVerify: s.email.isSingleVerify,
+      stride,
+      providerKeyId: s.keyId,
+      result: RESULT_MAP[s.res.result] ?? VerificationResult.UNKNOWN,
+      score: s.res.score,
+      mxFound: s.res.mx_found,
+      smtpCheck: s.res.smtp_check,
+      disposable: s.res.disposable,
+      catchAll: s.res.catch_all ?? null,
+      freeProvider: s.res.free,
+      apiRawResponse: s.res.raw as unknown as Record<string, unknown>,
+      durationMs: s.durationMs,
+      processedAt: new Date().toISOString(),
+      emailAddress: s.email.address,
+    });
   }
 
   private async verifyOneForBatch(
@@ -281,7 +300,10 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
         `Skipping email with missing address (id=${email?.id ?? 'unknown'})`,
       );
     }
-    const MAX_ACQUIRE_WAIT_MS = 30_000;
+    const MAX_ACQUIRE_WAIT_MS = parseInt(
+      process.env.KEY_ACQUIRE_MAX_WAIT_MS ?? '120000',
+      10,
+    );
     const waitStart = Date.now();
     let slot = await this.keyPool.acquireKey(MAILTESTER_PROVIDER);
     while (!slot.ok) {
@@ -305,7 +327,10 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
           slot.retryAfterMs,
         );
       }
-      const sleepMs = Math.min(slot.retryAfterMs || 50, 1000);
+      // Sleep for the actual token-bucket retryAfterMs (~44ms at 228/10s)
+      // plus small jitter to spread concurrent retries.
+      const sleepMs =
+        Math.max(slot.retryAfterMs || 44, 10) + Math.floor(Math.random() * 50);
       await new Promise((r) => setTimeout(r, sleepMs));
       slot = await this.keyPool.acquireKey(MAILTESTER_PROVIDER);
     }
