@@ -144,6 +144,7 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
 
     const failures: PerEmailFailure[] = [];
     let rateLimitRetryMs: number | null = null;
+    let hasRetryableInfra = false;
 
     for (let i = 0; i < settled.length; i++) {
       const r = settled[i];
@@ -151,9 +152,15 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
       if (r.status === 'fulfilled') continue;
       const err = r.reason as Error;
       failures.push({ email, err });
-      if (err instanceof ProviderError && err.kind === 'rate-limit') {
-        const ra = err.retryAfterMs ?? 5000;
-        rateLimitRetryMs = Math.max(rateLimitRetryMs ?? 0, ra);
+      if (err instanceof ProviderError) {
+        if (err.kind === 'rate-limit') {
+          const ra = err.retryAfterMs ?? 5000;
+          rateLimitRetryMs = Math.max(rateLimitRetryMs ?? 0, ra);
+        } else if (err.kind === 'server') {
+          hasRetryableInfra = true;
+        }
+      } else {
+        hasRetryableInfra = true;
       }
     }
 
@@ -178,7 +185,7 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
 
     const attemptsMade = (job.attemptsMade ?? 0) + 1;
     const maxAttempts = job.opts?.attempts ?? 1;
-    const isFinal = attemptsMade >= maxAttempts;
+    const isFinal = attemptsMade >= maxAttempts || !hasRetryableInfra;
 
     if (isFinal) {
       const failRows: BatchFailureRow[] = failures.map((f) => ({

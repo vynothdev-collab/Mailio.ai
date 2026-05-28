@@ -148,7 +148,7 @@ export class VerificationService {
         opts: {
           priority: BULK_BASE_PRIORITY + base + emailOffset * stride,
           jobId: `bulk-batch-${batchId}`,
-          attempts: 5,
+          attempts: 3,
           backoff: { type: 'exponential', delay: 250 },
           removeOnComplete: { age: 3600, count: 1000 },
           removeOnFail: { age: 86400, count: 5000 },
