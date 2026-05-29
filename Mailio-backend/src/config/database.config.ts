@@ -12,7 +12,7 @@ export default registerAs(
     database: process.env.DB_DATABASE ?? 'mailioai',
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
     migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
-    synchronize: false,
+    synchronize: process.env.DB_SYNCHRONIZE === 'true',
     logging: false,
     extra: {
       max: parseInt(process.env.DB_POOL_MAX ?? '30', 10),
