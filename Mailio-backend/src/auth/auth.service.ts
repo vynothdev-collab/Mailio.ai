@@ -63,6 +63,21 @@ export class AuthService {
     };
   }
 
+  async signupViaApiKey(dto: SignupDto) {
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const user = await this.usersService.create({
+      email: dto.email,
+      passwordHash,
+      name: dto.fullName,
+      emailVerified: true,
+    });
+    return {
+      success: true,
+      email: user.email,
+      message: 'Signup successful.',
+    };
+  }
+
   async verifyEmail(email: string, otp: string) {
     const user = await this.usersService.findByEmail(email);
     if (!user) throw new NotFoundException('User not found.');

@@ -23,6 +23,7 @@ import { ResendVerificationOtpDto } from './dto/resend-verification-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SignupDto } from './dto/signup.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { IntegrationApiKeyGuard } from './guards/integration-api-key.guard';
 
 const AUTH_RESPONSE = {
   type: 'object',
@@ -65,6 +66,25 @@ export class AuthController {
   })
   signup(@Body() dto: SignupDto) {
     return this.authService.signup(dto);
+  }
+
+  @Post('signup-via-api-key')
+  @UseGuards(IntegrationApiKeyGuard)
+  @ApiOperation({
+    summary:
+      'Register a new user via integration API key — skips OTP verification',
+  })
+  @ApiBody({ type: SignupDto })
+  @ApiResponse({
+    status: 201,
+    description: 'User created and auto-verified',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Missing or invalid x-api-key header',
+  })
+  signupViaApiKey(@Body() dto: SignupDto) {
+    return this.authService.signupViaApiKey(dto);
   }
 
   @Post('verify-email')

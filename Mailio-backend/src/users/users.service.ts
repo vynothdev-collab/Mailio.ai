@@ -54,12 +54,20 @@ export class UsersService {
     email: string;
     passwordHash: string;
     name: string;
+    emailVerified?: boolean;
   }): Promise<User> {
     const existing = await this.findByEmail(data.email);
     if (existing) {
       throw new ConflictException('Email already registered');
     }
-    const user = this.usersRepo.create({ ...data, provider: AuthProvider.LOCAL });
+    const { emailVerified, ...rest } = data;
+    const user = this.usersRepo.create({
+      ...rest,
+      provider: AuthProvider.LOCAL,
+      ...(emailVerified
+        ? { emailVerified: true, emailVerifiedAt: new Date() }
+        : {}),
+    });
     return this.usersRepo.save(user);
   }
 
