@@ -1,6 +1,5 @@
 const STATE_KEY = "mailio.linkedinOauthState";
 const LINKEDIN_AUTHORIZE_URL = "https://www.linkedin.com/oauth/v2/authorization";
-const LINKEDIN_LOGIN_URL = "https://www.linkedin.com/uas/login";
 const SCOPE = "openid profile email";
 
 export interface LinkedinConfig {
@@ -35,9 +34,7 @@ export function beginLinkedinAuth(config: LinkedinConfig): void {
     state,
   });
   const authorizeUrl = `${LINKEDIN_AUTHORIZE_URL}?${oauthParams.toString()}`;
-
-  const loginParams = new URLSearchParams({ session_redirect: authorizeUrl });
-  window.location.assign(`${LINKEDIN_LOGIN_URL}?${loginParams.toString()}`);
+  window.location.assign(authorizeUrl);
 }
 
 export function consumeLinkedinState(received: string | null): boolean {

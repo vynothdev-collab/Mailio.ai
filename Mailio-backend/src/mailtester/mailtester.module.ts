@@ -10,8 +10,7 @@ import { MailTesterService } from './mailtester.service';
     HttpModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        timeout: config.get<number>('MAILTESTER_TIMEOUT_MS', 30000),
+      useFactory: (_config: ConfigService) => ({
         httpsAgent: new https.Agent({
           keepAlive: true,
           keepAliveMsecs: 30_000,

@@ -64,7 +64,6 @@ export class MailTesterService implements EmailVerificationProvider {
   private readonly logger = new Logger(MailTesterService.name);
   private readonly baseUrl: string;
   private readonly fallbackKey: string;
-  private readonly timeout: number;
 
   constructor(
     private readonly httpService: HttpService,
@@ -75,7 +74,6 @@ export class MailTesterService implements EmailVerificationProvider {
       'https://happy.mailtester.ninja',
     );
     this.fallbackKey = config.get<string>('MAILTESTER_API_KEY', '');
-    this.timeout = config.get<number>('MAILTESTER_TIMEOUT_MS', 30000);
   }
 
   getFallbackKey(): string {
@@ -95,7 +93,6 @@ export class MailTesterService implements EmailVerificationProvider {
       const { data } = await firstValueFrom(
         this.httpService.get<RawMailTesterResponse>(`${this.baseUrl}/ninja`, {
           params: { email, key },
-          timeout: this.timeout,
           httpAgent: new http.Agent({ family: 4, keepAlive: true }),
           httpsAgent: new https.Agent({ family: 4, keepAlive: true }),
         }),

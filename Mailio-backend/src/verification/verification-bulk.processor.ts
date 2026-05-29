@@ -17,7 +17,10 @@ import {
   EmailVerificationJobPayload,
 } from './dto/job-payload.dto';
 import { VerificationBaseProcessor } from './verification-base.processor';
-import { VERIFY_BULK_QUEUE } from './verification.service';
+import {
+  VERIFY_BULK_QUEUE,
+  VerificationService,
+} from './verification.service';
 
 const MAILTESTER_PROVIDER = 'mailtester';
 
@@ -93,12 +96,21 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
       Math.max(1, parseInt(process.env.MAILTESTER_RATE_LIMIT ?? '228', 10)),
   );
 
+  // Cap on full reverify cycles. Each cycle = `attempts` BullMQ tries inside
+  // processBatch. Default 3 cycles × 3 attempts = 9 verification attempts per
+  // email before it can land in the UNKNOWN bucket.
+  private readonly maxReverifyCycles = (() => {
+    const raw = parseInt(process.env.MAX_REVERIFY_CYCLES ?? '3', 10);
+    return Number.isFinite(raw) && raw > 0 ? raw : 3;
+  })();
+
   constructor(
     emailsService: EmailsService,
     mailTesterService: MailTesterService,
     keyPool: KeyPoolService,
     dbWrite: DbWriteService,
     dlq: DlqService,
+    private readonly verificationService: VerificationService,
     @Optional() metrics?: MetricsService,
   ) {
     super(emailsService, mailTesterService, keyPool, dbWrite, dlq, metrics);
@@ -173,14 +185,15 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
       if (r.status === 'fulfilled') continue;
       const err = r.reason as Error;
       failures.push({ email, err });
-      if (err instanceof ProviderError) {
-        if (err.kind === 'rate-limit') {
-          const ra = err.retryAfterMs ?? 5000;
-          rateLimitRetryMs = Math.max(rateLimitRetryMs ?? 0, ra);
-        } else if (err.kind === 'server' || err.kind === 'network') {
-          hasRetryableInfra = true;
-        }
+      if (err instanceof ProviderError && err.kind === 'rate-limit') {
+        const ra = err.retryAfterMs ?? 5000;
+        rateLimitRetryMs = Math.max(rateLimitRetryMs ?? 0, ra);
       } else {
+        // Every other failure (server, network, auth, bad-request, or any
+        // unexpected throw) is treated as retryable so the email goes
+        // through another verification attempt rather than being bucketed
+        // as UNKNOWN. The cap is enforced by the outer reverifyCycle ladder
+        // (BullMQ attempts × MAX_REVERIFY_CYCLES).
         hasRetryableInfra = true;
       }
     }
@@ -206,57 +219,128 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
 
     const attemptsMade = (job.attemptsMade ?? 0) + 1;
     const maxAttempts = job.opts?.attempts ?? 1;
-    const isFinal = attemptsMade >= maxAttempts || !hasRetryableInfra;
+    const bullAttemptsExhausted = attemptsMade >= maxAttempts;
+    const reverifyCycle = job.data.reverifyCycle ?? 0;
+    const isFinal =
+      bullAttemptsExhausted && reverifyCycle + 1 >= this.maxReverifyCycles;
 
-    if (isFinal) {
-      const failRows: BatchFailureRow[] = failures.map((f) => ({
-        emailId: f.email.id,
-        errorMessage: f.err.message,
-      }));
+    // BullMQ has retries left → release the failed emails back to QUEUED and
+    // let BullMQ retry the same batch. tryClaimMany on next attempt will only
+    // re-pick the released ones (others stay COMPLETED).
+    if (!bullAttemptsExhausted) {
+      await this.emailsService.releaseClaimMany(
+        failures.map((f) => f.email.id),
+      );
+      this.metrics?.batchPartialFailures
+        ?.labels({ reason: 'retry' })
+        .inc(failures.length);
+      throw new AggregateError(
+        failures.map((f) => f.err),
+        `Batch ${batchId}: ${failures.length}/${claimed.length} failed (cycle=${reverifyCycle})`,
+      );
+    }
+
+    // BullMQ exhausted but we still have reverify cycles left → release the
+    // claims and re-enqueue the failed emails as a brand-new batch job with a
+    // fresh attempts counter. Do NOT mark them UNKNOWN.
+    if (!isFinal) {
+      await this.emailsService.releaseClaimMany(
+        failures.map((f) => f.email.id),
+      );
       try {
-        await this.dbWrite.enqueueBatch({
-          kind: 'failure-batch',
+        await this.verificationService.enqueueReverifyBatch(
+          failures.map((f) => f.email.id),
+          userId,
+          listId,
+          stride,
+          reverifyCycle + 1,
+        );
+        this.batchLogger.warn(
+          `Batch ${batchId} reverify (cycle ${reverifyCycle + 1}/${this.maxReverifyCycles}): ` +
+            `re-enqueued ${failures.length} email(s) for another verification pass`,
+        );
+        this.metrics?.batchPartialFailures
+          ?.labels({ reason: 'reverify' })
+          .inc(failures.length);
+      } catch (e) {
+        this.batchLogger.error(
+          `Reverify enqueue failed for ${batchId} — falling through to UNKNOWN: ${(e as Error).message}`,
+        );
+        // Fall through to the final-failure branch so emails don't get stuck
+        // in PROCESSING forever if the re-enqueue itself blew up.
+        await this.writeFinalFailure(
           batchId,
           userId,
           listId,
-          rows: failRows,
           stride,
-        });
-      } catch (e) {
-        this.batchLogger.error(
-          `db.write failure-batch enqueue failed for ${batchId}: ${(e as Error).message}`,
+          failures,
+          attemptsMade,
+          job.name,
         );
       }
-      for (const f of failures) {
-        try {
-          await this.dlq.push({
-            sourceQueue: VERIFY_BULK_QUEUE,
-            jobName: job.name,
-            userId,
-            payload: { emailId: f.email.id, listId, batchId },
-            errorMessage: f.err.message,
-            attempts: attemptsMade,
-          });
-        } catch (e) {
-          this.batchLogger.warn(
-            `DLQ push failed for ${f.email.id}: ${(e as Error).message}`,
-          );
-        }
-      }
-      this.metrics?.batchPartialFailures
-        ?.labels({ reason: 'final' })
-        .inc(failures.length);
       return;
     }
 
-    await this.emailsService.releaseClaimMany(failures.map((f) => f.email.id));
-    this.metrics?.batchPartialFailures
-      ?.labels({ reason: 'retry' })
-      .inc(failures.length);
-    throw new AggregateError(
-      failures.map((f) => f.err),
-      `Batch ${batchId}: ${failures.length}/${claimed.length} failed`,
+    // Reverify ladder fully exhausted (e.g. 3 cycles × 3 attempts = 9 tries).
+    // Now and only now do we accept UNKNOWN.
+    await this.writeFinalFailure(
+      batchId,
+      userId,
+      listId,
+      stride,
+      failures,
+      attemptsMade,
+      job.name,
     );
+    return;
+  }
+
+  private async writeFinalFailure(
+    batchId: string,
+    userId: string,
+    listId: string,
+    stride: number | undefined,
+    failures: PerEmailFailure[],
+    attemptsMade: number,
+    jobName: string,
+  ): Promise<void> {
+    const failRows: BatchFailureRow[] = failures.map((f) => ({
+      emailId: f.email.id,
+      errorMessage: f.err.message,
+    }));
+    try {
+      await this.dbWrite.enqueueBatch({
+        kind: 'failure-batch',
+        batchId,
+        userId,
+        listId,
+        rows: failRows,
+        stride,
+      });
+    } catch (e) {
+      this.batchLogger.error(
+        `db.write failure-batch enqueue failed for ${batchId}: ${(e as Error).message}`,
+      );
+    }
+    for (const f of failures) {
+      try {
+        await this.dlq.push({
+          sourceQueue: VERIFY_BULK_QUEUE,
+          jobName,
+          userId,
+          payload: { emailId: f.email.id, listId, batchId },
+          errorMessage: f.err.message,
+          attempts: attemptsMade,
+        });
+      } catch (e) {
+        this.batchLogger.warn(
+          `DLQ push failed for ${f.email.id}: ${(e as Error).message}`,
+        );
+      }
+    }
+    this.metrics?.batchPartialFailures
+      ?.labels({ reason: 'final' })
+      .inc(failures.length);
   }
 
   private async flushSuccessStream(
