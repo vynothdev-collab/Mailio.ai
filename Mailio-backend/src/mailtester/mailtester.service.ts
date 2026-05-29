@@ -3,6 +3,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
+import * as http from 'http';
+import * as https from 'https';
 import {
   EmailVerificationProvider,
   ProviderError,
@@ -94,6 +96,8 @@ export class MailTesterService implements EmailVerificationProvider {
         this.httpService.get<RawMailTesterResponse>(`${this.baseUrl}/ninja`, {
           params: { email, key },
           timeout: this.timeout,
+          httpAgent: new http.Agent({ family: 4, keepAlive: true }),
+          httpsAgent: new https.Agent({ family: 4, keepAlive: true }),
         }),
       );
       const normalized = this.normalize(email, data);
@@ -108,6 +112,18 @@ export class MailTesterService implements EmailVerificationProvider {
 
   private classifyError(e: unknown): ProviderError {
     const err = e as AxiosError<{ message?: string }>;
+
+    this.logger.error('Provider Error Details:', {
+      name: err?.name,
+      code: err?.code,
+      message: err?.message,
+      status: err?.response?.status,
+      statusText: err?.response?.statusText,
+      data: err?.response?.data,
+      url: err?.config?.url,
+      params: err?.config?.params as unknown,
+    });
+
     const status = err.response?.status;
     const body = err.response?.data;
     const msg = body?.message || err.message || 'Unknown error';
