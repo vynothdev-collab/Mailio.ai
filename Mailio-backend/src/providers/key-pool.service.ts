@@ -155,58 +155,18 @@ export class KeyPoolService {
     keyId: string,
     kind: ProviderErrorKind,
     message: string,
-    retryAfterMs?: number,
+    _retryAfterMs?: number,
   ): Promise<void> {
     const key = await this.repo.findOne({ where: { id: keyId } });
     if (!key) return;
 
-    const DEFAULT_RATE_LIMIT_COOLDOWN_MS = parseInt(
-      process.env.KEY_RATE_LIMIT_COOLDOWN_MS ?? '2000',
-      10,
-    );
-    const RATE_LIMIT_COOLDOWN_MS =
-      retryAfterMs ?? DEFAULT_RATE_LIMIT_COOLDOWN_MS;
-
     const update: Partial<ApiKey> = { lastError: message };
 
-    switch (kind) {
-      case 'rate-limit':
-        update.status = ApiKeyStatus.COOLDOWN;
-        update.cooldownUntil = new Date(Date.now() + RATE_LIMIT_COOLDOWN_MS);
-        break;
-      case 'auth':
-        update.status = ApiKeyStatus.DISABLED;
-        break;
-      case 'server':
-      case 'network':
-        update.failureCount = (key.failureCount ?? 0) + 1;
-        break;
-      case 'bad-request':
-        break;
-    }
-
-    await this.repo.update(keyId, update);
-
-    if (kind === 'server' || kind === 'network' || kind === 'rate-limit') {
+    if (kind === 'server' || kind === 'network') {
+      update.failureCount = (key.failureCount ?? 0) + 1;
       this.dirtyFailureKeys.add(keyId);
     }
 
-    // Mirror cooldownUntil into the in-memory snapshot immediately so that
-    // subsequent acquireKey calls stop hammering a key that just returned 429.
-    // Status is intentionally left as ACTIVE in memory — acquireKey already
-    // gates on cooldownUntil > now, so the key self-heals once the cooldown
-    // timestamp passes without needing a snapshot reload.
-    if (update.cooldownUntil) {
-      const snaps = this.snapshot.get(key.provider);
-      if (snaps) {
-        const idx = snaps.findIndex((s) => s.id === keyId);
-        if (idx >= 0) {
-          snaps[idx] = {
-            ...snaps[idx],
-            cooldownUntil: update.cooldownUntil.getTime(),
-          };
-        }
-      }
-    }
+    await this.repo.update(keyId, update);
   }
 }
