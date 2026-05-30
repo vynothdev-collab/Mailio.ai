@@ -106,10 +106,10 @@ const TICKETS: Ticket[] = [
     id: "TK-2401", subject: "Delete my account",                      category: "Account",
     status: "Closed",  priority: "Low",    updated: "2w ago",
     created: "Apr 28, 2024 · 3:00 PM", updatedAt: "Apr 28, 2024 · 4:00 PM",
-    description: "I would like to permanently delete my Mailio.ai account and all associated data.",
+    description: "I would like to permanently delete my emailanswers.ai account and all associated data.",
     hasAttachment: false,
     thread: [
-      { role: "user",    label: "You created this ticket", text: "I would like to permanently delete my Mailio.ai account.", time: "Apr 28, 2024 · 3:00 PM", avatar: "DA" },
+      { role: "user",    label: "You created this ticket", text: "I would like to permanently delete my emailanswers.ai account.", time: "Apr 28, 2024 · 3:00 PM", avatar: "DA" },
       { role: "support", label: "Support Agent replied",   text: "We've processed your account deletion request. Your account and all data will be permanently removed within 30 days per our data retention policy.", time: "Apr 28, 2024 · 4:00 PM", avatar: "SA" },
     ],
   },

@@ -16,7 +16,7 @@ import { BulkStatsRow } from "./BulkStatsRow";
 import { VerificationBreakdownCard } from "./VerificationBreakdownCard";
 import { RecentBulkVerificationsTable } from "./RecentBulkVerificationsTable";
 import { PageHeader } from "@/src/components/layout/PageHeader";
-import { BulkVerifySkeleton } from "@/src/components/shared/Skeleton";
+import { BulkVerifyContentSkeleton } from "@/src/components/shared/Skeleton";
 
 const JOBS_PAGE_SIZE = 10;
 
@@ -111,39 +111,41 @@ export function BulkVerifyView() {
     };
   }, [stats]);
 
-  if (refreshing) {
-    return <BulkVerifySkeleton />;
-  }
-
   return (
     <div className="space-y-4">
       <PageHeader
         title="Bulk Email Verification"
         subtitle="Upload a list and verify thousands of emails at once."
         onRefresh={() => void refreshFromUser()}
-        refreshing={loading}
+        refreshing={refreshing || loading}
       />
 
-      <BulkStatsRow stats={stats} loading={loading} />
+      {refreshing ? (
+        <BulkVerifyContentSkeleton />
+      ) : (
+        <>
+          <BulkStatsRow stats={stats} loading={loading} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
-        <div className="lg:col-span-2 space-y-3 md:space-y-4">
-          <UploadCard onUploaded={refetchAfterChange} />
-          <RecentBulkVerificationsTable
-            jobs={jobs}
-            total={jobsTotal}
-            page={jobsPage}
-            pageSize={JOBS_PAGE_SIZE}
-            loading={loading}
-            onPageChange={setJobsPage}
-            onChange={refetchAfterChange}
-          />
-        </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
+            <div className="lg:col-span-2 space-y-3 md:space-y-4">
+              <UploadCard onUploaded={refetchAfterChange} />
+              <RecentBulkVerificationsTable
+                jobs={jobs}
+                total={jobsTotal}
+                page={jobsPage}
+                pageSize={JOBS_PAGE_SIZE}
+                loading={loading}
+                onPageChange={setJobsPage}
+                onChange={refetchAfterChange}
+              />
+            </div>
 
-        <div className="space-y-4">
-          <VerificationBreakdownCard breakdown={breakdown} loading={loading} />
-        </div>
-      </div>
+            <div className="space-y-4">
+              <VerificationBreakdownCard breakdown={breakdown} loading={loading} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

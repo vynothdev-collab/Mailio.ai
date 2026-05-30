@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ComingSoon } from "@/src/components/shared/ComingSoon";
 
 export const metadata: Metadata = {
-  title: "Billing · Mailio.ai",
+  title: "Billing · emailanswers.ai",
   description: "Manage your plan, payment method, and billing history.",
 };
 

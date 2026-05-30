@@ -26,7 +26,7 @@ const SESSIONS: Session[] = [
     date: "Today",
     resolved: false,
     messages: [
-      { from: "agent", text: "Hi there! 👋 Welcome to Mailio.ai support.\nHow can I help you today?",                            time: "10:01 AM" },
+      { from: "agent", text: "Hi there! 👋 Welcome to emailanswers.ai support.\nHow can I help you today?",                            time: "10:01 AM" },
       { from: "user",  text: "Hi, I have a question about bulk verification limits.",                                              time: "10:02 AM" },
       { from: "agent", text: "Sure! On the PRO plan you get 10,000 verifications/month.\nWould you like more details?",           time: "10:02 AM" },
       { from: "user",  text: "Yes please. Can I upgrade anytime?",                                                                time: "10:03 AM" },
@@ -40,7 +40,7 @@ const SESSIONS: Session[] = [
     date: "May 15",
     resolved: true,
     messages: [
-      { from: "agent", text: "Hi there! 👋 Welcome to Mailio.ai support. How can I help you today?", time: "2:10 PM" },
+      { from: "agent", text: "Hi there! 👋 Welcome to emailanswers.ai support. How can I help you today?", time: "2:10 PM" },
       { from: "user",  text: "Hi, I didn't receive my invoice for April billing.",                   time: "2:11 PM" },
       { from: "agent", text: "I've resent the April invoice to your email. You should receive it within a few minutes.",          time: "2:13 PM" },
     ],
@@ -52,7 +52,7 @@ const SESSIONS: Session[] = [
     date: "May 8",
     resolved: true,
     messages: [
-      { from: "agent", text: "Hi there! 👋 Welcome to Mailio.ai support. How can I help you today?",      time: "11:00 AM" },
+      { from: "agent", text: "Hi there! 👋 Welcome to emailanswers.ai support. How can I help you today?",      time: "11:00 AM" },
       { from: "user",  text: "My bulk verification job has been stuck at 0% for over 20 minutes.",         time: "11:01 AM" },
       { from: "agent", text: "The job has completed successfully. Your results are now in the Results tab.", time: "11:06 AM" },
     ],
@@ -64,7 +64,7 @@ const SESSIONS: Session[] = [
     date: "Apr 28",
     resolved: true,
     messages: [
-      { from: "agent", text: "Hi there! 👋 Welcome to Mailio.ai support. How can I help you today?",  time: "9:30 AM" },
+      { from: "agent", text: "Hi there! 👋 Welcome to emailanswers.ai support. How can I help you today?",  time: "9:30 AM" },
       { from: "user",  text: "I reset my password but still can't log in.",                           time: "9:31 AM" },
       { from: "agent", text: "Try logging in via an incognito window — that should clear the issue.", time: "9:32 AM" },
       { from: "user",  text: "That worked! Thank you so much.",                                       time: "9:34 AM" },
@@ -77,7 +77,7 @@ const SESSIONS: Session[] = [
     date: "Apr 20",
     resolved: true,
     messages: [
-      { from: "agent", text: "Hi there! 👋 Welcome to Mailio.ai support. How can I help you today?",           time: "3:00 PM" },
+      { from: "agent", text: "Hi there! 👋 Welcome to emailanswers.ai support. How can I help you today?",           time: "3:00 PM" },
       { from: "user",  text: "How do I export my verification results to CSV?",                                 time: "3:01 PM" },
       { from: "agent", text: "Go to Results, find your job, and click the Download button. The CSV includes all status columns.", time: "3:02 PM" },
     ],

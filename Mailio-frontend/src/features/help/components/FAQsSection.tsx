@@ -94,7 +94,7 @@ export function FAQsSection() {
       <div className="rounded-2xl border border-[#DCE6F3] bg-white shadow-sm px-5 sm:px-6 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
         <div className="flex-1 min-w-0">
           <h2 className="text-base sm:text-lg font-bold text-[#111827]">Frequently Asked Questions</h2>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Find quick answers to common questions about Mailio.ai.</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Find quick answers to common questions about emailanswers.ai.</p>
         </div>
         <div className="relative sm:w-72 shrink-0">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />

@@ -87,11 +87,9 @@ function MiniStatSkeleton() {
   );
 }
 
-export function BulkVerifySkeleton() {
+export function BulkVerifyContentSkeleton() {
   return (
     <div className="space-y-4">
-      <HeaderSkeleton />
-
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => <MiniStatSkeleton key={i} />)}
       </div>
@@ -109,34 +107,48 @@ export function BulkVerifySkeleton() {
   );
 }
 
+export function BulkVerifySkeleton() {
+  return (
+    <div className="space-y-4">
+      <HeaderSkeleton />
+      <BulkVerifyContentSkeleton />
+    </div>
+  );
+}
+
+export function SingleVerifyContentSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+      <div className="space-y-4 lg:col-span-2">
+        <CardBlock />
+        <TableSkeleton />
+      </div>
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-[#DCE6F3] bg-white p-5 space-y-3">
+          <Skeleton className="h-5 w-40" />
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-2xl bg-[#F4F8FF] p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-6 w-6 rounded-md" />
+                </div>
+                <Skeleton className="h-7 w-16" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <Skeleton className="h-28 w-full rounded-2xl" />
+      </div>
+    </div>
+  );
+}
+
 export function SingleVerifySkeleton() {
   return (
     <div className="space-y-5">
       <HeaderSkeleton />
-
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          <CardBlock />
-          <TableSkeleton />
-        </div>
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-[#DCE6F3] bg-white p-5 space-y-3">
-            <Skeleton className="h-5 w-40" />
-            <div className="grid grid-cols-2 gap-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="rounded-2xl bg-[#F4F8FF] p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <Skeleton className="h-3 w-20" />
-                    <Skeleton className="h-6 w-6 rounded-md" />
-                  </div>
-                  <Skeleton className="h-7 w-16" />
-                </div>
-              ))}
-            </div>
-          </div>
-          <Skeleton className="h-28 w-full rounded-2xl" />
-        </div>
-      </div>
+      <SingleVerifyContentSkeleton />
     </div>
   );
 }
@@ -200,11 +212,9 @@ export function SettingsSkeleton() {
   );
 }
 
-export function DashboardSkeleton() {
+export function DashboardContentSkeleton() {
   return (
     <div className="space-y-4 md:space-y-5">
-      <HeaderSkeleton />
-
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-5">
         {Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)}
       </div>
@@ -218,6 +228,15 @@ export function DashboardSkeleton() {
       </div>
 
       <TableSkeleton />
+    </div>
+  );
+}
+
+export function DashboardSkeleton() {
+  return (
+    <div className="space-y-4 md:space-y-5">
+      <HeaderSkeleton />
+      <DashboardContentSkeleton />
     </div>
   );
 }

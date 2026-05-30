@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useDashboardData } from "../hooks/useDashboardData";
-import { DashboardSkeleton } from "@/src/components/shared/Skeleton";
+import { DashboardContentSkeleton } from "@/src/components/shared/Skeleton";
 import { StatsGrid }                  from "./StatsGrid";
 import { BulkVerifyCard }             from "./BulkVerifyCard";
 import { SingleVerifyCard }           from "./SingleVerifyCard";
@@ -39,48 +39,39 @@ export function DashboardView() {
     setTableRefreshKey((k) => k + 1);
   }, [silentReload]);
 
-  if ((loading && !data) || (refreshing && !data)) return <DashboardSkeleton />;
-
-  if (error || !data) {
-    return (
-      <div className="space-y-5">
-        <PageHeader
-          title="Email Verification Dashboard"
-          subtitle="Clean your lists, reduce bounce rates, and improve deliverability before every outreach."
-          onRefresh={refresh}
-          refreshing={refreshing}
-        />
-        <ErrorBanner message={error ?? "Unknown error"} onRetry={refresh} />
-      </div>
-    );
-  }
-
-  const { stats, chartData, chartTotal } = data;
-
-  if (refreshing) {
-    return <DashboardSkeleton />;
-  }
+  const handleRefresh = useCallback(() => {
+    refresh();
+    setTableRefreshKey((k) => k + 1);
+  }, [refresh]);
 
   return (
     <div className="space-y-4 md:space-y-5">
       <PageHeader
         title="Email Verification Dashboard"
         subtitle="Clean your lists, reduce bounce rates, and improve deliverability before every outreach."
-        onRefresh={refresh}
-        refreshing={refreshing}
+        onRefresh={handleRefresh}
+        refreshing={refreshing || loading}
       />
 
-      <StatsGrid stats={stats} loading={false} />
+      {error && !data ? (
+        <ErrorBanner message={error ?? "Unknown error"} onRetry={handleRefresh} />
+      ) : (loading && !data) || (refreshing && !data) || refreshing || !data ? (
+        <DashboardContentSkeleton />
+      ) : (
+        <>
+          <StatsGrid stats={data.stats} loading={false} />
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
-        <BulkVerifyCard onUploaded={handleVerified} />
-        <SingleVerifyCard onVerified={handleVerified} />
-        <div className="md:col-span-2 lg:col-span-1">
-          <ResultsOverview data={chartData} total={chartTotal} />
-        </div>
-      </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
+            <BulkVerifyCard onUploaded={handleVerified} />
+            <SingleVerifyCard onVerified={handleVerified} />
+            <div className="md:col-span-2 lg:col-span-1">
+              <ResultsOverview data={data.chartData} total={data.chartTotal} />
+            </div>
+          </div>
 
-      <RecentVerificationsTable onDeleted={silentReload} refreshKey={tableRefreshKey} />
+          <RecentVerificationsTable onDeleted={silentReload} refreshKey={tableRefreshKey} />
+        </>
+      )}
     </div>
   );
 }

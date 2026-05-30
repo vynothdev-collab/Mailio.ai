@@ -3,8 +3,8 @@ import { AuthShell } from "@/src/features/auth/components/AuthShell";
 import { SignupForm } from "@/src/features/auth/components/SignupForm";
 
 export const metadata: Metadata = {
-  title: "Create account · Mailio.ai",
-  description: "Create a free Mailio.ai account.",
+  title: "Create account · emailanswers.ai",
+  description: "Create a free emailanswers.ai account.",
 };
 
 export default function SignupPage() {

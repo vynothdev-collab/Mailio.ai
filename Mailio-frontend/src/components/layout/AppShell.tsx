@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useRef } from "react";
 import { Sidebar } from "./Sidebar";
 import { Navbar } from "./Navbar";
 import { MobileMenuContext } from "./mobile-menu-context";
+import { FloatingChatbot } from "@/src/components/common/FloatingChatbot";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -41,6 +42,7 @@ export function AppShell({ children }: AppShellProps) {
             {children}
           </main>
         </div>
+        <FloatingChatbot />
       </div>
     </MobileMenuContext.Provider>
   );
