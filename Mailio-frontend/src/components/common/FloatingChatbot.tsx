@@ -5,6 +5,7 @@ import { Send, X } from "lucide-react";
 
 export function FloatingChatbot() {
   const [open, setOpen] = useState(false);
+  const [showGreeting, setShowGreeting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -13,12 +14,24 @@ export function FloatingChatbot() {
     return () => document.removeEventListener("keydown", onEsc);
   }, [open]);
 
+  useEffect(() => {
+    if (open) return;
+    const t = window.setTimeout(() => setShowGreeting(true), 1500);
+    return () => window.clearTimeout(t);
+  }, [open]);
+
   return (
     <>
+      {showGreeting && !open && (
+        <div className="fixed bottom-7 right-[72px] z-[60] flex animate-in fade-in slide-in-from-right-2 items-center gap-1.5 rounded-full bg-[#0F5BFF] px-3.5 py-2 text-xs font-medium text-white shadow-lg shadow-black/10 ring-1 ring-[#DCE6F3] sm:bottom-8 sm:right-[76px]">
+          <span>Need a hand? I'm here!</span>
+        </div>
+      )}
+
       <button
         type="button"
         aria-label={open ? "Close chatbot" : "Open chatbot"}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => { setOpen((v) => !v); setShowGreeting(false); }}
         className="group fixed bottom-5 right-5 z-[60] flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#2356F6] to-[#0F5BFF] text-white shadow-lg shadow-[#2356F6]/30 transition-all duration-200 hover:scale-110 hover:shadow-xl hover:shadow-[#2356F6]/40 active:scale-95 sm:h-12 sm:w-12"
       >
         {open
