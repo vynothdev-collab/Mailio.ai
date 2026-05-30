@@ -34,7 +34,7 @@ export default function RootLayout({
     >
       <body className="h-full antialiased">
         <Providers>{children}</Providers>
-        <Toaster position="bottom-right" richColors />
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );

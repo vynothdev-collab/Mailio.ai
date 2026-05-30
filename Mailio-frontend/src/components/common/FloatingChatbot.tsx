@@ -59,10 +59,10 @@ export function FloatingChatbot() {
               <img src="/auth-brand.svg" alt="emailanswers.ai" className="h-7 w-auto" />
             </div>
             <h2 className="mt-3 text-center text-lg font-bold tracking-tight">
-              We&apos;ll be right with you
+              AI support is rolling out soon <br/> Leave us a message!
             </h2>
             <p className="mt-1 text-center text-xs text-white/85">
-              AI support is rolling out soon. Leave us a message!
+              We&apos;ll be right with you
             </p>
           </div>
 
