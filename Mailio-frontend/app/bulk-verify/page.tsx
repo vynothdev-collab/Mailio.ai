@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { BulkVerifyView } from "@/src/features/bulk-verify/components/BulkVerifyView";
+import { Suspense } from "react";
+import { BulkVerifyPageClient } from "./BulkVerifyPageClient";
 
 export const metadata: Metadata = {
   title: "Bulk Verify · emailanswers.ai",
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function BulkVerifyPage() {
-  return <BulkVerifyView />;
+  return (
+    <Suspense fallback={null}>
+      <BulkVerifyPageClient />
+    </Suspense>
+  );
 }

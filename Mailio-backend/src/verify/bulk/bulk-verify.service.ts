@@ -65,6 +65,9 @@ export class BulkVerifyService {
   async getActive(userId: string) {
     const list = await this.emailListsService.findActiveJob(userId);
     if (!list) return null;
+    if (list.totalCount > 0 && list.processedCount >= list.totalCount) {
+      return null;
+    }
     return this.toActiveJob(list);
   }
 
@@ -368,9 +371,15 @@ export class BulkVerifyService {
   }
 
   private toActiveJob(list: EmailList) {
+    const done =
+      list.totalCount > 0 && list.processedCount >= list.totalCount;
+    const status = done
+      ? EmailListStatus.COMPLETED
+      : list.status;
     return {
       jobId: list.id,
       fileName: list.originalFilename ?? list.name,
+      status: status.toLowerCase(),
       progress:
         list.totalCount > 0
           ? Math.round((list.processedCount / list.totalCount) * 100)

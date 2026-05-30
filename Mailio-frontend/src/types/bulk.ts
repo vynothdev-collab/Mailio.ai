@@ -11,6 +11,7 @@ export interface BulkUploadResponse {
 export interface BulkActiveJobDto {
   jobId:          string;
   fileName:       string;
+  status:         BulkJobStatus;
   progress:       number;
   processedCount: number;
   totalCount:     number;

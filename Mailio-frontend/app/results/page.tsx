@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { ComingSoon } from "@/src/components/shared/ComingSoon";
+import { ResultsPageClient } from "./ResultsPageClient";
 
 export const metadata: Metadata = {
   title: "Results · emailanswers.ai",
@@ -7,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function ResultsPage() {
-  return <ComingSoon description="We're building something amazing." />;
+  return (
+    <Suspense fallback={<ComingSoon description="Loading results…" />}>
+      <ResultsPageClient />
+    </Suspense>
+  );
 }

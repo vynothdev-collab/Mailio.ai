@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
-  Bell, ChevronDown, HelpCircle, Loader2, LogOut, RefreshCw, User,
+  ArrowLeft, Bell, ChevronDown, HelpCircle, Loader2, LogOut, RefreshCw, User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/src/lib/utils";
@@ -113,9 +113,18 @@ interface PageHeaderProps {
   subtitle?: string;
   onRefresh?: () => void;
   refreshing?: boolean;
+  backHref?: string;
+  backLabel?: string;
 }
 
-export function PageHeader({ title, subtitle, onRefresh, refreshing = false }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  subtitle,
+  onRefresh,
+  refreshing = false,
+  backHref,
+  backLabel = "Back",
+}: PageHeaderProps) {
   const mobileMenu = useMobileMenu();
   useEffect(() => {
     if (!mobileMenu) return;
@@ -124,9 +133,20 @@ export function PageHeader({ title, subtitle, onRefresh, refreshing = false }: P
   return (
     <div className="sticky top-0 z-30 -mx-4 flex flex-col gap-3 border-b border-[#DCE6F3] bg-[#EEF3FB] px-4 py-3 lg:-mx-6 lg:flex-row lg:items-start lg:justify-between lg:px-6 lg:py-4">
       <div className="order-2 min-w-0 flex-1 lg:order-1">
-        <h1 className="text-base font-bold tracking-tight text-[#111827] sm:text-xl lg:text-2xl">
-          {title}
-        </h1>
+        <div className="flex items-center gap-2">
+          {backHref && (
+            <Link
+              href={backHref}
+              aria-label={backLabel}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#DCE6F3] bg-white text-[#161514] hover:bg-[#F4F8FF] transition-colors"
+            >
+              <ArrowLeft size={14} />
+            </Link>
+          )}
+          <h1 className="truncate text-base font-bold tracking-tight text-[#111827] sm:text-xl lg:text-2xl">
+            {title}
+          </h1>
+        </div>
         {subtitle && (
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
         )}

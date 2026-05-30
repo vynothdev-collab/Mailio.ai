@@ -5,7 +5,6 @@ import { VerificationProvider, useVerificationHistory } from "@/src/context/Veri
 import { useSingleVerify } from "../hooks/useSingleVerify";
 import { EmailInputCard }                  from "./EmailInputCard";
 import { VerificationResultCard }          from "./VerificationResultCard";
-import { ResultBreakdownCard }             from "./ResultBreakdownCard";
 import { VerificationSummaryCard }         from "./VerificationSummaryCard";
 import { RecentSingleVerificationsTable }  from "./RecentSingleVerificationsTable";
 import { ProTipCard }                      from "./ProTipCard";
@@ -51,12 +50,7 @@ function SingleVerifyContent() {
           <div className="lg:col-span-2 space-y-4">
             <EmailInputCard onVerify={handleVerify} isLoading={isLoading} />
 
-            {result && (
-              <>
-                <VerificationResultCard result={result} />
-                <ResultBreakdownCard checks={result.checks} />
-              </>
-            )}
+            {result && <VerificationResultCard result={result} />}
 
             <RecentSingleVerificationsTable
               refreshKey={refreshKey}
