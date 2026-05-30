@@ -84,11 +84,11 @@ const TICKETS: Ticket[] = [
     id: "TK-2422", subject: "Need help understanding results",        category: "Bulk Verification",
     status: "Closed",  priority: "Medium", updated: "1w ago",
     created: "May 6, 2024 · 1:00 PM", updatedAt: "May 6, 2024 · 2:30 PM",
-    description: "What does the RISKY status mean for emails in my bulk verification results?",
+    description: "What does the CATCHALL status mean for emails in my bulk verification results?",
     hasAttachment: false,
     thread: [
-      { role: "user",    label: "You created this ticket", text: "What does the RISKY status mean in my bulk results?", time: "May 6, 2024 · 1:00 PM", avatar: "DA" },
-      { role: "support", label: "Support Agent replied",   text: "RISKY emails belong to catch-all domains. The server accepts all mail so the exact mailbox existence can't be confirmed. These are safe to send to but may have higher bounce rates.", time: "May 6, 2024 · 2:30 PM", avatar: "SA" },
+      { role: "user",    label: "You created this ticket", text: "What does the CATCHALL status mean in my bulk results?", time: "May 6, 2024 · 1:00 PM", avatar: "DA" },
+      { role: "support", label: "Support Agent replied",   text: "CATCHALL emails belong to catch-all domains. The server accepts all mail so the exact mailbox existence can't be confirmed. These are safe to send to but may have higher bounce rates.", time: "May 6, 2024 · 2:30 PM", avatar: "SA" },
     ],
   },
   {

@@ -22,7 +22,7 @@ const DEFAULT_FILTERS: ResultsFilters = {
   pageSize: 10,
 };
 
-const EMPTY_STATS = { total: 0, valid: 0, invalid: 0, risky: 0 };
+const EMPTY_STATS = { total: 0, valid: 0, invalid: 0, catchall: 0 };
 
 function toRecord(row: ResultsRow): ResultRecord {
   return {
@@ -30,7 +30,7 @@ function toRecord(row: ResultsRow): ResultRecord {
     type:       row.type,
     label:      row.label,
     status:     row.status,
-    risk:       row.risk,
+    catchall:   row.catchall,
     verifiedAt: row.verifiedAt,
     bulkJob:    row.bulkJob,
   };

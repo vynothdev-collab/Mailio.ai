@@ -58,8 +58,8 @@ export class EmailList {
   @Column({ name: 'invalid_count', type: 'int', default: 0 })
   invalidCount: number;
 
-  @Column({ name: 'risky_count', type: 'int', default: 0 })
-  riskyCount: number;
+  @Column({ name: 'catchall_count', type: 'int', default: 0 })
+  catchallCount: number;
 
   @Column({ name: 'unknown_count', type: 'int', default: 0 })
   unknownCount: number;

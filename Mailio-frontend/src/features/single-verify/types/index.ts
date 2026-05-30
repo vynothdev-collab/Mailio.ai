@@ -1,5 +1,5 @@
-export type EmailStatus  = "valid" | "invalid" | "risky" | "disposable" | "unknown";
-export type RiskLevel    = "low" | "medium" | "high";
+export type EmailStatus  = "valid" | "invalid" | "catchall" | "disposable" | "unknown";
+export type CatchallLevel = "low" | "medium" | "high";
 export type CheckStatus  = "pass" | "fail" | "warning" | "info";
 
 export interface CheckItem {
@@ -25,7 +25,7 @@ export interface RecentVerification {
   id:         string;
   email:      string;
   status:     EmailStatus;
-  risk:       RiskLevel;
+  catchall:   CatchallLevel;
   verifiedAt: string;
 }
 

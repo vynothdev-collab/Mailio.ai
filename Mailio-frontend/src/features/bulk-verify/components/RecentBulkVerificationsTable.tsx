@@ -148,7 +148,7 @@ export function RecentBulkVerificationsTable({
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-[#DCE6F3]">
-                {["File", "Total", "Status", "Valid", "Invalid", "Risky", "Actions"].map((h) => (
+                {["File", "Total", "Status", "Valid", "Invalid", "Catchall", "Actions"].map((h) => (
                   <th key={h} className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">
                     {h}
                   </th>
@@ -196,7 +196,7 @@ export function RecentBulkVerificationsTable({
                       </td>
                       <td className="px-3 py-3 font-bold tabular-nums text-emerald-600"><NumCell val={job.valid} /></td>
                       <td className="px-3 py-3 font-bold tabular-nums text-red-500"><NumCell val={job.invalid} /></td>
-                      <td className="px-3 py-3 font-bold tabular-nums text-amber-500"><NumCell val={job.risky} /></td>
+                      <td className="px-3 py-3 font-bold tabular-nums text-amber-500"><NumCell val={job.catchall} /></td>
                       <td className="px-3 py-3">
                         <button
                           type="button"

@@ -5,8 +5,8 @@ import type { VerificationResponse } from "@/src/types/verification";
 export interface SingleRecentItem {
   id:         string;
   email:      string;
-  status:     "valid" | "invalid" | "risky" | "unknown";
-  risk:       "low" | "medium" | "high" | "unknown";
+  status:     "valid" | "invalid" | "catchall" | "unknown";
+  catchall:   "low" | "medium" | "high" | "unknown";
   verifiedAt: string;
 }
 
@@ -23,7 +23,7 @@ export interface SingleStatsDto {
   apiUsage:      number;
   avgResponseMs: number;
   invalidRate?:  number;
-  riskRate?:     number;
+  catchallRate?: number;
   changes: {
     todayCount:    string;
     successRate:   string;

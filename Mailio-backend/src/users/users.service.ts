@@ -25,7 +25,7 @@ export interface UserStats {
   totalEmails: number;
   validCount: number;
   invalidCount: number;
-  riskyCount: number;
+  catchallCount: number;
   unknownCount: number;
   listsCount: number;
 }
@@ -177,7 +177,7 @@ export class UsersService {
          COUNT(e.id)::int                                              AS "totalEmails",
          COUNT(e.id) FILTER (WHERE e.verification_result = 'VALID')::int    AS "validCount",
          COUNT(e.id) FILTER (WHERE e.verification_result = 'INVALID')::int  AS "invalidCount",
-         COUNT(e.id) FILTER (WHERE e.verification_result = 'RISKY')::int    AS "riskyCount",
+         COUNT(e.id) FILTER (WHERE e.verification_result = 'CATCHALL')::int    AS "catchallCount",
          COUNT(e.id) FILTER (WHERE e.verification_result = 'UNKNOWN')::int  AS "unknownCount",
          COUNT(DISTINCT el.id)::int                                   AS "listsCount"
        FROM users u

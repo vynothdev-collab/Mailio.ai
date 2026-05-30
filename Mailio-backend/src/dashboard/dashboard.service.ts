@@ -18,7 +18,7 @@ const PLAN_LIMITS: Record<Plan, number> = {
 const CHART_COLORS = {
   [VerificationResult.VALID]: '#22c55e',
   [VerificationResult.INVALID]: '#ef4444',
-  [VerificationResult.RISKY]: '#f59e0b',
+  [VerificationResult.CATCHALL]: '#f59e0b',
   [VerificationResult.UNKNOWN]: '#6b7280',
 };
 
@@ -49,8 +49,8 @@ export class DashboardService {
     const currentInvalid = currentPeriod.filter(
       (e) => e.verificationResult === VerificationResult.INVALID,
     ).length;
-    const currentRisky = currentPeriod.filter(
-      (e) => e.verificationResult === VerificationResult.RISKY,
+    const currentCatchall = currentPeriod.filter(
+      (e) => e.verificationResult === VerificationResult.CATCHALL,
     ).length;
     const currentTotal = currentPeriod.length;
 
@@ -61,7 +61,7 @@ export class DashboardService {
       totalVerified: allTime,
       validRate: pct(currentValid),
       invalidRate: pct(currentInvalid),
-      riskyRate: pct(currentRisky),
+      catchallRate: pct(currentCatchall),
     };
   }
 
@@ -96,7 +96,7 @@ export class DashboardService {
       startedAt: list.startedAt,
       valid: list.validCount,
       invalid: list.invalidCount,
-      risky: list.riskyCount,
+      catchall: list.catchallCount,
       disposable: list.disposableCount,
     };
   }
@@ -291,7 +291,7 @@ export class DashboardService {
     const counts: Record<string, number> = {
       [VerificationResult.VALID]: 0,
       [VerificationResult.INVALID]: 0,
-      [VerificationResult.RISKY]: 0,
+      [VerificationResult.CATCHALL]: 0,
       [VerificationResult.UNKNOWN]: 0,
     };
 
@@ -317,10 +317,10 @@ export class DashboardService {
           color: CHART_COLORS[VerificationResult.INVALID],
         },
         {
-          name: 'Risky',
-          value: counts[VerificationResult.RISKY],
-          percentage: pct(counts[VerificationResult.RISKY]),
-          color: CHART_COLORS[VerificationResult.RISKY],
+          name: 'Catchall',
+          value: counts[VerificationResult.CATCHALL],
+          percentage: pct(counts[VerificationResult.CATCHALL]),
+          color: CHART_COLORS[VerificationResult.CATCHALL],
         },
         {
           name: 'Unknown',

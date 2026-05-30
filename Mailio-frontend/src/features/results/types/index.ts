@@ -1,15 +1,15 @@
 import type { BulkJobDto } from "@/src/types/bulk";
 
 export type ResultType   = "single" | "bulk";
-export type EmailStatus  = "valid" | "invalid" | "risky";
-export type RiskLevel    = "low" | "medium" | "high" | null;
+export type EmailStatus  = "valid" | "invalid" | "catchall";
+export type CatchallLevel = "low" | "medium" | "high" | null;
 
 export interface ResultRecord {
   id:           string;
   type:         ResultType;
   label:        string;
   status:       EmailStatus;
-  risk:         RiskLevel;
+  catchall:     CatchallLevel;
   verifiedAt:   string;
   bulkJob?:     BulkJobDto;
 }

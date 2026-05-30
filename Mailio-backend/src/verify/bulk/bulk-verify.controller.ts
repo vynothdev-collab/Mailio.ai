@@ -47,7 +47,7 @@ const JOB_SCHEMA = {
     processedCount: { type: 'number', example: 1200 },
     validCount: { type: 'number', example: 900 },
     invalidCount: { type: 'number', example: 200 },
-    riskyCount: { type: 'number', example: 70 },
+    catchallCount: { type: 'number', example: 70 },
     unknownCount: { type: 'number', example: 30 },
     createdAt: { type: 'string', format: 'date-time' },
   },
@@ -222,7 +222,7 @@ export class BulkVerifyController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Aggregated valid / invalid / risky / unknown counts',
+    description: 'Aggregated valid / invalid / catchall / unknown counts',
     schema: {
       type: 'object',
       properties: {

@@ -23,9 +23,9 @@ interface VerificationContextValue {
 const VerificationContext = createContext<VerificationContextValue | null>(null);
 
 function toRecent(result: VerificationResult): RecentVerification {
-  const risk: RecentVerification["risk"] =
+  const catchall: RecentVerification["catchall"] =
     result.status === "valid"     ? "low"
-  : result.status === "risky"     ||
+  : result.status === "catchall"     ||
     result.status === "unknown"   ? "medium"
                                   : "high";
 
@@ -33,7 +33,7 @@ function toRecent(result: VerificationResult): RecentVerification {
     id:         result.id ?? `${result.email}-${result.verifiedAt}`,
     email:      result.email,
     status:     result.status,
-    risk,
+    catchall,
     verifiedAt: result.verifiedAt,
   };
 }

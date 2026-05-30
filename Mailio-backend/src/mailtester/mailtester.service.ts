@@ -176,7 +176,7 @@ export class MailTesterService implements EmailVerificationProvider {
     let catch_all: boolean | null = false;
 
     if (code === 'mb') {
-      result = 'risky';
+      result = 'catchall';
       catch_all = null;
     } else {
       switch (message) {
@@ -185,13 +185,13 @@ export class MailTesterService implements EmailVerificationProvider {
           smtp_check = true;
           break;
         case 'Catch-All':
-          result = 'risky';
+          result = 'catchall';
           smtp_check = true;
           catch_all = true;
           break;
         case 'Limited':
         case 'SPAM Block':
-          result = 'risky';
+          result = 'catchall';
           smtp_check = true;
           break;
         case 'Rejected':
@@ -204,7 +204,7 @@ export class MailTesterService implements EmailVerificationProvider {
           mx_found = false;
           break;
         case 'Timeout':
-          result = 'risky';
+          result = 'catchall';
           catch_all = null;
           break;
         default:
@@ -214,7 +214,7 @@ export class MailTesterService implements EmailVerificationProvider {
           } else if (code === 'ko') {
             result = 'invalid';
           } else {
-            result = 'risky';
+            result = 'catchall';
             catch_all = null;
           }
       }
@@ -248,7 +248,7 @@ export class MailTesterService implements EmailVerificationProvider {
       case 'valid':
         base = 95;
         break;
-      case 'risky':
+      case 'catchall':
         base = 55;
         break;
       case 'invalid':

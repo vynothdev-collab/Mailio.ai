@@ -54,17 +54,17 @@ function mapStats(res: DashboardStatsResponse): StatItem[] {
       id:           "invalid-rate",
       label:        "Invalid Rate",
       value:        formatPercent(res.invalidRate ?? 0),
-      change:       parseChange(c.riskyEmails),
+      change:       parseChange(c.catchallEmails),
       changePeriod: "hard bounces blocked",
       iconName:     "AlertTriangle",
       iconColor:    "text-red-500",
       iconBgColor:  "bg-red-50",
     },
     {
-      id:           "risk-rate",
-      label:        "Risk Rate",
-      value:        formatPercent(res.riskyRate ?? 0),
-      change:       parseChange(c.riskyRate),
+      id:           "catchall-rate",
+      label:        "Catchall Rate",
+      value:        formatPercent(res.catchallRate ?? 0),
+      change:       parseChange(c.catchallRate),
       changePeriod: "hard bounces blocked",
       iconName:     "AlertTriangle",
       iconColor:    "text-amber-600",
@@ -73,7 +73,7 @@ function mapStats(res: DashboardStatsResponse): StatItem[] {
   ];
 }
 
-const VISIBLE_BUCKETS = new Set(["Valid", "Invalid", "Risky"]);
+const VISIBLE_BUCKETS = new Set(["Valid", "Invalid", "Catchall"]);
 
 function mapChart(res: DashboardChartResponse): ChartDataPoint[] {
   return res.data
@@ -99,7 +99,7 @@ function mapActiveJob(job: BulkActiveJobDto | null): ActiveVerification | null {
       : "—",
     valid:          job.valid,
     invalid:        job.invalid,
-    risky:          job.risky,
+    catchall:          job.catchall,
     disposable:     job.disposable,
   };
 }

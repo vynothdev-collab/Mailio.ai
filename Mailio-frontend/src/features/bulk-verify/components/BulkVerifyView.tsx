@@ -98,15 +98,15 @@ export function BulkVerifyView() {
     if (!stats) return null;
     const valid = stats.successCount ?? 0;
     const invalid = stats.invalidCount ?? 0;
-    const risky = stats.riskCount ?? 0;
-    const total = valid + invalid + risky;
+    const catchall = stats.catchallCount ?? 0;
+    const total = valid + invalid + catchall;
     if (total === 0) return { data: [], total: 0 };
     return {
       total,
       data: [
         { name: "Valid",   value: valid,   percentage: (valid / total) * 100,   color: "#22c55e" },
         { name: "Invalid", value: invalid, percentage: (invalid / total) * 100, color: "#ef4444" },
-        { name: "Risky",   value: risky,   percentage: (risky / total) * 100,   color: "#f59e0b" },
+        { name: "Catchall",   value: catchall,   percentage: (catchall / total) * 100,   color: "#f59e0b" },
       ],
     };
   }, [stats]);

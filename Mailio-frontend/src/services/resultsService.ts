@@ -1,8 +1,8 @@
 import { api } from "./api";
 import type { BulkJobDto } from "@/src/types/bulk";
 
-type ResultsRowStatus = "valid" | "invalid" | "risky";
-type ResultsRiskLevel = "low" | "medium" | "high" | null;
+type ResultsRowStatus = "valid" | "invalid" | "catchall";
+type ResultsCatchallLevel = "low" | "medium" | "high" | null;
 type ResultsTypeFilter   = "all" | "single" | "bulk";
 type ResultsStatusFilter = "all" | ResultsRowStatus;
 
@@ -11,7 +11,7 @@ export interface ResultsRow {
   type:       "single" | "bulk";
   label:      string;
   status:     ResultsRowStatus;
-  risk:       ResultsRiskLevel;
+  catchall:   ResultsCatchallLevel;
   verifiedAt: string;
   bulkJob?:   BulkJobDto;
 }
@@ -20,7 +20,7 @@ export interface ResultsStats {
   total:   number;
   valid:   number;
   invalid: number;
-  risky:   number;
+  catchall:   number;
 }
 
 export interface ResultsResponse {

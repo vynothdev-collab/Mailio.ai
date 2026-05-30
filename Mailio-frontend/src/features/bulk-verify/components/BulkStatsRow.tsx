@@ -82,9 +82,9 @@ function buildTiles(s: BulkStatsDto): Tile[] {
       iconBg: "bg-[#FCE6E6]",
     },
     {
-      id:     "risk",
-      label:  "Risk Count",
-      value:  (s.riskCount ?? 0).toLocaleString(),
+      id:     "catchall",
+      label:  "Catchall Count",
+      value:  (s.catchallCount ?? 0).toLocaleString(),
       icon:   <WarningTriangleIcon color="#E89B1A" />,
       iconBg: "bg-[#FDEFD3]",
     },

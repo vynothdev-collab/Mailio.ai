@@ -37,7 +37,7 @@ export class DashboardController {
         totalVerified: { type: 'number', example: 8400 },
         validRate: { type: 'number', example: 78.5 },
         invalidRate: { type: 'number', example: 14.2 },
-        riskyRate: { type: 'number', example: 5.6 },
+        catchallRate: { type: 'number', example: 5.6 },
         avgResponseMs: { type: 'number', example: 820 },
         changes: {
           type: 'object',
@@ -206,7 +206,7 @@ export class DashboardController {
               date: { type: 'string', example: '2026-05-07' },
               valid: { type: 'number', example: 120 },
               invalid: { type: 'number', example: 30 },
-              risky: { type: 'number', example: 12 },
+              catchall: { type: 'number', example: 12 },
               unknown: { type: 'number', example: 5 },
             },
           },
@@ -216,7 +216,7 @@ export class DashboardController {
           properties: {
             valid: { type: 'string', example: '#22c55e' },
             invalid: { type: 'string', example: '#ef4444' },
-            risky: { type: 'string', example: '#f59e0b' },
+            catchall: { type: 'string', example: '#f59e0b' },
             unknown: { type: 'string', example: '#6b7280' },
           },
         },

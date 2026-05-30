@@ -9,7 +9,7 @@ const STATUS_OPTIONS: { label: string; value: StatusFilter }[] = [
   { label: "All",     value: "all"     },
   { label: "Valid",   value: "valid"   },
   { label: "Invalid", value: "invalid" },
-  { label: "Risky",   value: "risky"   },
+  { label: "Catchall",   value: "catchall"   },
 ];
 
 const TYPE_OPTIONS: { label: string; value: TypeFilter }[] = [

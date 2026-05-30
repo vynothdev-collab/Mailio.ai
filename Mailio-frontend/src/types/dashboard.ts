@@ -2,16 +2,16 @@ interface DashboardChanges {
   totalVerified?: string;
   validRate?:     string;
   avgResponseMs?: string;
-  riskyEmails?:   string;
-  riskyRate?:     string;
+  catchallEmails?:   string;
+  catchallRate?:     string;
 }
 
 export interface DashboardStatsResponse {
   totalVerified: number;
   validRate:     number;
   invalidRate?:  number;
-  riskyRate?:    number;
-  riskyEmails?:  number;
+  catchallRate?:    number;
+  catchallEmails?:  number;
   avgResponseMs?: number;
   changes?:      DashboardChanges;
 }

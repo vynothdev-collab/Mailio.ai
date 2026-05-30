@@ -13,13 +13,13 @@ const BOT_REPLIES: Record<string, string> = {
   "What counts as a valid email?":           "An email is VALID when it passes syntax, MX-record, SMTP, and mailbox checks — meaning the inbox actually exists.",
   "How do I get my API key?":                "Head to Settings → API Keys, then click Generate Key. Copy it and keep it safe — it won't be shown again.",
   "Why is my verification stuck?":           "Large jobs (10k+) can take a few minutes. Refresh the Results page. If stuck over 10 minutes, contact our Live Chat support.",
-  "What does RISKY status mean?":            "RISKY emails belong to catch-all domains — the domain accepts all mail, so the exact mailbox existence can't be confirmed.",
+  "What does CATCHALL status mean?":            "CATCHALL emails belong to catch-all domains — the domain accepts all mail, so the exact mailbox existence can't be confirmed.",
   "How do I cancel my plan?":                "Go to Billing → Manage Plan and click Cancel Subscription. Your credits remain active until the end of the billing cycle.",
   "Credits":            "Credits are used to perform email verifications. Each verification (single or bulk) consumes 1 credit. You can purchase more from the Billing section.",
   "Billing":            "We accept all major cards and PayPal. Invoices are available under Billing → Invoice History. Upgrades take effect immediately.",
   "API":                "Your API key is under Settings → API Keys. The rate limit is 10 req/s on PRO and 50 req/s on ULTIMATE. Use GET /v1/verify?email=... to verify a single address.",
   "Bulk Verification":  "Upload a .csv or .txt file up to 50 MB. Most jobs finish in 1–5 minutes. Download results as CSV from the Results page.",
-  "Results":            "Results include VALID, INVALID, RISKY, UNKNOWN, and DISPOSABLE statuses. Download the full CSV from Results → your job → Download.",
+  "Results":            "Results include VALID, INVALID, CATCHALL, UNKNOWN, and DISPOSABLE statuses. Download the full CSV from Results → your job → Download.",
   "Integrations":       "emailanswers.ai integrates with Zapier, Make, and any platform that supports REST APIs. See the API docs for webhook setup.",
 };
 const DEFAULT_REPLY = "I'm not sure about that yet! Try rephrasing, or contact our team via Live Chat for detailed help.";

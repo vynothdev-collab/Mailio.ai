@@ -24,7 +24,7 @@ export interface ListDeltas {
   processed: number;
   valid: number;
   invalid: number;
-  risky: number;
+  catchall: number;
   unknown: number;
   disposable: number;
 }
@@ -106,7 +106,7 @@ export class EmailListsService {
     const resultCol = {
       [VerificationResult.VALID]: 'valid_count',
       [VerificationResult.INVALID]: 'invalid_count',
-      [VerificationResult.RISKY]: 'risky_count',
+      [VerificationResult.CATCHALL]: 'catchall_count',
       [VerificationResult.UNKNOWN]: 'unknown_count',
     }[result];
 
@@ -153,7 +153,7 @@ export class EmailListsService {
           SET processed_count  = processed_count  + $2,
               valid_count      = valid_count      + $3,
               invalid_count    = invalid_count    + $4,
-              risky_count      = risky_count      + $5,
+              catchall_count      = catchall_count      + $5,
               unknown_count    = unknown_count    + $6,
               disposable_count = disposable_count + $7,
               status = CASE
@@ -171,7 +171,7 @@ export class EmailListsService {
         d.processed,
         d.valid,
         d.invalid,
-        d.risky,
+        d.catchall,
         d.unknown,
         d.disposable,
       ],
@@ -305,8 +305,8 @@ export class EmailListsService {
     const toStatus = (r: string | null | undefined): string => {
       if (r === VerificationResult.VALID) return 'valid';
       if (r === VerificationResult.INVALID) return 'invalid';
-      if (r === VerificationResult.RISKY) return 'risky';
-      return 'risky';
+      if (r === VerificationResult.CATCHALL) return 'catchall';
+      return 'catchall';
     };
 
     
@@ -336,7 +336,7 @@ export class EmailListsService {
     
     const STATUS_ORDER: Record<string, number> = {
       valid: 0,
-      risky: 1,
+      catchall: 1,
       invalid: 2,
       unknown: 3,
     };

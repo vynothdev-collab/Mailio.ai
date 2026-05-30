@@ -18,7 +18,7 @@ export interface BulkActiveJobDto {
   startedAt:      string | null;
   valid:          number;
   invalid:        number;
-  risky:          number;
+  catchall:          number;
   disposable:     number;
 }
 
@@ -30,7 +30,7 @@ export interface BulkJobDto {
   processedCount: number;
   valid:          number;
   invalid:        number;
-  risky:          number;
+  catchall:          number;
   disposable:     number;
   createdAt:      string;
   completedAt:    string | null;
@@ -51,7 +51,7 @@ export interface BulkStatsDto {
   avgResponseMs:     number;
   successCount?:     number;
   invalidCount?:     number;
-  riskCount?:        number;
+  catchallCount?:    number;
   changes: {
     filesToday:    string;
     completedJobs: string;
@@ -66,7 +66,7 @@ export interface BulkProgressDto {
   etaSeconds:     number;
   valid:          number;
   invalid:        number;
-  risky:          number;
+  catchall:          number;
   disposable:     number;
 }
 

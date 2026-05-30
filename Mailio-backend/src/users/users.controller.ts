@@ -83,7 +83,7 @@ export class UsersController {
         total: { type: 'number', example: 1240 },
         valid: { type: 'number', example: 950 },
         invalid: { type: 'number', example: 180 },
-        risky: { type: 'number', example: 70 },
+        catchall: { type: 'number', example: 70 },
         unknown: { type: 'number', example: 40 },
       },
     },

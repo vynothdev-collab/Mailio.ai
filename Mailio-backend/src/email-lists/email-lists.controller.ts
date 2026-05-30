@@ -49,7 +49,7 @@ const LIST_SCHEMA = {
     processedCount: { type: 'number', example: 5000 },
     validCount: { type: 'number', example: 3900 },
     invalidCount: { type: 'number', example: 700 },
-    riskyCount: { type: 'number', example: 280 },
+    catchallCount: { type: 'number', example: 280 },
     unknownCount: { type: 'number', example: 120 },
     disposableCount: { type: 'number', example: 45 },
     originalFilename: { type: 'string', example: 'leads-q1.csv' },
@@ -235,7 +235,7 @@ export class EmailListsController {
               address: { type: 'string', format: 'email' },
               verificationResult: {
                 type: 'string',
-                enum: ['VALID', 'INVALID', 'RISKY', 'UNKNOWN'],
+                enum: ['VALID', 'INVALID', 'CATCHALL', 'UNKNOWN'],
               },
               score: { type: 'number', example: 88 },
               processedAt: { type: 'string', format: 'date-time' },

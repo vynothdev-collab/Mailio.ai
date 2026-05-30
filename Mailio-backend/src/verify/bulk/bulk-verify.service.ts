@@ -16,7 +16,7 @@ import { VerificationService } from '../../verification/verification.service';
 const CHART_COLORS = {
   valid: '#22c55e',
   invalid: '#ef4444',
-  risky: '#f59e0b',
+  catchall: '#f59e0b',
   disposable: '#8b5cf6',
 };
 
@@ -82,7 +82,7 @@ export class BulkVerifyService {
       etaSeconds,
       valid: list.validCount,
       invalid: list.invalidCount,
-      risky: list.riskyCount + list.unknownCount,
+      catchall: list.catchallCount + list.unknownCount,
       disposable: list.disposableCount,
     };
   }
@@ -108,7 +108,7 @@ export class BulkVerifyService {
       processedCount: l.processedCount,
       valid: l.validCount,
       invalid: l.invalidCount,
-      risky: l.riskyCount + l.unknownCount,
+      catchall: l.catchallCount + l.unknownCount,
       disposable: l.disposableCount,
       createdAt: l.createdAt,
       completedAt: l.status === EmailListStatus.COMPLETED ? l.updatedAt : null,
@@ -186,8 +186,8 @@ export class BulkVerifyService {
     const invalidCount = allEmails.filter(
       (e) => e.verificationResult === VerificationResult.INVALID,
     ).length;
-    const riskCount = allEmails.filter(
-      (e) => e.verificationResult === VerificationResult.RISKY,
+    const catchallCount = allEmails.filter(
+      (e) => e.verificationResult === VerificationResult.CATCHALL,
     ).length;
 
     return {
@@ -198,7 +198,7 @@ export class BulkVerifyService {
       avgResponseMs,
       successCount,
       invalidCount,
-      riskCount,
+      catchallCount,
       changes: {
         filesToday: this.pctChange(todayLists.length, yesterdayLists.length),
         completedJobs: this.pctChange(completedJobs, completedYesterday),
@@ -228,14 +228,14 @@ export class BulkVerifyService {
 
     let valid = 0;
     let invalid = 0;
-    let risky = 0;
+    let catchall = 0;
     for (const r of rows) {
       if (r.verificationResult === VerificationResult.VALID) valid++;
       else if (r.verificationResult === VerificationResult.INVALID) invalid++;
-      else risky++;
+      else catchall++;
     }
 
-    const total = valid + invalid + risky;
+    const total = valid + invalid + catchall;
     const pct = (n: number) =>
       total > 0 ? Math.round((n / total) * 1000) / 10 : 0;
 
@@ -255,10 +255,10 @@ export class BulkVerifyService {
           color: CHART_COLORS.invalid,
         },
         {
-          name: 'Risky',
-          value: risky,
-          percentage: pct(risky),
-          color: CHART_COLORS.risky,
+          name: 'Catchall',
+          value: catchall,
+          percentage: pct(catchall),
+          color: CHART_COLORS.catchall,
         },
       ],
     };
@@ -286,10 +286,10 @@ export class BulkVerifyService {
           color: CHART_COLORS.invalid,
         },
         {
-          name: 'Risky',
-          value: list.riskyCount + list.unknownCount,
-          percentage: pct(list.riskyCount + list.unknownCount),
-          color: CHART_COLORS.risky,
+          name: 'Catchall',
+          value: list.catchallCount + list.unknownCount,
+          percentage: pct(list.catchallCount + list.unknownCount),
+          color: CHART_COLORS.catchall,
         },
         {
           name: 'Disposable',
@@ -381,7 +381,7 @@ export class BulkVerifyService {
       startedAt: list.startedAt,
       valid: list.validCount,
       invalid: list.invalidCount,
-      risky: list.riskyCount + list.unknownCount,
+      catchall: list.catchallCount + list.unknownCount,
       disposable: list.disposableCount,
     };
   }

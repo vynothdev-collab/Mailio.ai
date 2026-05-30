@@ -21,7 +21,7 @@
   /* Semantic */
   --color-valid:       #10b981;
   --color-invalid:     #ef4444;
-  --color-risky:       #f59e0b;
+  --color-catchall:       #f59e0b;
   --color-disposable:  #8b5cf6;
 
   /* Surface */

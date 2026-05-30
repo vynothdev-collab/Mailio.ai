@@ -23,7 +23,7 @@ interface Props {
 const STATUS_STYLES: Record<string, { bg: string; border: string; text: string; Icon: React.ElementType; label: string }> = {
   valid:      { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700",       Icon: CheckCircle2,  label: "Valid"      },
   invalid:    { bg: "bg-red-50",     border: "border-red-200",     text: "text-red-700",           Icon: XCircle,       label: "Invalid"    },
-  risky:      { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-700",         Icon: AlertTriangle, label: "Risky"      },
+  catchall:      { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-700",         Icon: AlertTriangle, label: "Catchall"      },
   disposable: { bg: "bg-violet-50",  border: "border-violet-200",  text: "text-violet-700",        Icon: AlertTriangle, label: "Disposable" },
   unknown:    { bg: "bg-muted",      border: "border-border",      text: "text-muted-foreground",  Icon: AlertTriangle, label: "Unknown"    },
 };

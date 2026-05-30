@@ -48,7 +48,7 @@ export class SingleVerifyController {
         email: { type: 'string', format: 'email', example: 'test@example.com' },
         status: {
           type: 'string',
-          enum: ['valid', 'invalid', 'risky', 'unknown'],
+          enum: ['valid', 'invalid', 'catchall', 'unknown'],
         },
         confidence: { type: 'number', example: 92 },
         description: {
@@ -97,9 +97,9 @@ export class SingleVerifyController {
               email: { type: 'string', format: 'email' },
               status: {
                 type: 'string',
-                enum: ['valid', 'invalid', 'risky', 'unknown'],
+                enum: ['valid', 'invalid', 'catchall', 'unknown'],
               },
-              risk: {
+              catchall: {
                 type: 'string',
                 enum: ['low', 'medium', 'high', 'unknown'],
               },

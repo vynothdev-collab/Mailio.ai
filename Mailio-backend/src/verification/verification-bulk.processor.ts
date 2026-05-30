@@ -27,7 +27,7 @@ const MAILTESTER_PROVIDER = 'mailtester';
 const RESULT_MAP: Record<string, VerificationResult> = {
   valid: VerificationResult.VALID,
   invalid: VerificationResult.INVALID,
-  risky: VerificationResult.RISKY,
+  catchall: VerificationResult.CATCHALL,
   unknown: VerificationResult.UNKNOWN,
 };
 

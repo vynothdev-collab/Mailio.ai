@@ -27,7 +27,7 @@ interface UseSingleVerifyResult {
 }
 
 const ALLOWED_EMAIL_STATUSES: readonly EmailStatus[] = [
-  "valid", "invalid", "risky", "disposable", "unknown",
+  "valid", "invalid", "catchall", "disposable", "unknown",
 ];
 
 function mapEmailStatus(raw: string): EmailStatus {
