@@ -24,7 +24,6 @@ import {
 import type { Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { VerifyRateLimitGuard } from '../../common/guards/verify-rate-limit.guard';
 import { User } from '../../users/entities/user.entity';
 import { SingleVerifyService } from './single-verify.service';
 import { VerifyEmailDto } from './verify-email.dto';
@@ -38,9 +37,7 @@ export class SingleVerifyController {
 
   @Post()
   @HttpCode(HttpStatus.OK)
-  @UseGuards(VerifyRateLimitGuard)
   @ApiOperation({ summary: 'Verify a single email address (synchronous)' })
-  @ApiResponse({ status: 429, description: 'Too many requests (50/min per user)' })
   @ApiResponse({
     status: 200,
     description: 'Verification result with all check details',
@@ -51,7 +48,7 @@ export class SingleVerifyController {
         email: { type: 'string', format: 'email', example: 'test@example.com' },
         status: {
           type: 'string',
-          enum: ['valid', 'invalid', 'risky', 'unknown'],
+          enum: ['valid', 'invalid', 'catchall', 'unknown'],
         },
         confidence: { type: 'number', example: 92 },
         description: {
@@ -100,9 +97,9 @@ export class SingleVerifyController {
               email: { type: 'string', format: 'email' },
               status: {
                 type: 'string',
-                enum: ['valid', 'invalid', 'risky', 'unknown'],
+                enum: ['valid', 'invalid', 'catchall', 'unknown'],
               },
-              risk: {
+              catchall: {
                 type: 'string',
                 enum: ['low', 'medium', 'high', 'unknown'],
               },

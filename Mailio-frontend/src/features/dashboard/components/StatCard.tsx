@@ -40,7 +40,7 @@ const ICON_THEMES: Record<
   },
 };
 
-const RISK_THEME = {
+const CATCHALL_THEME = {
   pillBg: "bg-[#EEF3FB]",
   innerBg: "bg-[#FBE7BF]",
   icon: ({ size = 12 }: { size?: number }) => (
@@ -64,8 +64,8 @@ const TOOLTIP_BY_LABEL: Record<string, string> = {
     "Percentage of verified emails that are safe to send. These emails passed mailbox, domain checks.",
   "invalid rate":
     "Percentage of verified emails that failed verification.",
-  "risk rate":
-    "Percentage of emails that are not fully invalid but may be risky.",
+  "catchall rate":
+    "Percentage of emails that are not fully invalid but may be catchall.",
 };
 
 
@@ -77,8 +77,8 @@ function tooltipFor(label: string): string {
 }
 
 export const StatCard = memo(({ stat }: StatCardProps) => {
-  const isRiskCard = stat.label.toLowerCase().includes("risk");
-  const theme = isRiskCard ? RISK_THEME : (ICON_THEMES[stat.iconName] ?? ICON_THEMES.Mail);
+  const isCatchallCard = stat.label.toLowerCase().includes("catchall");
+  const theme = isCatchallCard ? CATCHALL_THEME : (ICON_THEMES[stat.iconName] ?? ICON_THEMES.Mail);
   const Icon = theme.icon;
 
   const isUp = stat.change > 0;

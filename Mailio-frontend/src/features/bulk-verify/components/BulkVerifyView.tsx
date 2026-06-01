@@ -1,22 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { bulkVerifyService } from "@/src/services/bulkVerifyService";
 import { useJobProgress } from "@/src/hooks/useJobProgress";
 import type {
   BulkActiveJobDto,
-  BulkBreakdownDto,
   BulkJobDto,
   BulkStatsDto,
 } from "@/src/types/bulk";
 import type { ApiError } from "@/src/types/auth";
 import { UploadCard } from "./UploadCard";
 import { BulkStatsRow } from "./BulkStatsRow";
-import { VerificationBreakdownCard } from "./VerificationBreakdownCard";
+import { RecentBulkFilesCard } from "./RecentBulkFilesCard";
 import { RecentBulkVerificationsTable } from "./RecentBulkVerificationsTable";
 import { PageHeader } from "@/src/components/layout/PageHeader";
-import { BulkVerifySkeleton } from "@/src/components/shared/Skeleton";
+import { BulkVerifyContentSkeleton } from "@/src/components/shared/Skeleton";
 
 const JOBS_PAGE_SIZE = 10;
 
@@ -28,6 +27,7 @@ export function BulkVerifyView() {
   const [jobsPage,   setJobsPage]   = useState(1);
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingUpload, setPendingUpload] = useState(false);
 
   const refetch = useCallback(
     async (page = jobsPage, signal?: AbortSignal, showSkeleton = false) => {
@@ -75,6 +75,18 @@ export function BulkVerifyView() {
 
   useJobProgress(active?.jobId, refetchAfterChange);
 
+  useEffect(() => {
+    if (!pendingUpload) return;
+    const hasInFlight =
+      !!active?.jobId ||
+      jobs.some((j) => j.status === "processing" || j.status === "pending");
+    const timer = window.setTimeout(
+      () => setPendingUpload(false),
+      hasInFlight ? 0 : 4000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [pendingUpload, active, jobs]);
+
   const latestJob = jobs[0];
   const latestIsInFlight =
     latestJob?.status === 'pending' || latestJob?.status === 'processing';
@@ -94,56 +106,48 @@ export function BulkVerifyView() {
     return () => window.clearInterval(timer);
   }, [shouldPoll, refetch, jobsPage]);
 
-  const breakdown = useMemo<BulkBreakdownDto | null>(() => {
-    if (!stats) return null;
-    const valid = stats.successCount ?? 0;
-    const invalid = stats.invalidCount ?? 0;
-    const risky = stats.riskCount ?? 0;
-    const total = valid + invalid + risky;
-    if (total === 0) return { data: [], total: 0 };
-    return {
-      total,
-      data: [
-        { name: "Valid",   value: valid,   percentage: (valid / total) * 100,   color: "#22c55e" },
-        { name: "Invalid", value: invalid, percentage: (invalid / total) * 100, color: "#ef4444" },
-        { name: "Risky",   value: risky,   percentage: (risky / total) * 100,   color: "#f59e0b" },
-      ],
-    };
-  }, [stats]);
-
-  if (refreshing) {
-    return <BulkVerifySkeleton />;
-  }
-
   return (
     <div className="space-y-4">
       <PageHeader
         title="Bulk Email Verification"
         subtitle="Upload a list and verify thousands of emails at once."
         onRefresh={() => void refreshFromUser()}
-        refreshing={loading}
+        refreshing={refreshing || loading}
       />
 
-      <BulkStatsRow stats={stats} loading={loading} />
+      {refreshing ? (
+        <BulkVerifyContentSkeleton />
+      ) : (
+        <>
+          <BulkStatsRow stats={stats} loading={loading} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
-        <div className="lg:col-span-2 space-y-3 md:space-y-4">
-          <UploadCard onUploaded={refetchAfterChange} />
-          <RecentBulkVerificationsTable
-            jobs={jobs}
-            total={jobsTotal}
-            page={jobsPage}
-            pageSize={JOBS_PAGE_SIZE}
-            loading={loading}
-            onPageChange={setJobsPage}
-            onChange={refetchAfterChange}
-          />
-        </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
+            <div className="lg:col-span-2 space-y-3 md:space-y-4">
+              <UploadCard
+                onUploaded={refetchAfterChange}
+                onUploadingChange={setPendingUpload}
+              />
+              <RecentBulkVerificationsTable
+                jobs={jobs}
+                total={jobsTotal}
+                page={jobsPage}
+                pageSize={JOBS_PAGE_SIZE}
+                loading={loading}
+                onPageChange={setJobsPage}
+                onChange={refetchAfterChange}
+              />
+            </div>
 
-        <div className="space-y-4">
-          <VerificationBreakdownCard breakdown={breakdown} loading={loading} />
-        </div>
-      </div>
+            <div className="space-y-4">
+              <RecentBulkFilesCard
+                jobs={jobs}
+                loading={loading}
+                pendingUpload={pendingUpload}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

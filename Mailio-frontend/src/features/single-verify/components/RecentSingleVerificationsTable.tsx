@@ -18,11 +18,11 @@ import {
   type SingleRecentItem,
 } from "@/src/services/verificationService";
 import type { ApiError } from "@/src/types/auth";
-import { EMAIL_STATUS_CONFIG, RISK_CONFIG } from "../constants";
-import type { EmailStatus, RecentVerification, RiskLevel } from "../types";
+import { EMAIL_STATUS_CONFIG, CATCHALL_CONFIG } from "../constants";
+import type { EmailStatus, RecentVerification, CatchallLevel } from "../types";
 
 const STATUS_FALLBACK: EmailStatus = "unknown";
-const RISK_FALLBACK:   RiskLevel   = "medium";
+const CATCHALL_FALLBACK: CatchallLevel = "medium";
 const PAGE_SIZE        = 10;
 
 function StatusBadge({ status }: { status: EmailStatus }) {
@@ -37,8 +37,8 @@ function StatusBadge({ status }: { status: EmailStatus }) {
   );
 }
 
-function RiskCell({ risk }: { risk: RiskLevel }) {
-  const cfg = RISK_CONFIG[risk] ?? RISK_CONFIG[RISK_FALLBACK];
+function CatchallCell({ catchall }: { catchall: CatchallLevel }) {
+  const cfg = CATCHALL_CONFIG[catchall] ?? CATCHALL_CONFIG[CATCHALL_FALLBACK];
   return (
     <span className={cn("flex items-center gap-1.5 text-xs font-medium", cfg.textColor)}>
       <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dotColor)} />
@@ -56,14 +56,14 @@ function formatDate(iso: string): string {
 
 function fromApi(item: SingleRecentItem): RecentVerification {
   const status: EmailStatus =
-    item.status === "valid" || item.status === "invalid" || item.status === "risky"
+    item.status === "valid" || item.status === "invalid" || item.status === "catchall"
       ? item.status
       : "unknown";
-  const risk: RiskLevel =
-    item.risk === "low" || item.risk === "medium" || item.risk === "high"
-      ? item.risk
+  const catchall: CatchallLevel =
+    item.catchall === "low" || item.catchall === "medium" || item.catchall === "high"
+      ? item.catchall
       : "medium";
-  return { id: item.id, email: item.email, status, risk, verifiedAt: item.verifiedAt };
+  return { id: item.id, email: item.email, status, catchall, verifiedAt: item.verifiedAt };
 }
 
 interface Props {
@@ -165,7 +165,7 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
                 Status
               </TableHead>
               <TableHead className="h-10 w-28 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Risk
+                Catchall
               </TableHead>
               <TableHead className="h-10 w-40 px-5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Verified At
@@ -200,7 +200,7 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
                 >
                   <TableCell className="px-5 py-3 text-sm font-medium text-[#111827]">{r.email}</TableCell>
                   <TableCell className="py-3"><StatusBadge status={r.status} /></TableCell>
-                  <TableCell className="py-3"><RiskCell risk={r.risk} /></TableCell>
+                  <TableCell className="py-3"><CatchallCell catchall={r.catchall} /></TableCell>
                   <TableCell className="px-5 py-3 text-right text-sm text-muted-foreground tabular-nums whitespace-nowrap">
                     {formatDate(r.verifiedAt)}
                   </TableCell>

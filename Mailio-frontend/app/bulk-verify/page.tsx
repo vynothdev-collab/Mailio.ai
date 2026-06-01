@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
-import { BulkVerifyView } from "@/src/features/bulk-verify/components/BulkVerifyView";
+import { Suspense } from "react";
+import { BulkVerifyPageClient } from "./BulkVerifyPageClient";
 
 export const metadata: Metadata = {
-  title: "Bulk Verify · Mailio.ai",
+  title: "Bulk Verify · emailanswers.ai",
   description: "Upload a CSV or TXT file and verify every email address in bulk.",
 };
 
 export default function BulkVerifyPage() {
-  return <BulkVerifyView />;
+  return (
+    <Suspense fallback={null}>
+      <BulkVerifyPageClient />
+    </Suspense>
+  );
 }

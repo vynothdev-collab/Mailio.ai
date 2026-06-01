@@ -5,12 +5,11 @@ import { VerificationProvider, useVerificationHistory } from "@/src/context/Veri
 import { useSingleVerify } from "../hooks/useSingleVerify";
 import { EmailInputCard }                  from "./EmailInputCard";
 import { VerificationResultCard }          from "./VerificationResultCard";
-import { ResultBreakdownCard }             from "./ResultBreakdownCard";
 import { VerificationSummaryCard }         from "./VerificationSummaryCard";
 import { RecentSingleVerificationsTable }  from "./RecentSingleVerificationsTable";
 import { ProTipCard }                      from "./ProTipCard";
 import { PageHeader }                      from "@/src/components/layout/PageHeader";
-import { SingleVerifySkeleton }            from "@/src/components/shared/Skeleton";
+import { SingleVerifyContentSkeleton }     from "@/src/components/shared/Skeleton";
 
 function SingleVerifyContent() {
   const { state, result, verify } = useSingleVerify();
@@ -35,41 +34,37 @@ function SingleVerifyContent() {
     return () => window.clearTimeout(t);
   }, [refreshing, refreshKey]);
 
-  if (refreshing) {
-    return <SingleVerifySkeleton />;
-  }
-
   return (
     <div className="space-y-4 md:space-y-5">
       <PageHeader
         title="Single Email Verification"
         subtitle="Verify one email address instantly to reduce bounce rates and improve deliverability."
         onRefresh={triggerRefresh}
+        refreshing={refreshing}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-5">
-        <div className="lg:col-span-2 space-y-4">
-          <EmailInputCard onVerify={handleVerify} isLoading={isLoading} />
+      {refreshing ? (
+        <SingleVerifyContentSkeleton />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4 lg:gap-5">
+          <div className="lg:col-span-2 space-y-4">
+            <EmailInputCard onVerify={handleVerify} isLoading={isLoading} />
 
-          {result && (
-            <>
-              <VerificationResultCard result={result} />
-              <ResultBreakdownCard checks={result.checks} />
-            </>
-          )}
+            {result && <VerificationResultCard result={result} />}
 
-          <RecentSingleVerificationsTable
-            refreshKey={refreshKey}
-            optimistic={recent}
-            onDeleted={() => setRefreshKey((k) => k + 1)}
-          />
+            <RecentSingleVerificationsTable
+              refreshKey={refreshKey}
+              optimistic={recent}
+              onDeleted={() => setRefreshKey((k) => k + 1)}
+            />
+          </div>
+
+          <div className="space-y-4">
+            <VerificationSummaryCard refreshKey={refreshKey} />
+            <ProTipCard />
+          </div>
         </div>
-
-        <div className="space-y-4">
-          <VerificationSummaryCard refreshKey={refreshKey} />
-          <ProTipCard />
-        </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -8,10 +8,10 @@ import {
 } from '../email-lists/entities/email-list.entity';
 import { Email, EmailStatus } from '../emails/entities/email.entity';
 
-export type ResultStatus = 'all' | 'valid' | 'invalid' | 'risky';
+export type ResultStatus = 'all' | 'valid' | 'invalid' | 'catchall';
 export type ResultType = 'all' | 'single' | 'bulk';
-export type RowStatus = 'valid' | 'invalid' | 'risky';
-export type RiskLevel = 'low' | 'medium' | 'high' | null;
+export type RowStatus = 'valid' | 'invalid' | 'catchall';
+export type CatchallLevel = 'low' | 'medium' | 'high' | null;
 
 export interface BulkJobSummary {
   jobId: string;
@@ -20,7 +20,7 @@ export interface BulkJobSummary {
   totalEmails: number;
   valid: number;
   invalid: number;
-  risky: number;
+  catchall: number;
   unknown: number;
   disposable: number;
   createdAt: string;
@@ -32,7 +32,7 @@ export interface ResultRow {
   type: 'single' | 'bulk';
   label: string;
   status: RowStatus;
-  risk: RiskLevel;
+  catchall: CatchallLevel;
   verifiedAt: string;
   bulkJob?: BulkJobSummary;
 }
@@ -83,7 +83,7 @@ export class ResultsService {
       type: 'single',
       label: e.address,
       status: this.mapEmailStatus(e.verificationResult),
-      risk: this.toRisk(e.verificationResult),
+      catchall: this.toCatchall(e.verificationResult),
       verifiedAt: (e.processedAt ?? e.createdAt).toISOString(),
     }));
 
@@ -92,7 +92,7 @@ export class ResultsService {
       type: 'bulk',
       label: l.originalFilename ?? l.name,
       status: this.mapBulkStatus(l.status),
-      risk: null,
+      catchall: null,
       verifiedAt: (l.updatedAt ?? l.createdAt).toISOString(),
       bulkJob: {
         jobId: l.id,
@@ -101,7 +101,7 @@ export class ResultsService {
         totalEmails: l.totalCount,
         valid: l.validCount,
         invalid: l.invalidCount,
-        risky: l.riskyCount,
+        catchall: l.catchallCount,
         unknown: l.unknownCount,
         disposable: l.disposableCount,
         createdAt: l.createdAt.toISOString(),
@@ -123,23 +123,23 @@ export class ResultsService {
     let invalid = singleEmails.filter(
       (e) => e.verificationResult === VerificationResult.INVALID,
     ).length;
-    let risky = singleEmails.filter(
+    let catchall = singleEmails.filter(
       (e) =>
-        e.verificationResult === VerificationResult.RISKY ||
+        e.verificationResult === VerificationResult.CATCHALL ||
         e.verificationResult === VerificationResult.UNKNOWN,
     ).length;
 
     for (const l of bulkLists) {
       valid += l.validCount;
       invalid += l.invalidCount;
-      risky += l.riskyCount + l.unknownCount;
+      catchall += l.catchallCount + l.unknownCount;
     }
 
     const stats = {
-      total: valid + invalid + risky,
+      total: valid + invalid + catchall,
       valid,
       invalid,
-      risky,
+      catchall,
     };
 
     const q = (query ?? '').trim().toLowerCase();
@@ -152,8 +152,8 @@ export class ResultsService {
           const matches =
             (status === 'valid' && job.valid > 0) ||
             (status === 'invalid' && job.invalid > 0) ||
-            (status === 'risky' &&
-              (job.risky + job.unknown > 0 ||
+            (status === 'catchall' &&
+              (job.catchall + job.unknown > 0 ||
                 job.status === 'pending' ||
                 job.status === 'processing'));
           if (!matches) return false;
@@ -173,12 +173,12 @@ export class ResultsService {
   private mapEmailStatus(r: VerificationResult | null): RowStatus {
     if (r === VerificationResult.VALID) return 'valid';
     if (r === VerificationResult.INVALID) return 'invalid';
-    return 'risky';
+    return 'catchall';
   }
 
-  private toRisk(r: VerificationResult | null): RiskLevel {
+  private toCatchall(r: VerificationResult | null): CatchallLevel {
     if (r === VerificationResult.VALID) return 'low';
-    if (r === VerificationResult.RISKY) return 'medium';
+    if (r === VerificationResult.CATCHALL) return 'medium';
     if (r === VerificationResult.INVALID) return 'high';
     return null;
   }
@@ -186,6 +186,6 @@ export class ResultsService {
   private mapBulkStatus(s: EmailListStatus): RowStatus {
     if (s === EmailListStatus.COMPLETED) return 'valid';
     if (s === EmailListStatus.FAILED) return 'invalid';
-    return 'risky';
+    return 'catchall';
   }
 }

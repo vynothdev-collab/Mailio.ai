@@ -3,8 +3,8 @@ import { AuthShell } from "@/src/features/auth/components/AuthShell";
 import { LoginForm } from "@/src/features/auth/components/LoginForm";
 
 export const metadata: Metadata = {
-  title: "Sign in · Mailio.ai",
-  description: "Sign in to your Mailio.ai account.",
+  title: "Sign in · emailanswers.ai",
+  description: "Sign in to your emailanswers.ai account.",
 };
 
 export default function LoginPage() {

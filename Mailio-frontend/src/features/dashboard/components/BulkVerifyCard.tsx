@@ -266,9 +266,9 @@ export function BulkVerifyCard({ onUploaded }: Props) {
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-foreground">Risky</p>
+                    <p className="text-[10px] text-muted-foreground">Catchall</p>
                     <p className="font-semibold tabular-nums text-amber-600">
-                      {(progress?.risky ?? 0).toLocaleString()}
+                      {(progress?.catchall ?? 0).toLocaleString()}
                     </p>
                   </div>
                 </div>

@@ -15,7 +15,7 @@ import { JobDetailsDialog } from "@/src/features/bulk-verify/components/JobDetai
 const STATUS_CONFIG: Record<EmailStatus, { label: string; textColor: string; bgColor: string; dotColor: string }> = {
   valid:   { label: "Valid",   textColor: "text-emerald-700", bgColor: "bg-emerald-50 border-emerald-100", dotColor: "bg-emerald-500" },
   invalid: { label: "Invalid", textColor: "text-red-600",     bgColor: "bg-red-50 border-red-100",         dotColor: "bg-red-500"     },
-  risky:   { label: "Risky",   textColor: "text-amber-700",   bgColor: "bg-amber-50 border-amber-100",     dotColor: "bg-amber-400"   },
+  catchall:   { label: "Catchall",   textColor: "text-amber-700",   bgColor: "bg-amber-50 border-amber-100",     dotColor: "bg-amber-400"   },
 };
 
 const PAGE_SIZES = [10, 25, 50] as const;
@@ -59,7 +59,7 @@ export function ResultsTable({ records, filters, total, loading, onChange }: Pro
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              {["Email / File", "Type", "Status", "Risk", "Verified At", "View", "Actions"].map((h) => (
+              {["Email / File", "Type", "Status", "Catchall", "Verified At", "View", "Actions"].map((h) => (
                 <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
                   {h}
                 </th>
@@ -112,16 +112,16 @@ export function ResultsTable({ records, filters, total, loading, onChange }: Pro
                       </span>
                     </td>
                     <td className="px-3 py-2.5">
-                      {row.risk === null ? (
+                      {row.catchall === null ? (
                         <span className="text-xs text-muted-foreground">—</span>
                       ) : (
                         <span className={cn(
                           "text-xs font-medium",
-                          row.risk === "low"    && "text-emerald-600",
-                          row.risk === "medium" && "text-amber-600",
-                          row.risk === "high"   && "text-red-600",
+                          row.catchall === "low"    && "text-emerald-600",
+                          row.catchall === "medium" && "text-amber-600",
+                          row.catchall === "high"   && "text-red-600",
                         )}>
-                          {row.risk.charAt(0).toUpperCase() + row.risk.slice(1)}
+                          {row.catchall.charAt(0).toUpperCase() + row.catchall.slice(1)}
                         </span>
                       )}
                     </td>

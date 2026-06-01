@@ -36,7 +36,7 @@ export class ResultsController {
   @ApiQuery({
     name: 'status',
     required: false,
-    enum: ['all', 'valid', 'invalid', 'risky'],
+    enum: ['all', 'valid', 'invalid', 'catchall'],
   })
   @ApiQuery({ name: 'query', required: false, type: String })
   @ApiResponse({
@@ -55,7 +55,7 @@ export class ResultsController {
             total: { type: 'number' },
             valid: { type: 'number' },
             invalid: { type: 'number' },
-            risky: { type: 'number' },
+            catchall: { type: 'number' },
           },
         },
       },

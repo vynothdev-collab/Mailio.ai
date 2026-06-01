@@ -25,7 +25,7 @@ export interface UserStats {
   totalEmails: number;
   validCount: number;
   invalidCount: number;
-  riskyCount: number;
+  catchallCount: number;
   unknownCount: number;
   listsCount: number;
 }
@@ -54,12 +54,20 @@ export class UsersService {
     email: string;
     passwordHash: string;
     name: string;
+    emailVerified?: boolean;
   }): Promise<User> {
     const existing = await this.findByEmail(data.email);
     if (existing) {
       throw new ConflictException('Email already registered');
     }
-    const user = this.usersRepo.create({ ...data, provider: AuthProvider.LOCAL });
+    const { emailVerified, ...rest } = data;
+    const user = this.usersRepo.create({
+      ...rest,
+      provider: AuthProvider.LOCAL,
+      ...(emailVerified
+        ? { emailVerified: true, emailVerifiedAt: new Date() }
+        : {}),
+    });
     return this.usersRepo.save(user);
   }
 
@@ -169,7 +177,7 @@ export class UsersService {
          COUNT(e.id)::int                                              AS "totalEmails",
          COUNT(e.id) FILTER (WHERE e.verification_result = 'VALID')::int    AS "validCount",
          COUNT(e.id) FILTER (WHERE e.verification_result = 'INVALID')::int  AS "invalidCount",
-         COUNT(e.id) FILTER (WHERE e.verification_result = 'RISKY')::int    AS "riskyCount",
+         COUNT(e.id) FILTER (WHERE e.verification_result = 'CATCHALL')::int    AS "catchallCount",
          COUNT(e.id) FILTER (WHERE e.verification_result = 'UNKNOWN')::int  AS "unknownCount",
          COUNT(DISTINCT el.id)::int                                   AS "listsCount"
        FROM users u

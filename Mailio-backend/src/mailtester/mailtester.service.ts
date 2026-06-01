@@ -3,6 +3,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
+import * as http from 'http';
+import * as https from 'https';
 import {
   EmailVerificationProvider,
   ProviderError,
@@ -62,7 +64,6 @@ export class MailTesterService implements EmailVerificationProvider {
   private readonly logger = new Logger(MailTesterService.name);
   private readonly baseUrl: string;
   private readonly fallbackKey: string;
-  private readonly timeout: number;
 
   constructor(
     private readonly httpService: HttpService,
@@ -73,7 +74,6 @@ export class MailTesterService implements EmailVerificationProvider {
       'https://happy.mailtester.ninja',
     );
     this.fallbackKey = config.get<string>('MAILTESTER_API_KEY', '');
-    this.timeout = config.get<number>('MAILTESTER_TIMEOUT_MS', 30000);
   }
 
   getFallbackKey(): string {
@@ -93,7 +93,8 @@ export class MailTesterService implements EmailVerificationProvider {
       const { data } = await firstValueFrom(
         this.httpService.get<RawMailTesterResponse>(`${this.baseUrl}/ninja`, {
           params: { email, key },
-          timeout: this.timeout,
+          httpAgent: new http.Agent({ family: 4, keepAlive: true }),
+          httpsAgent: new https.Agent({ family: 4, keepAlive: true }),
         }),
       );
       const normalized = this.normalize(email, data);
@@ -108,6 +109,18 @@ export class MailTesterService implements EmailVerificationProvider {
 
   private classifyError(e: unknown): ProviderError {
     const err = e as AxiosError<{ message?: string }>;
+
+    this.logger.error('Provider Error Details:', {
+      name: err?.name,
+      code: err?.code,
+      message: err?.message,
+      status: err?.response?.status,
+      statusText: err?.response?.statusText,
+      data: err?.response?.data,
+      url: err?.config?.url,
+      params: err?.config?.params as unknown,
+    });
+
     const status = err.response?.status;
     const body = err.response?.data;
     const msg = body?.message || err.message || 'Unknown error';
@@ -126,8 +139,18 @@ export class MailTesterService implements EmailVerificationProvider {
         const n = Number(ra);
         if (Number.isFinite(n)) retryAfterMs = n * 1000;
       }
-    } else if (status === 401 || status === 403 || status === 402) {
+    } else if (status === 401 || status === 402) {
       kind = 'auth';
+    } else if (status === 403) {
+      const lower = msg.toLowerCase();
+      const looksLikeKeyAuth =
+        lower.includes('api key') ||
+        lower.includes('apikey') ||
+        lower.includes('unauthorized') ||
+        lower.includes('forbidden key') ||
+        lower.includes('invalid key') ||
+        lower.includes('expired');
+      kind = looksLikeKeyAuth ? 'auth' : 'bad-request';
     } else if (status >= 500) {
       kind = 'server';
     } else if (status === 400 || status === 422) {
@@ -153,7 +176,7 @@ export class MailTesterService implements EmailVerificationProvider {
     let catch_all: boolean | null = false;
 
     if (code === 'mb') {
-      result = 'risky';
+      result = 'catchall';
       catch_all = null;
     } else {
       switch (message) {
@@ -162,13 +185,13 @@ export class MailTesterService implements EmailVerificationProvider {
           smtp_check = true;
           break;
         case 'Catch-All':
-          result = 'risky';
+          result = 'catchall';
           smtp_check = true;
           catch_all = true;
           break;
         case 'Limited':
         case 'SPAM Block':
-          result = 'risky';
+          result = 'catchall';
           smtp_check = true;
           break;
         case 'Rejected':
@@ -181,7 +204,7 @@ export class MailTesterService implements EmailVerificationProvider {
           mx_found = false;
           break;
         case 'Timeout':
-          result = 'risky';
+          result = 'catchall';
           catch_all = null;
           break;
         default:
@@ -191,7 +214,7 @@ export class MailTesterService implements EmailVerificationProvider {
           } else if (code === 'ko') {
             result = 'invalid';
           } else {
-            result = 'risky';
+            result = 'catchall';
             catch_all = null;
           }
       }
@@ -225,7 +248,7 @@ export class MailTesterService implements EmailVerificationProvider {
       case 'valid':
         base = 95;
         break;
-      case 'risky':
+      case 'catchall':
         base = 55;
         break;
       case 'invalid':

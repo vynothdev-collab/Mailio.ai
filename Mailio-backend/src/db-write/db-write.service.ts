@@ -18,6 +18,13 @@ export class DbWriteService {
     if (job.kind === 'success' || job.kind === 'failure') {
       await this.queue.add(job.kind, job, {
         jobId: `${job.kind === 'success' ? 'ok' : 'fail'}-${job.emailId}`,
+        attempts: parseInt(process.env.DB_WRITE_MAX_RETRIES ?? '10', 10),
+        backoff: {
+          type: 'exponential',
+          delay: parseInt(process.env.DB_WRITE_BACKOFF_DELAY_MS ?? '1000', 10),
+        },
+        removeOnComplete: { age: 3600, count: 1000 },
+        removeOnFail: true,
       });
       return;
     }

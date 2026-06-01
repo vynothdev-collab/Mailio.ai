@@ -10,22 +10,24 @@ import { MailTesterService } from './mailtester.service';
     HttpModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        timeout: config.get<number>('MAILTESTER_TIMEOUT_MS', 30000),
+      useFactory: (_config: ConfigService) => ({
         httpsAgent: new https.Agent({
           keepAlive: true,
           keepAliveMsecs: 30_000,
-          maxSockets: parseInt(process.env.MAILTESTER_MAX_SOCKETS ?? '64', 10),
+          maxSockets: parseInt(process.env.MAILTESTER_MAX_SOCKETS ?? '256', 10),
           maxFreeSockets: parseInt(
-            process.env.MAILTESTER_MAX_FREE_SOCKETS ?? '16',
+            process.env.MAILTESTER_MAX_FREE_SOCKETS ?? '64',
             10,
           ),
         }),
         httpAgent: new http.Agent({
           keepAlive: true,
           keepAliveMsecs: 30_000,
-          maxSockets: 64,
-          maxFreeSockets: 16,
+          maxSockets: parseInt(process.env.MAILTESTER_MAX_SOCKETS ?? '256', 10),
+          maxFreeSockets: parseInt(
+            process.env.MAILTESTER_MAX_FREE_SOCKETS ?? '64',
+            10,
+          ),
         }),
       }),
     }),

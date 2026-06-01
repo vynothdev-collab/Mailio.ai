@@ -17,7 +17,7 @@ export interface BulkActiveJob {
   startedAt:      string;
   valid:          number;
   invalid:        number;
-  risky:          number;
+  catchall:          number;
   disposable:     number;
 }
 
@@ -28,7 +28,7 @@ export interface BulkVerificationRecord {
   status:      JobStatus;
   valid:       number | null;
   invalid:     number | null;
-  risky:       number | null;
+  catchall:       number | null;
   disposable:  number | null;
 }
 

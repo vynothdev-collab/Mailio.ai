@@ -19,7 +19,7 @@ const CATEGORY_META = [
 const FAQS: Record<Category, { q: string; a: string }[]> = {
   Credits: [
     { q: "What are credits and how do they work?",          a: "Credits are used to perform email verifications on our platform. Each verification (single or bulk) consumes credits based on the email status returned. You can purchase more credits anytime from the Billing section." },
-    { q: "How many credits does each verification cost?",   a: "Each email verification costs 1 credit regardless of the result status (VALID, INVALID, RISKY, etc.)." },
+    { q: "How many credits does each verification cost?",   a: "Each email verification costs 1 credit regardless of the result status (VALID, INVALID, CATCHALL, etc.)." },
     { q: "Do credits expire?",                              a: "Credits reset at the start of each billing cycle and do not roll over. Consider upgrading your plan if you consistently reach your limit." },
     { q: "Can I get a refund for unused credits?",          a: "Credits are non-refundable once purchased. However, they remain active until your billing cycle ends." },
     { q: "What happens when I run out of credits?",         a: "Verification requests will be paused. You can upgrade your plan or purchase a credit top-up from the Billing page." },
@@ -44,10 +44,10 @@ const FAQS: Record<Category, { q: string; a: string }[]> = {
     { q: "What file formats are supported for bulk upload?",a: "We support .csv and .txt files. Each line or column should contain one email address. Maximum file size is 50 MB." },
     { q: "How long does a bulk job take?",                  a: "Most jobs complete in 1–5 minutes. Very large lists (100k+) may take up to 30 minutes depending on server load." },
     { q: "Can I download the results?",                     a: "Yes. Go to Results, find your job, and click Download. Results are available as CSV with status columns." },
-    { q: "What does the RISKY status mean?",                a: "RISKY emails belong to catch-all domains that accept all incoming mail. The exact mailbox existence cannot be confirmed." },
+    { q: "What does the CATCHALL status mean?",                a: "CATCHALL emails belong to catch-all domains that accept all incoming mail. The exact mailbox existence cannot be confirmed." },
     { q: "Can I pause or cancel a bulk job?",               a: "Yes, you can cancel a running job from the Results page. Credits for unprocessed emails will be refunded." },
     { q: "Is there a limit on emails I can verify at once?",a: "The file size limit is 50 MB, which typically supports up to 500,000 emails per job." },
-    { q: "How do I interpret the verification results?",    a: "Results include VALID, INVALID, RISKY, UNKNOWN, and DISPOSABLE statuses. Download the CSV for full details." },
+    { q: "How do I interpret the verification results?",    a: "Results include VALID, INVALID, CATCHALL, UNKNOWN, and DISPOSABLE statuses. Download the CSV for full details." },
   ],
 };
 
@@ -94,7 +94,7 @@ export function FAQsSection() {
       <div className="rounded-2xl border border-[#DCE6F3] bg-white shadow-sm px-5 sm:px-6 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
         <div className="flex-1 min-w-0">
           <h2 className="text-base sm:text-lg font-bold text-[#111827]">Frequently Asked Questions</h2>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Find quick answers to common questions about Mailio.ai.</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Find quick answers to common questions about emailanswers.ai.</p>
         </div>
         <div className="relative sm:w-72 shrink-0">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />

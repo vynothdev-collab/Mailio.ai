@@ -29,11 +29,27 @@ export function bulkStrideFor(totalCount: number): number {
   return STRIDE_HIGH;
 }
 
-const DEFAULT_BULK_BATCH_SIZE = parseInt(
-  process.env.BULK_BATCH_SIZE ?? '50',
+function hashUserIdForPriority(userId: string): number {
+  let h = 0;
+  for (let i = 0; i < userId.length; i++) {
+    h = (h * 31 + userId.charCodeAt(i)) >>> 0;
+  }
+  return h % 1000;
+}
+
+const DEFAULT_BULK_BATCH_SIZE = (() => {
+  const raw = parseInt(process.env.BULK_BATCH_SIZE ?? '228', 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : 228;
+})();
+const MAX_BULK_BATCH_SIZE = parseInt(
+  process.env.MAX_BULK_BATCH_SIZE ?? '1000',
   10,
 );
-const MAX_BULK_BATCH_SIZE = 100;
+
+const RATE_LIMIT_PER_WINDOW = (() => {
+  const raw = parseInt(process.env.MAILTESTER_RATE_LIMIT ?? '228', 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : 228;
+})();
 
 @Injectable()
 export class VerificationService {
@@ -117,10 +133,15 @@ export class VerificationService {
   ): Promise<void> {
     if (emailIds.length === 0) return;
 
-    const size = Math.max(1, Math.min(batchSize, MAX_BULK_BATCH_SIZE));
+    const cappedRequested = Math.max(
+      1,
+      Math.min(batchSize, MAX_BULK_BATCH_SIZE),
+    );
+    const size = Math.min(cappedRequested, RATE_LIMIT_PER_WINDOW);
     const totalBatches = Math.ceil(emailIds.length / size);
     const stride = bulkStrideFor(totalCount ?? emailIds.length);
     const base = await this.reserveEnqueueSlot(emailIds.length, stride);
+    const userPriorityNonce = hashUserIdForPriority(userId);
 
     const jobs: {
       name: 'verify.batch';
@@ -134,7 +155,6 @@ export class VerificationService {
         removeOnFail: { age: number; count: number };
       };
     }[] = [];
-    let emailOffset = 0;
 
     for (let b = 0; b < totalBatches; b++) {
       const slice = emailIds.slice(b * size, (b + 1) * size);
@@ -143,21 +163,53 @@ export class VerificationService {
         name: 'verify.batch',
         data: { batchId, userId, listId, emailIds: slice, stride },
         opts: {
-          priority: BULK_BASE_PRIORITY + base + emailOffset * stride,
+          priority:
+            BULK_BASE_PRIORITY + b * 1000 + userPriorityNonce + (base % 1000),
           jobId: `bulk-batch-${batchId}`,
-          attempts: 5,
+          attempts: 3,
           backoff: { type: 'exponential', delay: 250 },
           removeOnComplete: { age: 3600, count: 1000 },
           removeOnFail: { age: 86400, count: 5000 },
         },
       });
-      emailOffset += slice.length;
     }
 
     const ADD_BULK_CHUNK = 1000;
     for (let i = 0; i < jobs.length; i += ADD_BULK_CHUNK) {
       await this.bulkQueue.addBulk(jobs.slice(i, i + ADD_BULK_CHUNK));
     }
+  }
+
+  // Re-enqueue a slice of emails that failed after BullMQ exhausted its retries
+  // for the original batch. Used by VerificationBulkProcessor instead of writing
+  // the emails as UNKNOWN — the goal is to reverify rather than bucket failures.
+  async enqueueReverifyBatch(
+    emailIds: string[],
+    userId: string,
+    listId: string,
+    stride: number | undefined,
+    reverifyCycle: number,
+  ): Promise<void> {
+    if (emailIds.length === 0) return;
+    const batchId = randomUUID();
+    const payload: EmailBatchJobPayload = {
+      batchId,
+      userId,
+      listId,
+      emailIds,
+      stride,
+      reverifyCycle,
+    };
+    await this.bulkQueue.add('verify.batch', payload, {
+      // Slightly lower priority than first-pass batches so fresh work isn't
+      // starved by long-running reverify tails.
+      priority: BULK_BASE_PRIORITY + 500,
+      jobId: `bulk-batch-${batchId}`,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 1000 },
+      removeOnComplete: { age: 3600, count: 1000 },
+      removeOnFail: { age: 86400, count: 5000 },
+    });
   }
 
   async reserveEnqueueSlot(

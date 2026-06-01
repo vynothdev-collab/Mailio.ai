@@ -55,7 +55,7 @@ interface Tile {
 
 function buildTiles(s: SingleStatsDto): Tile[] {
   const invalidRate = s.invalidRate ?? Math.max(0, 100 - s.successRate);
-  const riskRate = s.riskRate ?? 0;
+  const catchallRate = s.catchallRate ?? 0;
   return [
     {
       id:     "today-count",
@@ -79,9 +79,9 @@ function buildTiles(s: SingleStatsDto): Tile[] {
       iconBg: "bg-[#FCE6E6]",
     },
     {
-      id:     "risk-rate",
-      label:  "Risk Rate",
-      value:  `${riskRate.toFixed(1)}%`,
+      id:     "catchall-rate",
+      label:  "Catchall Rate",
+      value:  `${catchallRate.toFixed(1)}%`,
       icon:   <WarningTriangleIcon />,
       iconBg: "bg-[#FDEFD3]",
     },

@@ -11,7 +11,7 @@ interface VerificationResultCardProps {
 const STATUS_ICON: Record<EmailStatus, { Icon: typeof ShieldCheck; bg: string; color: string }> = {
   valid:      { Icon: ShieldCheck,    bg: "bg-emerald-50", color: "text-emerald-600" },
   invalid:    { Icon: ShieldX,        bg: "bg-red-50",     color: "text-red-500"     },
-  risky:      { Icon: ShieldX,        bg: "bg-amber-50",   color: "text-amber-600"   },
+  catchall:      { Icon: ShieldX,        bg: "bg-amber-50",   color: "text-amber-600"   },
   disposable: { Icon: ShieldX,        bg: "bg-violet-50",  color: "text-violet-600"  },
   unknown:    { Icon: ShieldQuestion, bg: "bg-slate-50",   color: "text-slate-500"   },
 };

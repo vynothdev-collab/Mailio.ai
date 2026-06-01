@@ -31,7 +31,7 @@ export interface MailTesterResponse {
   disposable: boolean;
   free: boolean;
   score: number;
-  result: 'valid' | 'invalid' | 'risky' | 'unknown';
+  result: 'valid' | 'invalid' | 'catchall' | 'unknown';
   reason: string;
   raw: RawMailTesterResponse;
 }

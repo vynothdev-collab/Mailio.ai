@@ -15,7 +15,7 @@ import { EmailVerificationJobPayload } from './dto/job-payload.dto';
 const RESULT_MAP: Record<string, VerificationResult> = {
   valid: VerificationResult.VALID,
   invalid: VerificationResult.INVALID,
-  risky: VerificationResult.RISKY,
+  catchall: VerificationResult.CATCHALL,
   unknown: VerificationResult.UNKNOWN,
 };
 

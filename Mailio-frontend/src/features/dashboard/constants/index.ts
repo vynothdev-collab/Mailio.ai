@@ -40,14 +40,14 @@ export const STATUS_CONFIG: Record<
 export const CHART_COLORS = {
   valid:       "#10b981",
   invalid:     "#ef4444",
-  risky:       "#f59e0b",
+  catchall:       "#f59e0b",
   disposable:  "#8b5cf6",
 } as const;
 
 export const SUMMARY_CONFIG = [
   { key: "valid"      as const, label: "Valid",       textColor: "text-emerald-600", bgColor: "bg-emerald-50" },
   { key: "invalid"    as const, label: "Invalid",     textColor: "text-red-500",     bgColor: "bg-red-50"     },
-  { key: "risky"      as const, label: "Risky",       textColor: "text-amber-600",   bgColor: "bg-amber-50"   },
+  { key: "catchall"      as const, label: "Catchall",       textColor: "text-amber-600",   bgColor: "bg-amber-50"   },
   { key: "disposable" as const, label: "Disposable",  textColor: "text-violet-600",  bgColor: "bg-violet-50"  },
 ] as const;
 

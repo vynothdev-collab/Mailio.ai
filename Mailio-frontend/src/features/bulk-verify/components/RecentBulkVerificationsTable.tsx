@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Download, Eye, FileText, RotateCcw, Loader2, MoreVertical, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -44,23 +45,50 @@ export function RecentBulkVerificationsTable({
   const [pendingDelete, setPendingDelete] = useState<BulkJobDto | null>(null);
   const [deleting,      setDeleting]      = useState(false);
   const [openMenuId,    setOpenMenuId]    = useState<string | null>(null);
+  const [menuPos,       setMenuPos]       = useState<{ top: number; left: number; placement: "top" | "bottom" } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  const MENU_WIDTH = 176;
+  const MENU_HEIGHT_ESTIMATE = 140;
+
+  const positionMenu = (jobId: string) => {
+    const btn = triggerRefs.current[jobId];
+    if (!btn) return;
+    const r = btn.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const placement: "top" | "bottom" = spaceBelow < MENU_HEIGHT_ESTIMATE + 16 ? "top" : "bottom";
+    const top = placement === "bottom" ? r.bottom + 4 : r.top - 4;
+    const left = Math.min(window.innerWidth - MENU_WIDTH - 8, r.right - MENU_WIDTH);
+    setMenuPos({ top, left: Math.max(8, left), placement });
+  };
+
+  useLayoutEffect(() => {
+    if (!openMenuId) { setMenuPos(null); return; }
+    positionMenu(openMenuId);
+  }, [openMenuId]);
 
   useEffect(() => {
     if (!openMenuId) return;
     const onDocClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpenMenuId(null);
-      }
+      const target = e.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      if (triggerRefs.current[openMenuId]?.contains(target)) return;
+      setOpenMenuId(null);
     };
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpenMenuId(null);
     };
+    const onReflow = () => positionMenu(openMenuId);
     document.addEventListener("mousedown", onDocClick);
     document.addEventListener("keydown", onEsc);
+    window.addEventListener("resize", onReflow);
+    window.addEventListener("scroll", onReflow, true);
     return () => {
       document.removeEventListener("mousedown", onDocClick);
       document.removeEventListener("keydown", onEsc);
+      window.removeEventListener("resize", onReflow);
+      window.removeEventListener("scroll", onReflow, true);
     };
   }, [openMenuId]);
 
@@ -120,7 +148,7 @@ export function RecentBulkVerificationsTable({
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-[#DCE6F3]">
-                {["File", "Total", "Status", "Valid", "Invalid", "Risky", "Actions"].map((h) => (
+                {["File", "Total", "Status", "Valid", "Invalid", "Catchall", "Actions"].map((h) => (
                   <th key={h} className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">
                     {h}
                   </th>
@@ -150,8 +178,13 @@ export function RecentBulkVerificationsTable({
                       className="border-b border-[#DCE6F3]/60 last:border-0 transition-colors hover:bg-[#F4F8FF]/60"
                     >
                       <td className="px-3 py-3" title={job.fileName}>
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#EEF3FB] text-[#8B847A]">
-                          <FileText size={15} />
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EEF3FB] text-[#8B847A]">
+                            <FileText size={15} />
+                          </div>
+                          <span className="truncate max-w-[200px] text-sm font-medium text-[#111827]">
+                            {job.fileName}
+                          </span>
                         </div>
                       </td>
                       <td className="px-3 py-3 tabular-nums font-semibold text-[#111827]">{formatNumber(job.totalEmails)}</td>
@@ -163,71 +196,19 @@ export function RecentBulkVerificationsTable({
                       </td>
                       <td className="px-3 py-3 font-bold tabular-nums text-emerald-600"><NumCell val={job.valid} /></td>
                       <td className="px-3 py-3 font-bold tabular-nums text-red-500"><NumCell val={job.invalid} /></td>
-                      <td className="px-3 py-3 font-bold tabular-nums text-amber-500"><NumCell val={job.risky} /></td>
+                      <td className="px-3 py-3 font-bold tabular-nums text-amber-500"><NumCell val={job.catchall} /></td>
                       <td className="px-3 py-3">
-                        <div className="relative inline-block" ref={openMenuId === job.jobId ? menuRef : undefined}>
-                          <button
-                            type="button"
-                            onClick={() => setOpenMenuId((id) => (id === job.jobId ? null : job.jobId))}
-                            aria-label={`Actions for ${job.fileName}`}
-                            aria-haspopup="menu"
-                            aria-expanded={openMenuId === job.jobId}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-[#EEF3FB] hover:text-[#111827] transition-colors"
-                          >
-                            <MoreVertical size={16} />
-                          </button>
-                          {openMenuId === job.jobId && (
-                            <div
-                              role="menu"
-                              className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-[#DCE6F3] bg-white py-1 shadow-lg"
-                            >
-                              {isCompleted && (
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  onClick={() => { setOpenMenuId(null); setViewingJob(job); }}
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF]"
-                                >
-                                  <Eye size={13} /> View details
-                                </button>
-                              )}
-                              {isCompleted && (
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  disabled={downloadingId === job.jobId}
-                                  onClick={() => { setOpenMenuId(null); void handleDownload(job); }}
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF] disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                  {downloadingId === job.jobId
-                                    ? <><Loader2 size={13} className="animate-spin" /> Downloading…</>
-                                    : <><Download size={13} /> Download</>}
-                                </button>
-                              )}
-                              {job.status === "failed" && (
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  disabled={retryingId === job.jobId}
-                                  onClick={() => { setOpenMenuId(null); void handleRetry(job.jobId); }}
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF] disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                  {retryingId === job.jobId
-                                    ? <><Loader2 size={13} className="animate-spin" /> Retrying…</>
-                                    : <><RotateCcw size={13} /> Retry</>}
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                role="menuitem"
-                                onClick={() => { setOpenMenuId(null); setPendingDelete(job); }}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50"
-                              >
-                                <Trash2 size={13} /> Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        <button
+                          type="button"
+                          ref={(el) => { triggerRefs.current[job.jobId] = el; }}
+                          onClick={() => setOpenMenuId((id) => (id === job.jobId ? null : job.jobId))}
+                          aria-label={`Actions for ${job.fileName}`}
+                          aria-haspopup="menu"
+                          aria-expanded={openMenuId === job.jobId}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-[#EEF3FB] hover:text-[#111827] transition-colors"
+                        >
+                          <MoreVertical size={16} />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -270,6 +251,69 @@ export function RecentBulkVerificationsTable({
           </div>
         </div>
       </CardContent>
+
+      {openMenuId && menuPos && typeof window !== "undefined" && (() => {
+        const job = jobs.find((j) => j.jobId === openMenuId);
+        if (!job) return null;
+        const isCompleted = job.status === "completed";
+        const style: React.CSSProperties = menuPos.placement === "bottom"
+          ? { position: "fixed", top: menuPos.top, left: menuPos.left, width: MENU_WIDTH }
+          : { position: "fixed", top: menuPos.top, left: menuPos.left, width: MENU_WIDTH, transform: "translateY(-100%)" };
+        return createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={style}
+            className="z-50 overflow-hidden rounded-lg border border-[#DCE6F3] bg-white py-1 shadow-lg"
+          >
+            {isCompleted && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => { setOpenMenuId(null); setViewingJob(job); }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF]"
+              >
+                <Eye size={13} /> View details
+              </button>
+            )}
+            {isCompleted && (
+              <button
+                type="button"
+                role="menuitem"
+                disabled={downloadingId === job.jobId}
+                onClick={() => { setOpenMenuId(null); void handleDownload(job); }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {downloadingId === job.jobId
+                  ? <><Loader2 size={13} className="animate-spin" /> Downloading…</>
+                  : <><Download size={13} /> Download</>}
+              </button>
+            )}
+            {job.status === "failed" && (
+              <button
+                type="button"
+                role="menuitem"
+                disabled={retryingId === job.jobId}
+                onClick={() => { setOpenMenuId(null); void handleRetry(job.jobId); }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {retryingId === job.jobId
+                  ? <><Loader2 size={13} className="animate-spin" /> Retrying…</>
+                  : <><RotateCcw size={13} /> Retry</>}
+              </button>
+            )}
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { setOpenMenuId(null); setPendingDelete(job); }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50"
+            >
+              <Trash2 size={13} /> Delete
+            </button>
+          </div>,
+          document.body,
+        );
+      })()}
 
       <JobDetailsDialog
         job={viewingJob}

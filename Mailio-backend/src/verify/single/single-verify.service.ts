@@ -15,14 +15,14 @@ export interface CheckItem {
 const RESULT_MAP: Record<string, VerificationResult> = {
   valid: VerificationResult.VALID,
   invalid: VerificationResult.INVALID,
-  risky: VerificationResult.RISKY,
+  catchall: VerificationResult.CATCHALL,
   unknown: VerificationResult.UNKNOWN,
 };
 
 const DESCRIPTIONS: Record<VerificationResult, string> = {
   [VerificationResult.VALID]: 'Email address is valid and accepting mail',
   [VerificationResult.INVALID]: 'Email address is invalid or does not exist',
-  [VerificationResult.RISKY]: 'Email address may be risky or unreliable',
+  [VerificationResult.CATCHALL]: 'Email address may be catchall or unreliable',
   [VerificationResult.UNKNOWN]: 'Email address could not be fully verified',
 };
 
@@ -84,7 +84,7 @@ export class SingleVerifyService {
       id: e.id,
       email: e.address,
       status: e.verificationResult?.toLowerCase() ?? 'unknown',
-      risk: this.toRisk(e.verificationResult),
+      catchall: this.toCatchall(e.verificationResult),
       verifiedAt: e.processedAt ?? e.createdAt,
     }));
 
@@ -129,8 +129,8 @@ export class SingleVerifyService {
     const invalidAll = allRows.filter(
       (e) => e.verificationResult === VerificationResult.INVALID,
     ).length;
-    const riskyAll = allRows.filter(
-      (e) => e.verificationResult === VerificationResult.RISKY,
+    const catchallAll = allRows.filter(
+      (e) => e.verificationResult === VerificationResult.CATCHALL,
     ).length;
 
     const pct = (n: number) =>
@@ -138,7 +138,7 @@ export class SingleVerifyService {
 
     const successRate = pct(validAll);
     const invalidRate = pct(invalidAll);
-    const riskRate = pct(riskyAll);
+    const catchallRate = pct(catchallAll);
 
     const durations = allRows
       .filter((e) => e.durationMs != null)
@@ -158,7 +158,7 @@ export class SingleVerifyService {
       todayCount,
       successRate,
       invalidRate,
-      riskRate,
+      catchallRate,
       apiUsage: allRows.length,
       avgResponseMs,
       changes: {
@@ -209,14 +209,14 @@ export class SingleVerifyService {
 
   private calcConfidence(result: VerificationResult, score: number): number {
     if (result === VerificationResult.VALID) return Math.max(score, 80);
-    if (result === VerificationResult.RISKY) return Math.min(score, 60);
+    if (result === VerificationResult.CATCHALL) return Math.min(score, 60);
     if (result === VerificationResult.INVALID) return Math.min(score, 20);
     return score ?? 0;
   }
 
-  private toRisk(result: VerificationResult | null): string {
+  private toCatchall(result: VerificationResult | null): string {
     if (result === VerificationResult.VALID) return 'low';
-    if (result === VerificationResult.RISKY) return 'medium';
+    if (result === VerificationResult.CATCHALL) return 'medium';
     if (result === VerificationResult.INVALID) return 'high';
     return 'unknown';
   }

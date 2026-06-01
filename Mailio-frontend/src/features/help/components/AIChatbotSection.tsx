@@ -13,14 +13,14 @@ const BOT_REPLIES: Record<string, string> = {
   "What counts as a valid email?":           "An email is VALID when it passes syntax, MX-record, SMTP, and mailbox checks — meaning the inbox actually exists.",
   "How do I get my API key?":                "Head to Settings → API Keys, then click Generate Key. Copy it and keep it safe — it won't be shown again.",
   "Why is my verification stuck?":           "Large jobs (10k+) can take a few minutes. Refresh the Results page. If stuck over 10 minutes, contact our Live Chat support.",
-  "What does RISKY status mean?":            "RISKY emails belong to catch-all domains — the domain accepts all mail, so the exact mailbox existence can't be confirmed.",
+  "What does CATCHALL status mean?":            "CATCHALL emails belong to catch-all domains — the domain accepts all mail, so the exact mailbox existence can't be confirmed.",
   "How do I cancel my plan?":                "Go to Billing → Manage Plan and click Cancel Subscription. Your credits remain active until the end of the billing cycle.",
   "Credits":            "Credits are used to perform email verifications. Each verification (single or bulk) consumes 1 credit. You can purchase more from the Billing section.",
   "Billing":            "We accept all major cards and PayPal. Invoices are available under Billing → Invoice History. Upgrades take effect immediately.",
   "API":                "Your API key is under Settings → API Keys. The rate limit is 10 req/s on PRO and 50 req/s on ULTIMATE. Use GET /v1/verify?email=... to verify a single address.",
   "Bulk Verification":  "Upload a .csv or .txt file up to 50 MB. Most jobs finish in 1–5 minutes. Download results as CSV from the Results page.",
-  "Results":            "Results include VALID, INVALID, RISKY, UNKNOWN, and DISPOSABLE statuses. Download the full CSV from Results → your job → Download.",
-  "Integrations":       "Mailio.ai integrates with Zapier, Make, and any platform that supports REST APIs. See the API docs for webhook setup.",
+  "Results":            "Results include VALID, INVALID, CATCHALL, UNKNOWN, and DISPOSABLE statuses. Download the full CSV from Results → your job → Download.",
+  "Integrations":       "emailanswers.ai integrates with Zapier, Make, and any platform that supports REST APIs. See the API docs for webhook setup.",
 };
 const DEFAULT_REPLY = "I'm not sure about that yet! Try rephrasing, or contact our team via Live Chat for detailed help.";
 
@@ -44,7 +44,7 @@ function now() {
 const INITIAL: Msg[] = [
   {
     from: "bot",
-    text: "👋 Hi! I'm your AI assistant for Mailio.ai.\nI can help you with account setup, billing, API usage, bulk verification, credits, and any other questions you have.\nHow can I help you today?",
+    text: "👋 Hi! I'm your AI assistant for emailanswers.ai.\nI can help you with account setup, billing, API usage, bulk verification, credits, and any other questions you have.\nHow can I help you today?",
     time: now(),
   },
 ];
@@ -97,7 +97,7 @@ export function AIChatbotSection() {
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Online
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground">Powered by Mailio.ai · Trained on Mailio docs</p>
+            <p className="text-[11px] text-muted-foreground">Powered by emailanswers.ai · Trained on emailanswers.ai docs</p>
           </div>
           <div className="flex items-center gap-1">
             <button className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-[#F4F8FF] hover:text-[#0B47CF] transition-colors">
@@ -191,7 +191,7 @@ export function AIChatbotSection() {
                   send(input);
                 }
               }}
-              placeholder="Ask anything about Mailio.ai…"
+              placeholder="Ask anything about emailanswers.ai…"
               rows={1}
               className="flex-1 resize-none text-sm bg-transparent outline-none placeholder:text-muted-foreground text-[#111827] min-w-0 max-h-24 leading-relaxed"
               style={{ overflowY: "auto" }}

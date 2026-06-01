@@ -269,7 +269,7 @@ export class DbWriteProcessor extends WorkerHost {
       processed: 0,
       valid: 0,
       invalid: 0,
-      risky: 0,
+      catchall: 0,
       unknown: 0,
       disposable: 0,
     };
@@ -277,14 +277,14 @@ export class DbWriteProcessor extends WorkerHost {
 
   private resultBucket(
     r: VerificationResult | null,
-  ): 'valid' | 'invalid' | 'risky' | 'unknown' {
+  ): 'valid' | 'invalid' | 'catchall' | 'unknown' {
     switch (r) {
       case VerificationResult.VALID:
         return 'valid';
       case VerificationResult.INVALID:
         return 'invalid';
-      case VerificationResult.RISKY:
-        return 'risky';
+      case VerificationResult.CATCHALL:
+        return 'catchall';
       default:
         return 'unknown';
     }

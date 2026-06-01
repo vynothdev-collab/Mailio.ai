@@ -166,15 +166,25 @@ export class CsvParseProcessor extends WorkerHost {
         quotaTruncated,
       });
 
-      const baseOffset = await this.verification.getEnqueueAnchor();
-      await this.verification.enqueueBulkWithBase(
-        collectedIds,
-        userId,
-        listId,
-        baseOffset,
-        0,
-        inserted,
-      );
+      if (process.env.BULK_BATCH_ENABLED === 'true') {
+        await this.verification.enqueueBulkBatches(
+          collectedIds,
+          userId,
+          listId,
+          undefined,
+          inserted,
+        );
+      } else {
+        const baseOffset = await this.verification.getEnqueueAnchor();
+        await this.verification.enqueueBulkWithBase(
+          collectedIds,
+          userId,
+          listId,
+          baseOffset,
+          0,
+          inserted,
+        );
+      }
 
       this.logger.log(
         `List ${listId}: parsed ${inserted} (dup=${duplicates}, truncated=${quotaTruncated}, file=${originalFilename})`,

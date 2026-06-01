@@ -24,7 +24,7 @@ export interface ListDeltas {
   processed: number;
   valid: number;
   invalid: number;
-  risky: number;
+  catchall: number;
   unknown: number;
   disposable: number;
 }
@@ -106,37 +106,38 @@ export class EmailListsService {
     const resultCol = {
       [VerificationResult.VALID]: 'valid_count',
       [VerificationResult.INVALID]: 'invalid_count',
-      [VerificationResult.RISKY]: 'risky_count',
+      [VerificationResult.CATCHALL]: 'catchall_count',
       [VerificationResult.UNKNOWN]: 'unknown_count',
     }[result];
 
-    const disposableClause = isDisposable
-      ? ', disposable_count = disposable_count + 1'
-      : '';
+    const disposableInc = isDisposable ? 1 : 0;
 
-    await this.listsRepo.manager.query(
+    const rows: Array<{
+      processed: number;
+      total: number;
+      status: EmailListStatus;
+    }> = await this.listsRepo.manager.query(
       `UPDATE email_lists
-       SET processed_count = processed_count + 1,
-           ${resultCol} = ${resultCol} + 1
-           ${disposableClause}
-       WHERE id = $1`,
-      [listId],
+          SET processed_count  = processed_count + 1,
+              ${resultCol}     = ${resultCol} + 1,
+              disposable_count = disposable_count + $2,
+              status = CASE
+                         WHEN processed_count + 1 >= total_count
+                              AND status != 'COMPLETED'
+                           THEN 'COMPLETED'::email_lists_status_enum
+                         ELSE status
+                       END
+        WHERE id = $1
+        RETURNING processed_count AS "processed",
+                  total_count    AS "total",
+                  status         AS "status"`,
+      [listId, disposableInc],
     );
 
-    const list = await this.listsRepo.findOneOrFail({ where: { id: listId } });
-
-    if (list.processedCount >= list.totalCount) {
-      await this.listsRepo.update(listId, {
-        status: EmailListStatus.COMPLETED,
-      });
-      list.status = EmailListStatus.COMPLETED;
+    if (rows.length === 0) {
+      return { processed: 0, total: 0, status: EmailListStatus.FAILED };
     }
-
-    return {
-      processed: list.processedCount,
-      total: list.totalCount,
-      status: list.status,
-    };
+    return rows[0];
   }
 
   async incrementProcessedBatch(
@@ -152,7 +153,7 @@ export class EmailListsService {
           SET processed_count  = processed_count  + $2,
               valid_count      = valid_count      + $3,
               invalid_count    = invalid_count    + $4,
-              risky_count      = risky_count      + $5,
+              catchall_count      = catchall_count      + $5,
               unknown_count    = unknown_count    + $6,
               disposable_count = disposable_count + $7,
               status = CASE
@@ -170,7 +171,7 @@ export class EmailListsService {
         d.processed,
         d.valid,
         d.invalid,
-        d.risky,
+        d.catchall,
         d.unknown,
         d.disposable,
       ],
@@ -286,12 +287,16 @@ export class EmailListsService {
       .createQueryBuilder('e')
       .select(['e.address', 'e.verificationResult', 'e.apiRawResponse'])
       .where('e.list_id = :listId', { listId })
-      .andWhere('e.is_deleted = FALSE')
-      .andWhere('e.status = :status', { status: EmailStatus.COMPLETED });
+      .andWhere('e.is_deleted = FALSE');
 
     if (type === 'verified') {
+      qb.andWhere('e.status = :status', { status: EmailStatus.COMPLETED });
       qb.andWhere('e.verification_result = :result', {
         result: VerificationResult.VALID,
+      });
+    } else {
+      qb.andWhere('e.status IN (:...statuses)', {
+        statuses: [EmailStatus.COMPLETED, EmailStatus.FAILED],
       });
     }
 
@@ -300,8 +305,8 @@ export class EmailListsService {
     const toStatus = (r: string | null | undefined): string => {
       if (r === VerificationResult.VALID) return 'valid';
       if (r === VerificationResult.INVALID) return 'invalid';
-      if (r === VerificationResult.RISKY) return 'risky';
-      return 'unknown';
+      if (r === VerificationResult.CATCHALL) return 'catchall';
+      return 'catchall';
     };
 
     
@@ -331,7 +336,7 @@ export class EmailListsService {
     
     const STATUS_ORDER: Record<string, number> = {
       valid: 0,
-      risky: 1,
+      catchall: 1,
       invalid: 2,
       unknown: 3,
     };

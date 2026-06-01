@@ -57,7 +57,9 @@ export class StarvationGuard
     if (this.running) return;
     this.running = true;
     try {
-      const waiting = await this.bulkQueue.getWaiting(0, -1);
+      // Limit to 500 — getWaiting(0, -1) fetches every job in memory,
+      // causing Redis latency spikes on large queues.
+      const waiting = await this.bulkQueue.getWaiting(0, 499);
       if (waiting.length === 0) return;
 
       const byList = new Map<string, Job<EmailVerificationJobPayload>[]>();

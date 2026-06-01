@@ -1,19 +1,11 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import { ComingSoon } from "@/src/components/shared/ComingSoon";
 
 export const metadata: Metadata = {
-  title: "Help & Support · Mailio.ai",
-  description: "Get help and support for Mailio.ai.",
+  title: "Help & Support · emailanswers.ai",
+  description: "Get help and support for emailanswers.ai.",
 };
 
 export default function HelpPage() {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
-      <Image src="/brand-logo.svg" alt="Mailio.ai" width={160} height={48} className="mb-10" />
-      <h1 className="text-3xl font-bold text-foreground mb-3">Coming Soon</h1>
-      <p className="text-muted-foreground text-sm max-w-sm">
-        Help &amp; Support is currently under development. Check back soon!
-      </p>
-    </div>
-  );
+  return <ComingSoon description="We're building something amazing." />;
 }

@@ -124,11 +124,14 @@ export class EmailsService {
     const result = await this.emailsRepo
       .createQueryBuilder()
       .update(Email)
-      .set({ status: EmailStatus.FAILED, errorMessage })
-      .where('id = :id AND status != :completed AND status != :failed', {
+      .set({
+        status: EmailStatus.COMPLETED,
+        verificationResult: VerificationResult.UNKNOWN,
+        errorMessage,
+      })
+      .where('id = :id AND status != :completed', {
         id,
         completed: EmailStatus.COMPLETED,
-        failed: EmailStatus.FAILED,
       })
       .execute();
     return (result.affected ?? 0) > 0;
@@ -140,7 +143,7 @@ export class EmailsService {
   ): Promise<ClaimedEmailRow[]> {
     if (emailIds.length === 0) return [];
 
-    const rows: ClaimedEmailRow[] = await this.emailsRepo.manager.query(
+    const raw: unknown = await this.emailsRepo.manager.query(
       `UPDATE emails
           SET status = $2::emails_status_enum,
               bull_job_id = $3
@@ -154,7 +157,12 @@ export class EmailsService {
       [emailIds, EmailStatus.PROCESSING, bullJobId, EmailStatus.COMPLETED],
     );
 
-    return rows;
+    const rows: ClaimedEmailRow[] =
+      Array.isArray(raw) && raw.length > 0 && Array.isArray(raw[0])
+        ? (raw[0] as ClaimedEmailRow[])
+        : (raw as ClaimedEmailRow[]);
+
+    return rows.filter((r) => r && typeof r.id === 'string' && !!r.address);
   }
 
   async releaseClaimMany(emailIds: string[]): Promise<void> {
@@ -184,7 +192,7 @@ export class EmailsService {
     const durations = rows.map((r) => r.durationMs);
     const processed = rows.map((r) => r.processedAt);
 
-    const transitioned: TransitionedRow[] = await this.emailsRepo.manager.query(
+    const raw: unknown = await this.emailsRepo.manager.query(
       `UPDATE emails AS e
           SET status              = 'COMPLETED'::emails_status_enum,
               verification_result = u.result::emails_verification_result_enum,
@@ -235,7 +243,14 @@ export class EmailsService {
       ],
     );
 
-    return transitioned;
+    const transitioned: TransitionedRow[] =
+      Array.isArray(raw) && raw.length > 0 && Array.isArray(raw[0])
+        ? (raw[0] as TransitionedRow[])
+        : (raw as TransitionedRow[]);
+
+    return transitioned.filter(
+      (r) => r && typeof r.emailId === 'string',
+    );
   }
 
   async markFailedBatch(rows: BatchFailureRow[]): Promise<TransitionedRow[]> {
@@ -244,23 +259,28 @@ export class EmailsService {
     const ids = rows.map((r) => r.emailId);
     const msgs = rows.map((r) => r.errorMessage);
 
-    const transitioned: TransitionedRow[] = await this.emailsRepo.manager.query(
+    const raw: unknown = await this.emailsRepo.manager.query(
       `UPDATE emails AS e
-          SET status        = 'FAILED'::emails_status_enum,
-              error_message = u.msg
+          SET status              = 'COMPLETED'::emails_status_enum,
+              verification_result = 'UNKNOWN'::emails_verification_result_enum,
+              error_message       = u.msg
          FROM UNNEST($1::uuid[], $2::text[]) AS u(id, msg)
         WHERE e.id = u.id
-          AND e.status NOT IN (
-                'COMPLETED'::emails_status_enum,
-                'FAILED'::emails_status_enum
-              )
-       RETURNING e.id      AS "emailId",
-                 e.list_id AS "listId",
-                 NULL::text AS "result",
-                 e.disposable AS "disposable"`,
+          AND e.status != 'COMPLETED'::emails_status_enum
+       RETURNING e.id                  AS "emailId",
+                 e.list_id             AS "listId",
+                 e.verification_result AS "result",
+                 e.disposable          AS "disposable"`,
       [ids, msgs],
     );
 
-    return transitioned;
+    const transitioned: TransitionedRow[] =
+      Array.isArray(raw) && raw.length > 0 && Array.isArray(raw[0])
+        ? (raw[0] as TransitionedRow[])
+        : (raw as TransitionedRow[]);
+
+    return transitioned.filter(
+      (r) => r && typeof r.emailId === 'string',
+    );
   }
 }

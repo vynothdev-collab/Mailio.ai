@@ -31,7 +31,6 @@ import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { VerifyRateLimitGuard } from '../../common/guards/verify-rate-limit.guard';
 import { User } from '../../users/entities/user.entity';
 import { BulkVerifyService } from './bulk-verify.service';
 
@@ -48,7 +47,7 @@ const JOB_SCHEMA = {
     processedCount: { type: 'number', example: 1200 },
     validCount: { type: 'number', example: 900 },
     invalidCount: { type: 'number', example: 200 },
-    riskyCount: { type: 'number', example: 70 },
+    catchallCount: { type: 'number', example: 70 },
     unknownCount: { type: 'number', example: 30 },
     createdAt: { type: 'string', format: 'date-time' },
   },
@@ -62,9 +61,7 @@ export class BulkVerifyController {
   constructor(private readonly bulkVerifyService: BulkVerifyService) {}
 
   @Post('upload')
-  @UseGuards(VerifyRateLimitGuard)
   @ApiOperation({ summary: 'Upload CSV/TXT file to start bulk verification' })
-  @ApiResponse({ status: 429, description: 'Too many requests (50/min per user)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -225,7 +222,7 @@ export class BulkVerifyController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Aggregated valid / invalid / risky / unknown counts',
+    description: 'Aggregated valid / invalid / catchall / unknown counts',
     schema: {
       type: 'object',
       properties: {

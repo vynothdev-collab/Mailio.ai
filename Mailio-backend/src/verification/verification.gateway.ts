@@ -1,4 +1,4 @@
-import { Logger, UnauthorizedException } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
   ConnectedSocket,
@@ -38,8 +38,8 @@ export class VerificationGateway
       this.logger.log(`Client ${client.id} connected as user ${payload.sub}`);
     } catch {
       this.logger.warn(`Rejected unauthenticated socket ${client.id}`);
+      client.emit('error', { message: 'Unauthorized' });
       client.disconnect(true);
-      throw new UnauthorizedException();
     }
   }
 

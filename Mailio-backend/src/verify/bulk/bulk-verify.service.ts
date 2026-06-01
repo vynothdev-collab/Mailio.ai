@@ -16,7 +16,7 @@ import { VerificationService } from '../../verification/verification.service';
 const CHART_COLORS = {
   valid: '#22c55e',
   invalid: '#ef4444',
-  risky: '#f59e0b',
+  catchall: '#f59e0b',
   disposable: '#8b5cf6',
 };
 
@@ -65,6 +65,9 @@ export class BulkVerifyService {
   async getActive(userId: string) {
     const list = await this.emailListsService.findActiveJob(userId);
     if (!list) return null;
+    if (list.totalCount > 0 && list.processedCount >= list.totalCount) {
+      return null;
+    }
     return this.toActiveJob(list);
   }
 
@@ -82,7 +85,7 @@ export class BulkVerifyService {
       etaSeconds,
       valid: list.validCount,
       invalid: list.invalidCount,
-      risky: list.riskyCount,
+      catchall: list.catchallCount + list.unknownCount,
       disposable: list.disposableCount,
     };
   }
@@ -108,7 +111,7 @@ export class BulkVerifyService {
       processedCount: l.processedCount,
       valid: l.validCount,
       invalid: l.invalidCount,
-      risky: l.riskyCount,
+      catchall: l.catchallCount + l.unknownCount,
       disposable: l.disposableCount,
       createdAt: l.createdAt,
       completedAt: l.status === EmailListStatus.COMPLETED ? l.updatedAt : null,
@@ -186,8 +189,8 @@ export class BulkVerifyService {
     const invalidCount = allEmails.filter(
       (e) => e.verificationResult === VerificationResult.INVALID,
     ).length;
-    const riskCount = allEmails.filter(
-      (e) => e.verificationResult === VerificationResult.RISKY,
+    const catchallCount = allEmails.filter(
+      (e) => e.verificationResult === VerificationResult.CATCHALL,
     ).length;
 
     return {
@@ -198,7 +201,7 @@ export class BulkVerifyService {
       avgResponseMs,
       successCount,
       invalidCount,
-      riskCount,
+      catchallCount,
       changes: {
         filesToday: this.pctChange(todayLists.length, yesterdayLists.length),
         completedJobs: this.pctChange(completedJobs, completedYesterday),
@@ -228,14 +231,14 @@ export class BulkVerifyService {
 
     let valid = 0;
     let invalid = 0;
-    let risky = 0;
+    let catchall = 0;
     for (const r of rows) {
       if (r.verificationResult === VerificationResult.VALID) valid++;
       else if (r.verificationResult === VerificationResult.INVALID) invalid++;
-      else if (r.verificationResult === VerificationResult.RISKY) risky++;
+      else catchall++;
     }
 
-    const total = valid + invalid + risky;
+    const total = valid + invalid + catchall;
     const pct = (n: number) =>
       total > 0 ? Math.round((n / total) * 1000) / 10 : 0;
 
@@ -255,10 +258,10 @@ export class BulkVerifyService {
           color: CHART_COLORS.invalid,
         },
         {
-          name: 'Risky',
-          value: risky,
-          percentage: pct(risky),
-          color: CHART_COLORS.risky,
+          name: 'Catchall',
+          value: catchall,
+          percentage: pct(catchall),
+          color: CHART_COLORS.catchall,
         },
       ],
     };
@@ -286,10 +289,10 @@ export class BulkVerifyService {
           color: CHART_COLORS.invalid,
         },
         {
-          name: 'Risky',
-          value: list.riskyCount,
-          percentage: pct(list.riskyCount),
-          color: CHART_COLORS.risky,
+          name: 'Catchall',
+          value: list.catchallCount + list.unknownCount,
+          percentage: pct(list.catchallCount + list.unknownCount),
+          color: CHART_COLORS.catchall,
         },
         {
           name: 'Disposable',
@@ -330,12 +333,22 @@ export class BulkVerifyService {
         select: ['id'],
       });
       const list = await this.emailListsService.findById(jobId, userId);
-      await this.verificationService.enqueueBulk(
-        failedEmails.map((e) => e.id),
-        userId,
-        jobId,
-        list.totalCount ?? failedEmails.length,
-      );
+      if (process.env.BULK_BATCH_ENABLED === 'true') {
+        await this.verificationService.enqueueBulkBatches(
+          failedEmails.map((e) => e.id),
+          userId,
+          jobId,
+          undefined,
+          list.totalCount ?? failedEmails.length,
+        );
+      } else {
+        await this.verificationService.enqueueBulk(
+          failedEmails.map((e) => e.id),
+          userId,
+          jobId,
+          list.totalCount ?? failedEmails.length,
+        );
+      }
     }
 
     return { jobId, status: 'queued', requeuedCount };
@@ -358,9 +371,15 @@ export class BulkVerifyService {
   }
 
   private toActiveJob(list: EmailList) {
+    const done =
+      list.totalCount > 0 && list.processedCount >= list.totalCount;
+    const status = done
+      ? EmailListStatus.COMPLETED
+      : list.status;
     return {
       jobId: list.id,
       fileName: list.originalFilename ?? list.name,
+      status: status.toLowerCase(),
       progress:
         list.totalCount > 0
           ? Math.round((list.processedCount / list.totalCount) * 100)
@@ -371,7 +390,7 @@ export class BulkVerifyService {
       startedAt: list.startedAt,
       valid: list.validCount,
       invalid: list.invalidCount,
-      risky: list.riskyCount,
+      catchall: list.catchallCount + list.unknownCount,
       disposable: list.disposableCount,
     };
   }

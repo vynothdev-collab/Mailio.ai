@@ -10,7 +10,7 @@ local tokens = tonumber(data[1])
 local lastRefill = tonumber(data[2])
 
 if tokens == nil then
-  tokens = max
+  tokens = 0
   lastRefill = now
 end
 

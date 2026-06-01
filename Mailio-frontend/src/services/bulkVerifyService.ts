@@ -85,6 +85,53 @@ export const bulkVerifyService = {
     return data;
   },
 
+  async getJobMeta(
+    jobId: string,
+    signal?: AbortSignal,
+  ): Promise<{
+    id:               string;
+    name:             string;
+    originalFilename: string | null;
+    status:           "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+    totalCount:       number;
+    processedCount:   number;
+    validCount:       number;
+    invalidCount:     number;
+    catchallCount:    number;
+    unknownCount:     number;
+    disposableCount:  number;
+    createdAt:        string;
+    updatedAt:        string;
+  }> {
+    const { data } = await api.get(`/email-lists/${jobId}`, { signal });
+    return data;
+  },
+
+  async getEmailsPage(
+    jobId: string,
+    page: number,
+    limit: number,
+    result?: "VALID" | "INVALID" | "CATCHALL" | "UNKNOWN",
+    signal?: AbortSignal,
+  ): Promise<{
+    items: {
+      id:                 string;
+      address:            string;
+      verificationResult: "VALID" | "INVALID" | "CATCHALL" | "UNKNOWN" | null;
+      score:              number | null;
+      processedAt:        string | null;
+    }[];
+    total: number;
+    page:  number;
+    limit: number;
+  }> {
+    const { data } = await api.get(`/email-lists/${jobId}/emails`, {
+      params: { page, limit, ...(result ? { result } : {}) },
+      signal,
+    });
+    return data;
+  },
+
   async retry(jobId: string): Promise<{ requeuedCount: number }> {
     const { data } = await api.post<{ requeuedCount: number }>(`/verify/bulk/${jobId}/retry`);
     return data;

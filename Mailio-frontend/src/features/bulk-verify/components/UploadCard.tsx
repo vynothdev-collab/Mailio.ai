@@ -16,10 +16,13 @@ const ACCEPTED_EXTS = [".csv", ".txt"] as const;
 const MAX_SIZE_MB   = 50;
 
 interface Props {
-  onUploaded: (result: BulkUploadResponse) => void;
+  onUploaded:          (result: BulkUploadResponse) => void;
+  onUploadingChange?:  (uploading: boolean) => void;
+  disabled?:           boolean;
+  disabledReason?:     string;
 }
 
-export function UploadCard({ onUploaded }: Props) {
+export function UploadCard({ onUploaded, onUploadingChange, disabled = false, disabledReason }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file,       setFile]       = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -86,6 +89,7 @@ export function UploadCard({ onUploaded }: Props) {
   const startUpload = async () => {
     if (!file) return;
     setUploading(true);
+    onUploadingChange?.(true);
     setUploadPct(0);
     try {
       const result = await bulkVerifyService.upload(file, setUploadPct);
@@ -97,6 +101,7 @@ export function UploadCard({ onUploaded }: Props) {
     } catch (err) {
       const apiErr = err as ApiError;
       toast.error(apiErr?.message ?? "Upload failed.");
+      onUploadingChange?.(false);
     } finally {
       setUploading(false);
     }
@@ -126,23 +131,105 @@ export function UploadCard({ onUploaded }: Props) {
           </a>
         </div>
 
+        {/* Post-upload live progress card */}
+        {lastUpload && (
+          <div
+            className="rounded-xl border-2 border-blue-500 p-3 transition-colors shadow-[0_0_0_3px_rgba(59,130,246,0.12),0_8px_22px_-8px_rgba(59,130,246,0.35)]"
+            style={{ backgroundColor: "#EEF3FB" }}
+          >
+            <div className="flex items-start gap-2">
+              <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-blue-700" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold truncate text-slate-800">
+                    {lastUpload.fileName}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { setLastUpload(null); setProgress(null); }}
+                    aria-label="Dismiss"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+                {(() => {
+                  const isParsing = !progress || progress.totalCount === 0;
+                  const isDone    = !isParsing && progress.processedCount >= progress.totalCount;
+                  const label     = isDone ? "Completed" : isParsing ? "Parsing…" : "Processing";
+                  return (
+                    <span className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold mt-0.5",
+                      isDone
+                        ? "border-emerald-200 text-emerald-700"
+                        : "border-blue-200 bg-blue-50 text-blue-700",
+                    )}>
+                      {!isDone && <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />}
+                      {label}
+                    </span>
+                  );
+                })()}
+                {(() => {
+                  const total     = progress?.totalCount ?? 0;
+                  const processed = progress?.processedCount ?? 0;
+                  const pct       = total > 0
+                    ? Math.min(100, Math.round((processed / total) * 100))
+                    : 0;
+                  const isDone    = pct >= 100;
+                  return (
+                    <div className="mt-2 flex items-center gap-3">
+                      <div className="flex-1 h-2 rounded-full bg-blue-100 overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full rounded-full bg-blue-500 transition-all",
+                            !isDone &&
+                              "bg-[linear-gradient(45deg,rgba(255,255,255,0.25)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.25)_50%,rgba(255,255,255,0.25)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[stripes_1s_linear_infinite]",
+                          )}
+                          style={{
+                            width: `${pct}%`,
+                            backgroundColor: "#3b82f6",
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs font-semibold tabular-nums text-blue-700 w-10 text-right">
+                        {pct}%
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Drop zone */}
         <label
+          aria-disabled={disabled}
           className={cn(
-            "flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed cursor-pointer py-12 transition-colors",
-            isDragging
-              ? "border-[#0F5BFF] bg-[#F4F8FF]"
-              : "border-[#DCE6F3] bg-[#F4F8FF] hover:border-[#0F5BFF]/40",
+            "flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-12 transition-colors",
+            disabled
+              ? "border-[#DCE6F3] bg-[#F4F8FF] opacity-60 cursor-not-allowed"
+              : isDragging
+                ? "border-[#0F5BFF] bg-[#F4F8FF] cursor-pointer"
+                : "border-[#DCE6F3] bg-[#F4F8FF] hover:border-[#0F5BFF]/40 cursor-pointer",
           )}
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (disabled) return;
+            setIsDragging(true);
+          }}
           onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
+          onDrop={(e) => {
+            if (disabled) { e.preventDefault(); return; }
+            handleDrop(e);
+          }}
         >
           <input
             ref={inputRef}
             type="file"
             accept=".csv,.txt"
             onChange={handleChange}
+            disabled={disabled}
             className="sr-only"
           />
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#E6EEFB]">
@@ -201,77 +288,23 @@ export function UploadCard({ onUploaded }: Props) {
           </div>
         )}
 
+        {disabled && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+            {disabledReason ?? "A verification is currently in progress. Please wait for it to finish before uploading another file."}
+          </div>
+        )}
+
         {/* Upload button */}
         <Button
           type="button"
           onClick={startUpload}
-          disabled={!file || uploading}
+          disabled={!file || uploading || disabled}
           className="w-full gradient-brand border-0 text-white hover:opacity-90 h-11"
         >
           {uploading
             ? <><Loader2 size={14} className="animate-spin" /> Uploading…</>
             : "Upload & Verify"}
         </Button>
-
-        {/* Post-upload live progress card */}
-        {lastUpload && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-            <div className="flex items-start gap-2">
-              <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-emerald-600" />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-emerald-700 truncate">
-                    {lastUpload.fileName}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => { setLastUpload(null); setProgress(null); }}
-                    aria-label="Dismiss"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-                {(() => {
-                  const isParsing = !progress || progress.totalCount === 0;
-                  const isDone    = !isParsing && progress.processedCount >= progress.totalCount;
-                  const label     = isDone ? "Completed" : isParsing ? "Parsing…" : "Processing";
-                  return (
-                    <span className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold mt-0.5",
-                      isDone
-                        ? "border-emerald-200 text-emerald-700"
-                        : "border-blue-200 bg-blue-50 text-blue-700",
-                    )}>
-                      {!isDone && <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />}
-                      {label}
-                    </span>
-                  );
-                })()}
-                <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Valid</p>
-                    <p className="font-semibold tabular-nums text-emerald-600">
-                      {(progress?.valid ?? 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Invalid</p>
-                    <p className="font-semibold tabular-nums text-red-500">
-                      {(progress?.invalid ?? 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Risky</p>
-                    <p className="font-semibold tabular-nums text-amber-600">
-                      {(progress?.risky ?? 0).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         <TemplateGuide />
         <PrivacyBanner />

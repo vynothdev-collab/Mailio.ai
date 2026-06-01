@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mailio.ai – Email Verification",
+  title: "emailanswers.ai – Email Verification",
   description: "Clean your lists, reduce bounce rates, and improve deliverability before every outreach.",
   icons: {
     icon: "/favicon.svg",
@@ -34,7 +34,7 @@ export default function RootLayout({
     >
       <body className="h-full antialiased">
         <Providers>{children}</Providers>
-        <Toaster position="bottom-right" richColors />
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );
