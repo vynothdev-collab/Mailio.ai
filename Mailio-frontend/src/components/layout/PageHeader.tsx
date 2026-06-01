@@ -140,9 +140,7 @@ export function PageHeader({
             <button
               type="button"
               onClick={() => {
-                console.log("[Back Button] Current location:", window.location.href);
-                console.log("[Back Button] Navigating to:", backHref);
-                router.push(backHref);
+                router.replace(backHref);
               }}
               aria-label={backLabel}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#DCE6F3] bg-white text-[#161514] hover:bg-[#F4F8FF] transition-colors"
