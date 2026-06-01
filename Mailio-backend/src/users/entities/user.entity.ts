@@ -18,6 +18,18 @@ export enum AuthProvider {
   LINKEDIN = 'LINKEDIN',
 }
 
+export enum UserRole {
+  USER = 'USER',
+  ENTERPRISE_USER = 'ENTERPRISE_USER',
+  ENTERPRISE_ADMIN = 'ENTERPRISE_ADMIN',
+  SUPER_ADMIN = 'SUPER_ADMIN',
+}
+
+export const ENTERPRISE_ROLES: ReadonlyArray<UserRole> = [
+  UserRole.ENTERPRISE_USER,
+  UserRole.ENTERPRISE_ADMIN,
+];
+
 @Entity('users')
 @Index('uq_users_provider_provider_id', ['provider', 'providerId'], {
   unique: true,
@@ -38,6 +50,26 @@ export class User {
 
   @Column({ type: 'enum', enum: Plan, default: Plan.PRO })
   plan: Plan;
+
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
+  role!: UserRole;
+
+  @Column({ name: 'enterprise_id', type: 'uuid', nullable: true })
+  enterpriseId!: string | null;
+
+  @Column({ name: 'created_by_admin_id', type: 'uuid', nullable: true })
+  createdByAdminId!: string | null;
+
+  @Column({ name: 'created_by_user_id', type: 'uuid', nullable: true })
+  createdByUserId!: string | null;
+
+  // Per-user credit balance. Used only for role=USER. Enterprise members
+  // consume from Enterprise.creditBalance instead.
+  @Column({ name: 'credit_balance', type: 'bigint', default: 0 })
+  creditBalance!: string;
+
+  @Column({ name: 'credits_used', type: 'bigint', default: 0 })
+  creditsUsed!: string;
 
   @Column({ type: 'enum', enum: AuthProvider, default: AuthProvider.LOCAL })
   provider: AuthProvider;

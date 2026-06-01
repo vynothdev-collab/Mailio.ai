@@ -169,6 +169,387 @@ export class MailService implements OnModuleInit {
     }
   }
 
+  async sendEnterpriseUserCredentialsEmail(
+    to: string,
+    name: string,
+    password: string,
+    enterpriseName: string,
+    loginUrl: string,
+  ): Promise<void> {
+    if (!this.configured) {
+      this.logger.warn('Mail not configured — skipping enterprise user welcome email.');
+      return;
+    }
+    const subject = `You have been added to ${enterpriseName} on Mailio`;
+    const text =
+      `Hi ${name},\n\n` +
+      `You have been added to the enterprise account for ${enterpriseName} on Mailio.\n\n` +
+      `Login URL: ${loginUrl}\n` +
+      `Email:     ${to}\n` +
+      `Password:  ${password}\n\n` +
+      `For security, please change your password after your first sign-in.\n\n` +
+      `If you did not expect this email, please contact your enterprise admin.`;
+    const html = this.renderEnterpriseUserCredentialsHtml(
+      name, to, password, enterpriseName, loginUrl,
+    );
+    try {
+      await sgMail.send({
+        to,
+        from: { email: this.fromEmail, name: this.fromName },
+        subject,
+        text,
+        html,
+      });
+    } catch (err) {
+      const sgErr = err as { message?: string; code?: number; response?: { body?: unknown } };
+      const detail = sgErr?.response?.body !== undefined
+        ? JSON.stringify(sgErr.response.body)
+        : (sgErr?.message ?? 'Unknown error');
+      this.logger.error(
+        `SendGrid enterprise user credentials send failed (code=${sgErr?.code ?? 'n/a'}) to ${to}: ${detail}`,
+      );
+    }
+  }
+
+  async sendEnterpriseUserAddedEmail(
+    to: string,
+    name: string,
+    enterpriseName: string,
+    loginUrl: string,
+  ): Promise<void> {
+    if (!this.configured) {
+      this.logger.warn('Mail not configured — skipping enterprise user added email.');
+      return;
+    }
+    const subject = `You have been added to ${enterpriseName} on Mailio`;
+    const text =
+      `Hi ${name},\n\n` +
+      `You have been added to the enterprise account for ${enterpriseName} on Mailio.\n` +
+      `Sign in with your existing credentials at: ${loginUrl}\n\n` +
+      `If you did not expect this email, please contact your enterprise admin.`;
+    const html = this.renderEnterpriseUserAddedHtml(name, enterpriseName, loginUrl);
+    try {
+      await sgMail.send({
+        to,
+        from: { email: this.fromEmail, name: this.fromName },
+        subject,
+        text,
+        html,
+      });
+    } catch (err) {
+      const sgErr = err as { message?: string; code?: number; response?: { body?: unknown } };
+      const detail = sgErr?.response?.body !== undefined
+        ? JSON.stringify(sgErr.response.body)
+        : (sgErr?.message ?? 'Unknown error');
+      this.logger.error(
+        `SendGrid enterprise user added send failed (code=${sgErr?.code ?? 'n/a'}) to ${to}: ${detail}`,
+      );
+    }
+  }
+
+  async sendEnterpriseAdminCredentialsEmail(
+    to: string,
+    name: string,
+    password: string,
+    enterpriseName: string,
+    loginUrl: string,
+  ): Promise<void> {
+    if (!this.configured) {
+      throw new InternalServerErrorException('Email service is not configured');
+    }
+
+    const subject = `Welcome to ${enterpriseName} on Mailio`;
+    const text =
+      `Hi ${name},\n\n` +
+      `An enterprise account has been created for ${enterpriseName} on Mailio.\n` +
+      `You have been assigned as the Enterprise Admin and can now sign in to manage your team.\n\n` +
+      `Login URL: ${loginUrl}\n` +
+      `Email:     ${to}\n` +
+      `Password:  ${password}\n\n` +
+      `For security, please change your password after your first sign-in.\n\n` +
+      `If you did not expect this email, please contact support immediately.`;
+    const html = this.renderEnterpriseAdminCredentialsHtml(
+      name,
+      to,
+      password,
+      enterpriseName,
+      loginUrl,
+    );
+
+    try {
+      await sgMail.send({
+        to,
+        from: { email: this.fromEmail, name: this.fromName },
+        subject,
+        text,
+        html,
+      });
+    } catch (err) {
+      const sgErr = err as {
+        message?: string;
+        code?: number;
+        response?: { body?: unknown };
+      };
+      const detail =
+        sgErr?.response?.body !== undefined
+          ? JSON.stringify(sgErr.response.body)
+          : (sgErr?.message ?? 'Unknown error');
+      this.logger.error(
+        `SendGrid enterprise admin credentials send failed (code=${sgErr?.code ?? 'n/a'}) to ${to}: ${detail}`,
+      );
+      throw new InternalServerErrorException(
+        'Failed to send enterprise admin credentials email',
+      );
+    }
+  }
+
+  private renderEnterpriseUserCredentialsHtml(
+    name: string,
+    email: string,
+    password: string,
+    enterpriseName: string,
+    loginUrl: string,
+  ): string {
+    const year = new Date().getFullYear();
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Mailio Enterprise Account</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: linear-gradient(135deg,#eef3fb 0%,#f8fbff 100%); font-family: Arial, Helvetica, sans-serif; display: flex; align-items: center; justify-content: center; padding: 32px 16px; color: #001a66; }
+    .email-wrapper { width: 100%; max-width: 560px; background: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 24px 60px rgba(15,91,255,.12); border: 1px solid #e5ecf8; }
+    .header { padding: 36px 32px 18px; text-align: center; }
+    .content { padding: 10px 42px 32px; text-align: center; }
+    .badge { display: inline-block; padding: 8px 14px; border-radius: 999px; background: #eef3fb; color: #0f5bff; font-size: 13px; font-weight: 700; margin-bottom: 18px; }
+    h1 { margin: 0; font-size: 26px; line-height: 1.3; color: #001a66; }
+    .message { margin: 14px 0 0; color: #5f6b7a; font-size: 15px; line-height: 1.7; }
+    .creds { margin: 24px 0 18px; background: #eef3fb; border: 1px solid #d9e6ff; border-radius: 14px; padding: 18px 22px; text-align: left; }
+    .creds .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+    .creds .label { color: #5f6b7a; font-weight: 600; }
+    .creds .val { color: #162D3A; font-weight: 700; word-break: break-all; text-align: right; }
+    .btn-wrap { margin: 22px 0 6px; }
+    .btn { display: inline-block; padding: 13px 30px; background: #0f5bff; color: #ffffff !important; text-decoration: none; border-radius: 12px; font-size: 15px; font-weight: 700; }
+    .warning { margin: 18px auto 0; max-width: 420px; color: #c0392b; font-size: 13px; line-height: 1.6; background: #fff5f5; border: 1px solid #fdd; border-radius: 8px; padding: 10px 14px; }
+    .footer { background: #f8fbff; padding: 22px 32px; text-align: center; border-top: 1px solid #edf2f7; }
+    .footer p { margin: 0; color: #9aa4b2; font-size: 12px; line-height: 1.6; }
+    @media (max-width: 480px) { .content { padding: 8px 22px 28px; } h1 { font-size: 22px; } .creds .row { flex-direction: column; gap: 4px; } .creds .val { text-align: left; } }
+  </style>
+</head>
+<body>
+  <main class="email-wrapper">
+    <section class="header">
+      <img src="${this.frontendUrl}/brand-logo.svg" alt="Mailio" width="240" style="width:240px;max-width:100%;height:auto;display:inline-block;" />
+    </section>
+    <section class="content">
+      <div class="badge">Enterprise Member</div>
+      <h1>Welcome to ${enterpriseName}, ${name}!</h1>
+      <p class="message">You have been added to the <strong>${enterpriseName}</strong> enterprise on Mailio. Use the credentials below to sign in and start verifying emails.</p>
+      <div class="creds">
+        <div class="row"><span class="label">Email</span><span class="val">${email}</span></div>
+        <div class="row"><span class="label">Password</span><span class="val">${password}</span></div>
+      </div>
+      <div class="btn-wrap">
+        <a href="${loginUrl}" class="btn">Sign in to Mailio</a>
+      </div>
+      <p class="warning">Please change your password immediately after signing in. Do not share these credentials with anyone.</p>
+    </section>
+    <section class="footer">
+      <p>&copy; ${year} Mailio. All rights reserved.</p>
+      <p>This is an automated email. Please do not reply.</p>
+    </section>
+  </main>
+</body>
+</html>`;
+  }
+
+  private renderEnterpriseUserAddedHtml(
+    name: string,
+    enterpriseName: string,
+    loginUrl: string,
+  ): string {
+    const year = new Date().getFullYear();
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Added to ${enterpriseName} on Mailio</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: linear-gradient(135deg,#eef3fb 0%,#f8fbff 100%); font-family: Arial, Helvetica, sans-serif; display: flex; align-items: center; justify-content: center; padding: 32px 16px; color: #001a66; }
+    .email-wrapper { width: 100%; max-width: 560px; background: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 24px 60px rgba(15,91,255,.12); border: 1px solid #e5ecf8; }
+    .header { padding: 36px 32px 18px; text-align: center; }
+    .content { padding: 10px 42px 36px; text-align: center; }
+    .badge { display: inline-block; padding: 8px 14px; border-radius: 999px; background: #eef3fb; color: #0f5bff; font-size: 13px; font-weight: 700; margin-bottom: 18px; }
+    h1 { margin: 0; font-size: 26px; line-height: 1.3; color: #001a66; }
+    .message { margin: 14px 0 0; color: #5f6b7a; font-size: 15px; line-height: 1.7; }
+    .info-box { margin: 24px 0; background: #eef3fb; border: 1px solid #d9e6ff; border-radius: 14px; padding: 18px 22px; color: #162D3A; font-size: 14px; line-height: 1.6; }
+    .btn-wrap { margin: 22px 0 6px; }
+    .btn { display: inline-block; padding: 13px 30px; background: #0f5bff; color: #ffffff !important; text-decoration: none; border-radius: 12px; font-size: 15px; font-weight: 700; }
+    .note { margin: 18px auto 0; max-width: 420px; color: #8a94a6; font-size: 13px; line-height: 1.6; }
+    .footer { background: #f8fbff; padding: 22px 32px; text-align: center; border-top: 1px solid #edf2f7; }
+    .footer p { margin: 0; color: #9aa4b2; font-size: 12px; line-height: 1.6; }
+    @media (max-width: 480px) { .content { padding: 8px 22px 28px; } h1 { font-size: 22px; } }
+  </style>
+</head>
+<body>
+  <main class="email-wrapper">
+    <section class="header">
+      <img src="${this.frontendUrl}/brand-logo.svg" alt="Mailio" width="240" style="width:240px;max-width:100%;height:auto;display:inline-block;" />
+    </section>
+    <section class="content">
+      <div class="badge">Enterprise Member</div>
+      <h1>You have been added to ${enterpriseName}</h1>
+      <p class="message">Hi <strong>${name}</strong>, your account has been added to the <strong>${enterpriseName}</strong> enterprise on Mailio. You can now access shared credits and verify emails on behalf of the organisation.</p>
+      <div class="info-box">Sign in with your existing Mailio credentials — your email and password have not changed.</div>
+      <div class="btn-wrap">
+        <a href="${loginUrl}" class="btn">Go to Mailio</a>
+      </div>
+      <p class="note">If you did not expect this, please contact your enterprise administrator or Mailio support.</p>
+    </section>
+    <section class="footer">
+      <p>&copy; ${year} Mailio. All rights reserved.</p>
+      <p>This is an automated email. Please do not reply.</p>
+    </section>
+  </main>
+</body>
+</html>`;
+  }
+
+  private renderEnterpriseAdminCredentialsHtml(
+    name: string,
+    email: string,
+    password: string,
+    enterpriseName: string,
+    loginUrl: string,
+  ): string {
+    const year = new Date().getFullYear();
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Mailio Enterprise Admin Account</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #eef3fb 0%, #f8fbff 100%);
+      font-family: Arial, Helvetica, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      color: #001a66;
+    }
+    .email-wrapper {
+      width: 100%;
+      max-width: 560px;
+      background: #ffffff;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(15, 91, 255, 0.12);
+      border: 1px solid #e5ecf8;
+    }
+    .header { padding: 36px 32px 18px; text-align: center; }
+    .content { padding: 10px 42px 32px; text-align: center; }
+    .badge {
+      display: inline-block;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: #162D3A;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+    h1 { margin: 0; font-size: 26px; line-height: 1.3; color: #001a66; }
+    .message { margin: 14px 0 0; color: #5f6b7a; font-size: 15px; line-height: 1.7; }
+    .creds {
+      margin: 24px 0 18px;
+      background: #eef3fb;
+      border: 1px solid #d9e6ff;
+      border-radius: 14px;
+      padding: 18px 22px;
+      text-align: left;
+    }
+    .creds .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+    .creds .label { color: #5f6b7a; font-weight: 600; }
+    .creds .val { color: #162D3A; font-weight: 700; word-break: break-all; text-align: right; }
+    .btn-wrap { margin: 22px 0 6px; }
+    .btn {
+      display: inline-block;
+      padding: 13px 30px;
+      background: #162D3A;
+      color: #ffffff !important;
+      text-decoration: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .warning {
+      margin: 18px auto 0;
+      max-width: 420px;
+      color: #c0392b;
+      font-size: 13px;
+      line-height: 1.6;
+      background: #fff5f5;
+      border: 1px solid #fdd;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+    .footer { background: #f8fbff; padding: 22px 32px; text-align: center; border-top: 1px solid #edf2f7; }
+    .footer p { margin: 0; color: #9aa4b2; font-size: 12px; line-height: 1.6; }
+    @media (max-width: 480px) {
+      .content { padding: 8px 22px 28px; }
+      h1 { font-size: 22px; }
+      .creds .row { flex-direction: column; gap: 4px; }
+      .creds .val { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <main class="email-wrapper">
+    <section class="header">
+      <img src="${this.frontendUrl}/brand-logo.svg" alt="Mailio" width="240" style="width:240px;max-width:100%;height:auto;display:inline-block;border:0;outline:none;text-decoration:none;" />
+    </section>
+
+    <section class="content">
+      <div class="badge">Enterprise Admin Access</div>
+      <h1>Welcome, ${name}</h1>
+      <p class="message">
+        An enterprise account for <strong>${enterpriseName}</strong> has been created on Mailio.
+        You have been assigned as the <strong>Enterprise Admin</strong>. Use the credentials below to sign in.
+      </p>
+
+      <div class="creds">
+        <div class="row"><span class="label">Email</span><span class="val">${email}</span></div>
+        <div class="row"><span class="label">Password</span><span class="val">${password}</span></div>
+      </div>
+
+      <div class="btn-wrap">
+        <a href="${loginUrl}" class="btn">Sign in to Mailio</a>
+      </div>
+
+      <p class="warning">
+        For your security, please change your password immediately after signing in.
+        Do not share these credentials with anyone.
+      </p>
+    </section>
+
+    <section class="footer">
+      <p>&copy; ${year} Mailio. All rights reserved.</p>
+      <p>This is an automated email. Please do not reply.</p>
+    </section>
+  </main>
+</body>
+</html>`;
+  }
+
   private renderAdminOtpHtml(name: string, otp: string): string {
     const year = new Date().getFullYear();
     return `<!DOCTYPE html>

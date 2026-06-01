@@ -186,7 +186,7 @@ export class EmailListsController {
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 20,
   ) {
     const [items, total] = await this.emailListsService.findByUser(
-      user.id,
+      user,
       page,
       limit,
     );
@@ -204,7 +204,7 @@ export class EmailListsController {
   @ApiResponse({ status: 404, description: 'List not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   findOne(@Param('id') id: string, @CurrentUser() user: User) {
-    return this.emailListsService.findById(id, user.id);
+    return this.emailListsService.findByIdForUser(id, user);
   }
 
   @Get(':id/emails')
@@ -259,7 +259,7 @@ export class EmailListsController {
   ) {
     const [items, total] = await this.emailListsService.findEmailsInList(
       id,
-      user.id,
+      user,
       page,
       limit,
       result,
@@ -288,7 +288,7 @@ export class EmailListsController {
   ) {
     await this.emailListsService.streamDownload(
       id,
-      user.id,
+      user,
       res,
       'csv',
       result === undefined ? 'full' : 'verified',
@@ -302,6 +302,6 @@ export class EmailListsController {
   @ApiResponse({ status: 404, description: 'List not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   remove(@Param('id') id: string, @CurrentUser() user: User) {
-    return this.emailListsService.remove(id, user.id);
+    return this.emailListsService.remove(id, user);
   }
 }

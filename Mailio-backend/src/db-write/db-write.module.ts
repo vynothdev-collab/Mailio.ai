@@ -1,5 +1,6 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
+import { CreditsModule } from '../credits/credits.module';
 import { EmailListsModule } from '../email-lists/email-lists.module';
 import { EmailsModule } from '../emails/emails.module';
 import { VerificationModule } from '../verification/verification.module';
@@ -24,6 +25,7 @@ import { DB_WRITE_QUEUE } from './db-write.types';
     EmailsModule,
     EmailListsModule,
     VerificationModule,
+    CreditsModule,
   ],
   providers: [DbWriteService, DbWriteProcessor],
   exports: [DbWriteService],

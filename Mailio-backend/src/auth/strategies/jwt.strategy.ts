@@ -8,6 +8,8 @@ interface JwtPayload {
   sub: string;
   email: string;
   plan: string;
+  role?: string;
+  enterpriseId?: string | null;
   type: string;
 }
 
@@ -28,6 +30,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (payload.type !== 'access') {
       throw new UnauthorizedException('Invalid token type');
     }
+    // Always re-hydrate the user from the DB so role/enterprise/credit changes
+    // (e.g. Super Admin allocations) take effect on the next request without
+    // requiring a token refresh.
     const user = await this.usersService.findById(payload.sub);
     if (!user || !user.isActive) {
       throw new UnauthorizedException(

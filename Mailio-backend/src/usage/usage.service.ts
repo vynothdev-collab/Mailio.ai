@@ -1,15 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Between, In, Repository } from 'typeorm';
 import { EmailList } from '../email-lists/entities/email-list.entity';
 import { Email, EmailStatus } from '../emails/entities/email.entity';
-import { Plan } from '../users/entities/user.entity';
-
-const UNLIMITED = 1_000_000_000;
-const PLAN_LIMITS: Record<Plan, number> = {
-  [Plan.PRO]: UNLIMITED,
-  [Plan.ULTIMATE]: UNLIMITED,
-};
+import { User, UserRole } from '../users/entities/user.entity';
+import { Enterprise } from '../enterprises/entities/enterprise.entity';
 
 export type UsageType = 'all' | 'single' | 'bulk';
 export type UsagePeriod = '7d' | '14d' | '30d';
@@ -21,61 +16,111 @@ export class UsageService {
     private readonly emailsRepo: Repository<Email>,
     @InjectRepository(EmailList)
     private readonly listsRepo: Repository<EmailList>,
+    @InjectRepository(User)
+    private readonly usersRepo: Repository<User>,
+    @InjectRepository(Enterprise)
+    private readonly enterpriseRepo: Repository<Enterprise>,
   ) {}
 
-  async getQuota(userId: string, plan: Plan) {
+  /**
+   * Returns credit-based quota for the user's effective account.
+   * - Enterprise members (USER + ADMIN) draw from the shared enterprise balance.
+   * - Normal USER draws from personal balance.
+   */
+  async getQuota(user: User) {
+    const isEnterprise =
+      user.role === UserRole.ENTERPRISE_USER ||
+      user.role === UserRole.ENTERPRISE_ADMIN;
+
+    let creditBalance = 0;
+    let creditsUsed = 0;
+    let accountLabel = 'Personal';
+
+    if (isEnterprise && user.enterpriseId) {
+      const enterprise = await this.enterpriseRepo.findOne({
+        where: { id: user.enterpriseId },
+      });
+      creditBalance = Number(enterprise?.creditBalance ?? 0);
+      creditsUsed = Number(enterprise?.creditsUsed ?? 0);
+      accountLabel = 'Enterprise';
+    } else {
+      creditBalance = Number(user.creditBalance ?? 0);
+      creditsUsed = Number(user.creditsUsed ?? 0);
+    }
+
+    const totalEver = creditBalance + creditsUsed;
+    const percentage =
+      totalEver > 0 ? Math.round((creditsUsed / totalEver) * 1000) / 10 : 0;
+
     const now = new Date();
     const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    const used = await this.emailsRepo.count({
-      where: { userId, createdAt: Between(periodStart, now) },
-    });
-
-    const limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS[Plan.PRO];
-    const percentage = limit > 0 ? Math.round((used / limit) * 1000) / 10 : 0;
-
     return {
-      plan,
-      used,
-      limit,
-      remaining: Math.max(0, limit - used),
+      plan: user.plan,
+      accountLabel,
+      creditBalance,
+      creditsUsed,
       percentage,
       periodStart: periodStart.toISOString(),
       periodEnd: periodEnd.toISOString(),
       resetDate: periodEnd.toISOString(),
+      // legacy fields kept for backwards compat
+      used: creditsUsed,
+      limit: totalEver || creditBalance,
+      remaining: creditBalance,
     };
   }
 
-  async getBreakdown(userId: string, period: UsagePeriod) {
-    const since = this.periodStart(period);
-    const rows = await this.emailsRepo.find({
-      where: { userId, createdAt: Between(since, new Date()) },
-      select: ['isSingleVerify'],
+  async getBreakdown(userIds: string[], period: UsagePeriod) {
+    // Breakdown tiles always show the CURRENT BILLING PERIOD (start of this
+    // calendar month), regardless of the period param. The period param is kept
+    // for the chart only.
+    const now = new Date();
+    const billingStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Single verify count this billing period
+    const singleCount = await this.emailsRepo.count({
+      where: {
+        userId: In(userIds),
+        isSingleVerify: true,
+        createdAt: Between(billingStart, now),
+      },
     });
 
-    let single = 0;
-    let bulk = 0;
-    for (const r of rows) {
-      if (r.isSingleVerify) single++;
-      else bulk++;
-    }
+    // Bulk jobs this billing period
+    const bulkResult = await this.listsRepo
+      .createQueryBuilder('l')
+      .select('COUNT(l.id)', 'jobs')
+      .addSelect('COALESCE(SUM(l.totalCount), 0)', 'credits')
+      .where('l.userId IN (:...ids)', { ids: userIds })
+      .andWhere('l.createdAt BETWEEN :since AND :now', { since: billingStart, now })
+      .getRawOne<{ jobs: string; credits: string }>();
 
-    return { single, bulk, total: single + bulk, period };
+    const bulkJobs    = Number(bulkResult?.jobs    ?? 0);
+    const bulkCredits = Number(bulkResult?.credits ?? 0);
+    const total       = singleCount + bulkJobs;
+
+    return {
+      single:        singleCount,
+      bulk:          bulkJobs,
+      total,
+      singleCredits: singleCount,
+      bulkCredits,
+      totalCredits:  singleCount + bulkCredits,
+      period,
+    };
   }
 
-  async getChart(userId: string, period: UsagePeriod) {
+  async getChart(userIds: string[], period: UsagePeriod) {
     const since = this.periodStart(period);
     const rows = await this.emailsRepo.find({
-      where: { userId, createdAt: Between(since, new Date()) },
+      where: { userId: In(userIds), createdAt: Between(since, new Date()) },
       select: ['createdAt', 'isSingleVerify'],
     });
 
     const days = this.daysBetween(since, new Date());
-    const map = new Map<
-      string,
-      { date: string; single: number; bulk: number }
-    >();
+    const map = new Map<string, { date: string; single: number; bulk: number }>();
     for (const d of days) {
       map.set(d, { date: this.formatLabel(d), single: 0, bulk: 0 });
     }
@@ -91,17 +136,22 @@ export class UsageService {
     return Array.from(map.values());
   }
 
-  async getLog(userId: string, page: number, limit: number, type: UsageType) {
+  async getLog(userIds: string[], page: number, limit: number, type: UsageType) {
     const fetchSingles = type !== 'bulk';
     const fetchBulks = type !== 'single';
+
+    // Only show entries from the current billing period (start of current month)
+    const now = new Date();
+    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const [singleRows, bulkRows] = await Promise.all([
       fetchSingles
         ? this.emailsRepo.find({
             where: {
-              userId,
+              userId: In(userIds),
               isSingleVerify: true,
               status: EmailStatus.COMPLETED,
+              createdAt: Between(periodStart, now),
             },
             order: { createdAt: 'DESC' },
             take: 500,
@@ -109,7 +159,10 @@ export class UsageService {
         : Promise.resolve([]),
       fetchBulks
         ? this.listsRepo.find({
-            where: { userId },
+            where: {
+              userId: In(userIds),
+              createdAt: Between(periodStart, now),
+            },
             order: { createdAt: 'DESC' },
             take: 500,
           })
@@ -174,20 +227,7 @@ export class UsageService {
 
   private formatLabel(key: string): string {
     const [, m, d] = key.split('-').map(Number);
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return `${months[(m ?? 1) - 1]} ${d ?? 1}`;
   }
 }

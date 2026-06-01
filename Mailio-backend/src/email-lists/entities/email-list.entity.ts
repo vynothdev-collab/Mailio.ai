@@ -95,6 +95,20 @@ export class EmailList {
   @Column({ name: 'duplicates', type: 'int', default: 0 })
   duplicates: number;
 
+  // Credits reserved (debited up-front) when the parsed list is enqueued.
+  @Column({ name: 'credits_reserved', type: 'bigint', default: 0 })
+  creditsReserved!: string;
+
+  // Credits actually consumed by emails that completed (success or terminal failure
+  // that still counted against the provider).
+  @Column({ name: 'credits_consumed', type: 'bigint', default: 0 })
+  creditsConsumed!: string;
+
+  // Credits returned to the source balance for emails that failed for
+  // system/provider reasons and were not billable.
+  @Column({ name: 'credits_refunded', type: 'bigint', default: 0 })
+  creditsRefunded!: string;
+
   @Column({
     name: 'detected_column',
     type: 'varchar',

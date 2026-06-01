@@ -164,7 +164,7 @@ export class BulkVerifyController {
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 10,
     @Query('status') status?: string,
   ) {
-    return this.bulkVerifyService.getJobs(user.id, page, limit, status);
+    return this.bulkVerifyService.getJobs(user, page, limit, status);
   }
 
   @Get('stats')
@@ -312,7 +312,7 @@ export class BulkVerifyController {
   ) {
     await this.bulkVerifyService.streamDownload(
       jobId,
-      user.id,
+      user,
       res,
       format,
       type,
@@ -334,7 +334,7 @@ export class BulkVerifyController {
   @ApiResponse({ status: 404, description: 'Job not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   retry(@Param('jobId') jobId: string, @CurrentUser() user: User) {
-    return this.bulkVerifyService.retry(jobId, user.id);
+    return this.bulkVerifyService.retry(jobId, user);
   }
 
   @Delete(':jobId')

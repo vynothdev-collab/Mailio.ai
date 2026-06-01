@@ -10,6 +10,7 @@ import {
 } from "@/src/services/resultsService";
 import type { ApiError } from "@/src/types/auth";
 import type { ResultRecord, ResultsFilters } from "../types";
+import { PageHeader } from "@/src/components/layout/PageHeader";
 import { ResultsStatsRow } from "./ResultsStatsRow";
 import { ResultsFiltersBar } from "./ResultsFiltersBar";
 import { ResultsTable } from "./ResultsTable";
@@ -74,6 +75,10 @@ export function ResultsView() {
 
   return (
     <div className="space-y-4">
+      <PageHeader
+        title="Results"
+        subtitle="View and filter all your past email verification results."
+      />
       <ResultsStatsRow stats={stats} loading={loading && !response} />
 
       <Card>

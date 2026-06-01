@@ -7,9 +7,10 @@ import {
 } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { EnterprisesService } from '../enterprises/enterprises.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { User } from './entities/user.entity';
+import { ENTERPRISE_ROLES, User } from './entities/user.entity';
 import { UsersService } from './users.service';
 
 @ApiTags('users')
@@ -17,30 +18,52 @@ import { UsersService } from './users.service';
 @UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly enterprisesService: EnterprisesService,
+  ) {}
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({
     status: 200,
-    description: 'Current user profile (passwordHash omitted)',
-    schema: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', format: 'uuid' },
-        name: { type: 'string', example: 'Jane Doe' },
-        email: { type: 'string', format: 'email' },
-        plan: { type: 'string', enum: ['PRO', 'ULTIMATE'] },
-        isActive: { type: 'boolean' },
-        createdAt: { type: 'string', format: 'date-time' },
-        updatedAt: { type: 'string', format: 'date-time' },
-      },
-    },
+    description: 'Current user profile including role, enterprise, and the credit balance applicable to this user (own balance for normal users; enterprise shared balance for enterprise users/admins).',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  getMe(@CurrentUser() user: User) {
+  async getMe(@CurrentUser() user: User) {
     const { passwordHash, ...profile } = user;
-    return { ...profile, hasPassword: passwordHash !== null };
+
+    // Resolve the effective credit balance for this caller. Enterprise members
+    // see the shared enterprise balance; everyone else sees their own.
+    let enterprise: {
+      id: string;
+      name: string;
+      creditBalance: number;
+      creditsUsed: number;
+    } | null = null;
+    let effectiveCreditBalance = Number(user.creditBalance ?? 0);
+
+    if (user.enterpriseId && ENTERPRISE_ROLES.includes(user.role)) {
+      const e = await this.enterprisesService.findById(user.enterpriseId);
+      if (e) {
+        enterprise = {
+          id: e.id,
+          name: e.name,
+          creditBalance: Number(e.creditBalance),
+          creditsUsed: Number(e.creditsUsed),
+        };
+        effectiveCreditBalance = Number(e.creditBalance);
+      }
+    }
+
+    return {
+      ...profile,
+      creditBalance: Number(profile.creditBalance ?? 0),
+      creditsUsed: Number(profile.creditsUsed ?? 0),
+      hasPassword: passwordHash !== null,
+      enterprise,
+      effectiveCreditBalance,
+    };
   }
 
   @Patch('me')

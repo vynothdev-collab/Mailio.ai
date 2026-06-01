@@ -10,6 +10,8 @@ import type {
 } from "@/src/types/verification";
 import type { ApiError } from "@/src/types/auth";
 import { useVerificationHistory } from "@/src/context/VerificationContext";
+import { useAuth } from "@/src/hooks/useAuth";
+import { getCreditErrorMessage } from "@/src/utils/creditError";
 import type {
   CheckItem,
   CheckStatus,
@@ -70,6 +72,7 @@ export function useSingleVerify(): UseSingleVerifyResult {
   const [state,  setState]  = useState<VerifyState>("idle");
   const [result, setResult] = useState<VerificationResult | null>(null);
   const { push } = useVerificationHistory();
+  const { user, refresh } = useAuth();
 
   const verify = useCallback(async (email: string) => {
     setState("loading");
@@ -81,12 +84,19 @@ export function useSingleVerify(): UseSingleVerifyResult {
       push(mapped);
       setState("done");
       toast.success(`${email} verified.`);
+      // Refresh profile so the new credit balance shows in the sidebar/cards.
+      void refresh();
     } catch (err) {
-      const apiErr = err as ApiError;
-      toast.error(apiErr?.message ?? "Verification failed. Please try again.");
+      const creditMsg = getCreditErrorMessage(err, user);
+      if (creditMsg) {
+        toast.error(creditMsg);
+      } else {
+        const apiErr = err as ApiError;
+        toast.error(apiErr?.message ?? "Verification failed. Please try again.");
+      }
       setState("error");
     }
-  }, [push]);
+  }, [push, refresh, user]);
 
   const reset = useCallback(() => {
     setState("idle");

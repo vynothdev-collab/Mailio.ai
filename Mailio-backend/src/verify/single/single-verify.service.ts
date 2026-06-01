@@ -1,9 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Between, In, Repository } from 'typeorm';
+import { DataScopeService } from '../../common/scope/data-scope.service';
 import { VerificationResult } from '../../common/types/verification-result.enum';
+import { CreditsService } from '../../credits/credits.service';
 import { Email, EmailStatus } from '../../emails/entities/email.entity';
 import { MailTesterService } from '../../mailtester/mailtester.service';
+import { User } from '../../users/entities/user.entity';
 
 export interface CheckItem {
   key: string;
@@ -32,9 +35,14 @@ export class SingleVerifyService {
     @InjectRepository(Email)
     private readonly emailsRepo: Repository<Email>,
     private readonly mailTesterService: MailTesterService,
+    private readonly credits: CreditsService,
+    private readonly scope: DataScopeService,
   ) {}
 
-  async verifySingle(address: string, userId: string) {
+  async verifySingle(address: string, user: User) {
+    // Pre-flight: refuse before calling the (paid) provider.
+    await this.credits.ensureSufficient(user, 1);
+
     const startMs = Date.now();
     const apiRes = await this.mailTesterService.verify(address);
     const durationMs = Date.now() - startMs;
@@ -44,7 +52,7 @@ export class SingleVerifyService {
     const email = await this.emailsRepo.save(
       this.emailsRepo.create({
         address,
-        userId,
+        userId: user.id,
         isSingleVerify: true,
         status: EmailStatus.COMPLETED,
         verificationResult: result,
@@ -60,6 +68,15 @@ export class SingleVerifyService {
       }),
     );
 
+    // Deduct 1 credit once we have a persisted result. We accept any
+    // VerificationResult here — VALID/INVALID/CATCHALL/UNKNOWN all represent
+    // a billable provider call. Only a thrown exception above (network /
+    // provider failure) avoids the charge.
+    const { balanceAfter } = await this.credits.deductForSingleVerify(
+      user,
+      email.id,
+    );
+
     return {
       id: email.id,
       email: address,
@@ -69,12 +86,14 @@ export class SingleVerifyService {
       verifiedAt: email.processedAt,
       durationMs,
       checks: this.buildChecks(apiRes),
+      creditBalanceAfter: balanceAfter,
     };
   }
 
-  async getRecent(userId: string, page: number, limit: number) {
+  async getRecent(user: User, page: number, limit: number) {
+    const userIds = await this.scope.resolveUserIds(user);
     const [rows, total] = await this.emailsRepo.findAndCount({
-      where: { userId, isSingleVerify: true, isDeleted: false },
+      where: { userId: In(userIds), isSingleVerify: true, isDeleted: false },
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -91,7 +110,8 @@ export class SingleVerifyService {
     return { data, total, page, limit };
   }
 
-  async getStats(userId: string) {
+  async getStats(user: User) {
+    const userIds = await this.scope.resolveUserIds(user);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const yesterday = new Date(today);
@@ -100,7 +120,7 @@ export class SingleVerifyService {
     const [todayRows, yesterdayRows, allRows] = await Promise.all([
       this.emailsRepo.find({
         where: {
-          userId,
+          userId: In(userIds),
           isSingleVerify: true,
           isDeleted: false,
           createdAt: Between(today, new Date()),
@@ -109,7 +129,7 @@ export class SingleVerifyService {
       }),
       this.emailsRepo.find({
         where: {
-          userId,
+          userId: In(userIds),
           isSingleVerify: true,
           isDeleted: false,
           createdAt: Between(yesterday, today),
@@ -117,7 +137,7 @@ export class SingleVerifyService {
         select: ['id', 'verificationResult', 'durationMs'],
       }),
       this.emailsRepo.find({
-        where: { userId, isSingleVerify: true, isDeleted: false },
+        where: { userId: In(userIds), isSingleVerify: true, isDeleted: false },
         select: ['verificationResult', 'durationMs'],
       }),
     ]);

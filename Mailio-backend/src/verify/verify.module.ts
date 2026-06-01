@@ -1,5 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { DataScopeModule } from '../common/scope/data-scope.module';
+import { CreditsModule } from '../credits/credits.module';
 import { CsvParseModule } from '../csv-parse/csv-parse.module';
 import { EmailListsModule } from '../email-lists/email-lists.module';
 import { EmailList } from '../email-lists/entities/email-list.entity';
@@ -18,6 +20,8 @@ import { SingleVerifyService } from './single/single-verify.service';
     forwardRef(() => EmailListsModule),
     forwardRef(() => VerificationModule),
     CsvParseModule,
+    CreditsModule,
+    DataScopeModule,
   ],
   controllers: [SingleVerifyController, BulkVerifyController],
   providers: [SingleVerifyService, BulkVerifyService],

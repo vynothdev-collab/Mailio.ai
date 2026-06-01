@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
+import { CreditsService } from '../../credits/credits.service';
 import { CsvParseService } from '../../csv-parse/csv-parse.service';
 import { EmailListsService } from '../../email-lists/email-lists.service';
 import {
@@ -30,9 +31,15 @@ export class BulkVerifyService {
     private readonly emailListsService: EmailListsService,
     private readonly verificationService: VerificationService,
     private readonly csvParse: CsvParseService,
+    private readonly credits: CreditsService,
   ) {}
 
   async upload(user: User, filePath: string, originalFilename: string) {
+    // Cheap up-front guard: refuse if the caller has zero credits. The
+    // authoritative reservation happens after CSV parsing once we know the
+    // exact row count (see CsvParseProcessor).
+    await this.credits.ensureSufficient(user, 1);
+
     const name = originalFilename.replace(/\.[^.]+$/, '');
 
     const list = await this.listsRepo.save(
@@ -90,14 +97,14 @@ export class BulkVerifyService {
     };
   }
 
-  async getJobs(userId: string, page: number, limit: number, status?: string) {
+  async getJobs(user: User, page: number, limit: number, status?: string) {
     const statusFilter =
       status && status !== 'all'
         ? (status.toUpperCase() as EmailListStatus)
         : undefined;
 
     const [items, total] = await this.emailListsService.findByUser(
-      userId,
+      user,
       page,
       limit,
       statusFilter,
@@ -307,51 +314,86 @@ export class BulkVerifyService {
 
   async streamDownload(
     jobId: string,
-    userId: string,
+    user: User,
     res: import('express').Response,
     format: 'csv' | 'json',
     type: 'verified' | 'full',
   ) {
     return this.emailListsService.streamDownload(
       jobId,
-      userId,
+      user,
       res,
       format,
       type,
     );
   }
 
-  async retry(jobId: string, userId: string) {
-    const { requeuedCount } = await this.emailListsService.retryFailed(
-      jobId,
-      userId,
-    );
+  async retry(jobId: string, user: User) {
+    // Resolve the actual owner of the list (could be a different enterprise
+    // member when the caller is an ENTERPRISE_ADMIN).
+    const ownerList = await this.emailListsService.findByIdForUser(jobId, user);
+    const ownerUserId = ownerList.userId;
 
-    if (requeuedCount > 0) {
-      const failedEmails = await this.emailsRepo.find({
-        where: { listId: jobId, status: EmailStatus.QUEUED },
-        select: ['id'],
-      });
-      const list = await this.emailListsService.findById(jobId, userId);
-      if (process.env.BULK_BATCH_ENABLED === 'true') {
-        await this.verificationService.enqueueBulkBatches(
-          failedEmails.map((e) => e.id),
-          userId,
-          jobId,
-          undefined,
-          list.totalCount ?? failedEmails.length,
-        );
-      } else {
-        await this.verificationService.enqueueBulk(
-          failedEmails.map((e) => e.id),
-          userId,
-          jobId,
-          list.totalCount ?? failedEmails.length,
-        );
-      }
+    // Count failed emails BEFORE flipping them, so we can pre-check credits.
+    const failedCount = await this.emailsRepo.count({
+      where: {
+        listId: jobId,
+        userId: ownerUserId,
+        status: EmailStatus.FAILED,
+        isDeleted: false,
+      },
+    });
+    if (failedCount === 0) {
+      return { jobId, status: 'queued', requeuedCount: 0 };
     }
 
-    return { jobId, status: 'queued', requeuedCount };
+    // Each previously-failed email had its reserved credit refunded by
+    // Phase 3b. Re-reserve exactly `failedCount` credits now or refuse the
+    // retry — otherwise the worker would process them for free.
+    await this.credits.reserveForBulkByOwnerId(jobId, ownerUserId, failedCount);
+
+    try {
+      const { requeuedCount } = await this.emailListsService.retryFailed(
+        jobId,
+        user,
+      );
+
+      if (requeuedCount > 0) {
+        const failedEmails = await this.emailsRepo.find({
+          where: { listId: jobId, status: EmailStatus.QUEUED },
+          select: ['id'],
+        });
+        const list = await this.emailListsService.findByIdForUser(jobId, user);
+        if (process.env.BULK_BATCH_ENABLED === 'true') {
+          await this.verificationService.enqueueBulkBatches(
+            failedEmails.map((e) => e.id),
+            ownerUserId,
+            jobId,
+            undefined,
+            list.totalCount ?? failedEmails.length,
+          );
+        } else {
+          await this.verificationService.enqueueBulk(
+            failedEmails.map((e) => e.id),
+            ownerUserId,
+            jobId,
+            list.totalCount ?? failedEmails.length,
+          );
+        }
+      }
+      return { jobId, status: 'queued', requeuedCount };
+    } catch (e) {
+      // If we reserved but couldn't enqueue, refund the reservation we just
+      // made. Best-effort — ledger reconciliation can fix any miss.
+      try {
+        await this.credits.refundBulkByListOwner(jobId, ownerUserId, failedCount);
+      } catch (refundErr) {
+        // logger via NestJS isn't injected here; rely on error propagation
+        // plus the credits service's own logging.
+        void refundErr;
+      }
+      throw e;
+    }
   }
 
   async softDeleteJob(jobId: string, userId: string): Promise<void> {

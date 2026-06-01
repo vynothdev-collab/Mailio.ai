@@ -95,12 +95,41 @@ export function HelpIcon({ active, size = 18 }: IconProps) {
   );
 }
 
+function UsersIcon({ active, size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <path
+        d="M12.75 15.75v-1.5a3 3 0 0 0-3-3h-4.5a3 3 0 0 0-3 3v1.5"
+        stroke={stroke(active)}
+        strokeWidth="1.35"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7.5 8.25a2.625 2.625 0 1 0 0-5.25 2.625 2.625 0 0 0 0 5.25Z"
+        stroke={stroke(active)}
+        strokeWidth="1.35"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15.75 15.75v-1.5a3 3 0 0 0-2.25-2.91M12 3.09a3 3 0 0 1 0 5.82"
+        stroke={stroke(active)}
+        strokeWidth="1.35"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export const SIDEBAR_ICONS: Record<string, (p: IconProps) => React.ReactElement> = {
   dashboard:     DashboardIcon,
   "single-verify": SingleVerifyIcon,
   "bulk-verify": BulkVerifyIcon,
   results:       ResultsIcon,
   usage:         UsageIcon,
+  users:         UsersIcon,
   billing:       BillingIcon,
   settings:      SettingsIcon,
   help:          HelpIcon,

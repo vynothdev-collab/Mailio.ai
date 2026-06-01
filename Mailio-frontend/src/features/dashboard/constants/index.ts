@@ -1,14 +1,15 @@
 import type { NavItem, UsageInfo, VerificationStatus } from "../types";
 
 export const NAV_ITEMS: NavItem[] = [
-  { id: "dashboard",     label: "Dashboard",     href: "/dashboard",     iconName: "dashboard" },
-  { id: "single-verify", label: "Single Verify", href: "/single-verify", iconName: "single-verify" },
-  { id: "bulk-verify",   label: "Bulk Verify",   href: "/bulk-verify",   iconName: "bulk-verify" },
-  { id: "results",       label: "Results",       href: "/results",       iconName: "results" },
-  { id: "usage",         label: "Usage",         href: "/usage",         iconName: "usage" },
-  { id: "billing",       label: "Billing",       href: "/billing",       iconName: "billing" },
-  { id: "settings",      label: "Settings",      href: "/settings",      iconName: "settings" },
-  { id: "help",          label: "Help & Support", href: "/help",         iconName: "help" },
+  { id: "dashboard",        label: "Dashboard",        href: "/dashboard",        iconName: "dashboard" },
+  { id: "single-verify",    label: "Single Verify",    href: "/single-verify",    iconName: "single-verify" },
+  { id: "bulk-verify",      label: "Bulk Verify",      href: "/bulk-verify",      iconName: "bulk-verify" },
+  { id: "results",          label: "Results",          href: "/results",          iconName: "results" },
+  { id: "usage",            label: "Usage",            href: "/usage",            iconName: "usage" },
+  { id: "enterprise-users", label: "Enterprise Users", href: "/enterprise/users", iconName: "users" },
+  { id: "billing",          label: "Billing",          href: "/billing",          iconName: "billing" },
+  { id: "settings",         label: "Settings",         href: "/settings",         iconName: "settings" },
+  { id: "help",             label: "Help & Support",   href: "/help",             iconName: "help" },
 ];
 
 export const STATUS_CONFIG: Record<

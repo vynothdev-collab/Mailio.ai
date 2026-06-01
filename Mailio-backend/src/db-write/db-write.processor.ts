@@ -2,6 +2,8 @@ import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, Optional } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { VerificationResult } from '../common/types/verification-result.enum';
+import { CreditsService } from '../credits/credits.service';
+import { EmailListStatus } from '../email-lists/entities/email-list.entity';
 import { DlqService } from '../dlq/dlq.service';
 import {
   EmailListsService,
@@ -34,6 +36,7 @@ export class DbWriteProcessor extends WorkerHost {
     private readonly throttler: ProgressThrottlerService,
     private readonly verificationService: VerificationService,
     private readonly dlq: DlqService,
+    private readonly credits: CreditsService,
     @Optional() private readonly metrics?: MetricsService,
   ) {
     super();
@@ -134,6 +137,10 @@ export class DbWriteProcessor extends WorkerHost {
     if (d.listId && transitioned) {
       await this.bumpListAndEmit(d.listId, VerificationResult.UNKNOWN, false);
       await this.advanceBulkCursorBy(1);
+      // Refund the reserved credit for this bulk row. System/provider failure
+      // means the provider call never produced a billable result. Gated on
+      // `transitioned` so re-runs of the same db.write job are no-ops.
+      await this.refundBulkSafely(d.listId, d.userId, 1);
       this.notifier.emitJobFailed(d.listId, {
         listId: d.listId,
         emailId: d.emailId,
@@ -159,6 +166,9 @@ export class DbWriteProcessor extends WorkerHost {
         disposable,
       );
       this.throttler.schedule(listId, snap);
+      if (snap.status === EmailListStatus.COMPLETED) {
+        await this.finalizeReservationSafely(listId);
+      }
     } catch (e) {
       this.logger.error(
         `incrementProcessed failed for list ${listId}: ${(e as Error).message}`,
@@ -187,6 +197,9 @@ export class DbWriteProcessor extends WorkerHost {
           delta,
         );
         this.throttler.schedule(listId, snap);
+        if (snap.status === EmailListStatus.COMPLETED) {
+          await this.finalizeReservationSafely(listId);
+        }
       } catch (e) {
         this.logger.error(
           `incrementProcessedBatch failed for list ${listId}: ${(e as Error).message}`,
@@ -236,11 +249,20 @@ export class DbWriteProcessor extends WorkerHost {
           delta,
         );
         this.throttler.schedule(listId, snap);
+        if (snap.status === EmailListStatus.COMPLETED) {
+          await this.finalizeReservationSafely(listId);
+        }
       } catch (e) {
         this.logger.error(
           `incrementProcessedBatch (failure) failed for list ${listId}: ${(e as Error).message}`,
         );
       }
+
+      // Refund credits for every email that actually transitioned. `delta.processed`
+      // equals the number of newly-failed emails in this list — already filtered
+      // by `markFailedBatch` returning only rows that flipped state, so duplicate
+      // batch jobs can't double-refund.
+      await this.refundBulkSafely(listId, d.userId, delta.processed);
     }
 
     await this.advanceBulkCursorBy(transitioned.length);
@@ -252,6 +274,41 @@ export class DbWriteProcessor extends WorkerHost {
       error: `${transitioned.length} emails failed in batch ${d.batchId}`,
     });
     this.metrics?.wsEmits?.labels({ kind: 'failed' }).inc();
+  }
+
+  /**
+   * Wrap refund in try/catch — a failed refund must NOT cause the db.write job
+   * to retry, otherwise we'd double-process the email transition. Refunds are
+   * recoverable manually via the ledger if anything ever slips through.
+   */
+  private async refundBulkSafely(
+    listId: string,
+    userId: string,
+    count: number,
+  ): Promise<void> {
+    if (count <= 0) return;
+    try {
+      await this.credits.refundBulkByListOwner(listId, userId, count);
+    } catch (e) {
+      this.logger.error(
+        `Credit refund failed for list ${listId} (count=${count}): ${(e as Error).message}`,
+      );
+    }
+  }
+
+  /**
+   * Promote the pending RESERVATION transaction to a DEDUCTION once the bulk
+   * list reaches COMPLETED. Wrapped in try/catch so a DB hiccup here cannot
+   * prevent the job from being marked done.
+   */
+  private async finalizeReservationSafely(listId: string): Promise<void> {
+    try {
+      await this.credits.finalizeReservation(listId);
+    } catch (e) {
+      this.logger.error(
+        `Failed to finalize reservation for list ${listId}: ${(e as Error).message}`,
+      );
+    }
   }
 
   private async advanceBulkCursorBy(delta: number): Promise<void> {

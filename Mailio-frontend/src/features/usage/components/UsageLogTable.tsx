@@ -71,7 +71,9 @@ export function UsageLogTable() {
           <div className="flex items-center gap-2">
             <div>
               <h2 className="text-sm font-semibold">Usage Log</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Recent credit consumption</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Current billing period — {new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+              </p>
             </div>
             {loading && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
           </div>

@@ -1,202 +1,428 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus, Download, Filter, Users, UserCheck, UserPlus, CalendarClock, KeyRound, Coins, Eye, UserX } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Plus, Users, UserCheck, X, Building2, Shield } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import SearchInput from "@/components/ui/SearchInput";
-import Select from "@/components/ui/Select";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Avatar from "@/components/ui/Avatar";
-import ActionDropdown from "@/components/ui/ActionDropdown";
-import Drawer from "@/components/ui/Drawer";
-import { MOCK_USERS, type MockUser } from "@/mocks/users";
-import { PLAN_COLORS, PLAN_LABELS } from "@/constants";
+import Modal from "@/components/ui/Modal";
+import {
+  adminUsersExtService,
+  type AdminUserRow,
+  type CreateUserPayload,
+  type UserRole,
+} from "@/services/users.service";
+import {
+  enterprisesService,
+  type Enterprise,
+} from "@/services/enterprises.service";
+
+const ROLE_LABEL: Record<UserRole, string> = {
+  USER: "User",
+  ENTERPRISE_USER: "Enterprise User",
+  ENTERPRISE_ADMIN: "Enterprise Admin",
+  SUPER_ADMIN: "Super Admin",
+};
 
 export default function UsersPage() {
   const [search, setSearch] = useState("");
-  const [planFilter, setPlanFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"" | UserRole>("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [expiryFilter, setExpiryFilter] = useState("");
-  const [selectedUser, setSelectedUser] = useState<MockUser | null>(null);
+  const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
-  const filtered = useMemo(() => {
-    return MOCK_USERS.filter((u) => {
-      if (search && !`${u.name} ${u.email}`.toLowerCase().includes(search.toLowerCase())) return false;
-      if (planFilter && u.plan !== planFilter) return false;
-      if (statusFilter && u.status !== statusFilter) return false;
-      return true;
-    });
-  }, [search, planFilter, statusFilter, expiryFilter]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await adminUsersExtService.list({
+        search: search || undefined,
+        role: (roleFilter || undefined) as UserRole | undefined,
+        isActive: statusFilter || undefined,
+        limit: 50,
+      });
+      setUsers(res.data);
+      setTotal(res.total);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to load users.");
+    } finally {
+      setLoading(false);
+    }
+  }, [search, roleFilter, statusFilter]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const enterpriseUsersCount = users.filter(
+    (u) =>
+      u.role === "ENTERPRISE_USER" || u.role === "ENTERPRISE_ADMIN",
+  ).length;
+  const activeCount = users.filter((u) => u.isActive).length;
 
   return (
     <div>
       <PageHeader
         actions={
-          <>
-            <Button variant="secondary" size="md"><Download className="w-4 h-4 mr-1.5" />Export</Button>
-            <Button variant="primary" size="md"><Plus className="w-4 h-4 mr-1.5" />Add User</Button>
-          </>
+          <Button variant="primary" onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4 mr-1.5" />
+            Add User
+          </Button>
         }
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <StatCard label="Total Single Users" value="12,458" icon={Users} accent="blue" delta={14.8} deltaLabel="vs last week" />
-        <StatCard label="Active Users" value="8,932" icon={UserCheck} accent="green" delta={8.7} deltaLabel="vs last week" />
-        <StatCard label="New Users Today" value="32" icon={UserPlus} accent="purple" delta={18.6} deltaLabel="vs yesterday" />
-        <StatCard label="Expiring Soon" value="58" icon={CalendarClock} accent="orange" delta={7.3} deltaLabel="Within 7 days" />
+        <StatCard label="Total (current view)" value={String(total)} icon={Users} accent="blue" />
+        <StatCard label="Active" value={String(activeCount)} icon={UserCheck} accent="green" />
+        <StatCard
+          label="Enterprise members"
+          value={String(enterpriseUsersCount)}
+          icon={Building2}
+          accent="purple"
+        />
+        <StatCard
+          label="Super Admins"
+          value={String(users.filter((u) => u.role === "SUPER_ADMIN").length)}
+          icon={Shield}
+          accent="orange"
+        />
       </div>
-
-      <Card className="p-2.5 sm:p-4 mb-4">
-        <div className="grid grid-cols-2 md:grid-cols-12 gap-2 sm:gap-3">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search by name or email..." className="col-span-2 md:col-span-4" />
-          <Select value={planFilter} onChange={setPlanFilter} placeholder="All Plans" className="col-span-1 md:col-span-2" options={[
-            { value: "FREE", label: "Free" }, { value: "BASIC", label: "Basic" }, { value: "PRO", label: "Pro" }, { value: "BUSINESS", label: "Business" }
-          ]} />
-          <Select value={statusFilter} onChange={setStatusFilter} placeholder="All Statuses" className="col-span-1 md:col-span-2" options={[
-            { value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" }, { value: "Expiring Soon", label: "Expiring Soon" }
-          ]} />
-          <Select value={expiryFilter} onChange={setExpiryFilter} placeholder="Expiry Date" className="col-span-1 md:col-span-2" options={[
-            { value: "7d", label: "Next 7 days" }, { value: "30d", label: "Next 30 days" }, { value: "expired", label: "Expired" }
-          ]} />
-          <Button variant="secondary" size="sm" className="col-span-1 md:col-span-2 justify-center"><Filter className="w-3.5 h-3.5 mr-1" />More Filters</Button>
-        </div>
-      </Card>
 
       <Card noPadding>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs sm:text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                {["User", "Email", "Plan", "Credits Used", "Credits Remaining", "Status", "Last Active", "Expiry Date", "Permissions", "Actions"].map((h) => (
-                  <th key={h} className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wide whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((u) => (
-                <tr
-                  key={u.id}
-                  className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 cursor-pointer"
-                  onClick={() => setSelectedUser(u)}
-                >
-                  <td className="px-3 sm:px-4 py-2 sm:py-3">
-                    <div className="flex items-center gap-2.5">
-                      <Avatar name={u.name} size="sm" />
-                      <p className="font-medium text-text-primary whitespace-nowrap">{u.name}</p>
-                    </div>
-                  </td>
-                  <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary whitespace-nowrap">{u.email}</td>
-                  <td className="px-3 sm:px-4 py-2 sm:py-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${PLAN_COLORS[u.plan]}`}>{PLAN_LABELS[u.plan]}</span></td>
-                  <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-primary font-medium">{u.creditsUsed.toLocaleString()}</td>
-                  <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-primary font-medium">{u.creditsRemaining.toLocaleString()}</td>
-                  <td className="px-3 sm:px-4 py-2 sm:py-3">
-                    <StatusBadge label={u.status} tone={u.status === "Active" ? "green" : u.status === "Expiring Soon" ? "amber" : "red"} />
-                  </td>
-                  <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary whitespace-nowrap text-xs">{u.lastActive}</td>
-                  <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary whitespace-nowrap text-xs">
-                    {u.expiryDate}
-                    {u.expiryInDays !== null && <p className="text-text-muted text-[10px]">In {u.expiryInDays} days</p>}
-                  </td>
-                  <td className="px-3 sm:px-4 py-2 sm:py-3"><StatusBadge label={u.role} tone={u.role === "Admin" ? "blue" : "gray"} /></td>
-                  <td className="px-3 sm:px-4 py-2 sm:py-3" onClick={(e) => e.stopPropagation()}>
-                    <ActionDropdown
-                      actions={[
-                        { label: "View Profile", onClick: () => setSelectedUser(u) },
-                        { label: "Assign Credits", onClick: () => {} },
-                        { label: "Reset Password", onClick: () => {} },
-                        { label: "Update Status", onClick: () => {} },
-                        { label: "Delete User", onClick: () => {}, danger: true },
-                      ]}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-          <p className="text-xs text-text-muted">Showing 1 to {filtered.length} of 12,458 users</p>
-          <div className="flex gap-1">
-            <button className="w-8 h-8 rounded-md bg-primary-600 text-white text-xs font-medium">1</button>
-            <button className="w-8 h-8 rounded-md border border-gray-200 text-xs hover:bg-gray-50">2</button>
-            <button className="w-8 h-8 rounded-md border border-gray-200 text-xs hover:bg-gray-50">3</button>
-            <span className="px-2 text-text-muted text-xs flex items-center">...</span>
-            <button className="w-12 h-8 rounded-md border border-gray-200 text-xs hover:bg-gray-50">1,246</button>
+        <div className="flex items-center justify-between p-4 gap-3 flex-wrap">
+          <h3 className="text-sm font-semibold text-text-primary">Users</h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Search by name or email..."
+              className="w-56"
+            />
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as "" | UserRole)}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">All Roles</option>
+              <option value="USER">User</option>
+              <option value="ENTERPRISE_USER">Enterprise User</option>
+              <option value="ENTERPRISE_ADMIN">Enterprise Admin</option>
+              <option value="SUPER_ADMIN">Super Admin</option>
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">All Status</option>
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
           </div>
         </div>
+
+        {err ? (
+          <div className="p-6 text-sm text-red-600">{err}</div>
+        ) : loading ? (
+          <div className="p-6 text-sm text-text-muted">Loading users…</div>
+        ) : users.length === 0 ? (
+          <div className="p-8 text-center text-sm text-text-muted">
+            No users match these filters.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs sm:text-sm">
+              <thead>
+                <tr className="border-y border-gray-100 bg-gray-50/50">
+                  {[
+                    "User",
+                    "Email",
+                    "Role",
+                    "Enterprise",
+                    "Credit Balance",
+                    "Used",
+                    "Status",
+                    "Created",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wide whitespace-nowrap"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr
+                    key={u.id}
+                    className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60"
+                  >
+                    <td className="px-3 sm:px-4 py-2 sm:py-3">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar name={u.name} size="sm" />
+                        <p className="font-medium text-text-primary whitespace-nowrap">
+                          {u.name}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary">
+                      {u.email}
+                    </td>
+                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-primary font-medium">
+                      {ROLE_LABEL[u.role]}
+                    </td>
+                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-[11px] text-text-muted font-mono">
+                      {u.enterpriseId ? `${u.enterpriseId.slice(0, 8)}…` : "—"}
+                    </td>
+                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-primary font-medium">
+                      {Number(u.creditBalance).toLocaleString()}
+                    </td>
+                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary">
+                      {Number(u.creditsUsed).toLocaleString()}
+                    </td>
+                    <td className="px-3 sm:px-4 py-2 sm:py-3">
+                      <StatusBadge
+                        label={u.isActive ? "Active" : "Inactive"}
+                        tone={u.isActive ? "green" : "gray"}
+                      />
+                    </td>
+                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary whitespace-nowrap">
+                      {new Date(u.createdAt).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
-      <UserDetailDrawer user={selectedUser} onClose={() => setSelectedUser(null)} />
+      <CreateUserModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => {
+          setCreateOpen(false);
+          void load();
+        }}
+      />
     </div>
   );
 }
 
-function UserDetailDrawer({ user, onClose }: { user: MockUser | null; onClose: () => void }) {
-  if (!user) return null;
-  return (
-    <Drawer
-      open={!!user}
-      onClose={onClose}
-      title="User Profile"
-      width="lg"
-      footer={
-        <div className="flex gap-2">
-          <Button variant="primary" className="flex-1"><KeyRound className="w-4 h-4 mr-1.5" />Reset Password</Button>
-          <Button variant="secondary" className="flex-1"><Coins className="w-4 h-4 mr-1.5" />Assign Credits</Button>
-          <Button variant="danger"><UserX className="w-4 h-4 mr-1.5" />Deactivate</Button>
-        </div>
+function CreateUserModal({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<UserRole>("USER");
+  const [enterpriseId, setEnterpriseId] = useState("");
+  const [initialCredits, setInitialCredits] = useState("");
+  const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const needsEnterprise =
+    role === "ENTERPRISE_USER" || role === "ENTERPRISE_ADMIN";
+  const allowsInitialCredits = role === "USER";
+
+  useEffect(() => {
+    if (!open) return;
+    void enterprisesService
+      .list({ limit: 100, isActive: "true" })
+      .then((res) => setEnterprises(res.data))
+      .catch(() => setEnterprises([]));
+  }, [open]);
+
+  // Clear fields that don't apply when the role changes.
+  useEffect(() => {
+    if (!needsEnterprise) setEnterpriseId("");
+    if (!allowsInitialCredits) setInitialCredits("");
+  }, [needsEnterprise, allowsInitialCredits]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null);
+
+    const payload: CreateUserPayload = {
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      password,
+      role,
+    };
+    if (needsEnterprise) {
+      if (!enterpriseId) {
+        setErr("Pick an enterprise for this role.");
+        return;
       }
-    >
-      <div className="flex items-center gap-3 pb-5 border-b border-gray-100">
-        <Avatar name={user.name} size="lg" />
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-text-primary">{user.name}</h2>
-            <StatusBadge label={user.status} tone={user.status === "Active" ? "green" : "amber"} />
-          </div>
-          <p className="text-sm text-text-muted mt-0.5">{user.email}</p>
-          <p className="text-xs text-text-muted mt-0.5">User ID: {user.id}</p>
-        </div>
-      </div>
+      payload.enterpriseId = enterpriseId;
+    }
+    if (allowsInitialCredits && initialCredits) {
+      const n = parseInt(initialCredits, 10);
+      if (!Number.isFinite(n) || n < 0) {
+        setErr("Initial credits must be a positive integer.");
+        return;
+      }
+      if (n > 0) payload.initialCredits = n;
+    }
 
-      <div className="py-5 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-text-primary">Plan & Subscription</h3>
-          <button className="text-xs text-primary-600 font-medium hover:underline flex items-center gap-1"><Eye className="w-3 h-3" />View Plan Details</button>
-        </div>
-        <dl className="space-y-2.5 text-sm">
-          <Row k="Plan" v={<span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${PLAN_COLORS[user.plan]}`}>{PLAN_LABELS[user.plan]}</span>} />
-          <Row k="Status" v={<StatusBadge label={user.status} tone="green" />} />
-          <Row k="Expiry Date" v={<>{user.expiryDate} <span className="text-text-muted text-xs">(In {user.expiryInDays} days)</span></>} />
-        </dl>
-      </div>
+    setSubmitting(true);
+    try {
+      await adminUsersExtService.create(payload);
+      setName("");
+      setEmail("");
+      setPassword("");
+      setRole("USER");
+      setEnterpriseId("");
+      setInitialCredits("");
+      onCreated();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to create user.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-      <div className="py-5">
-        <h3 className="text-sm font-semibold text-text-primary mb-3">Credit Summary</h3>
-        <dl className="space-y-2.5 text-sm">
-          <Row k="Total Credits" v={<strong>{user.totalCredits.toLocaleString()}</strong>} />
-          <Row k="Credits Used" v={user.creditsUsed.toLocaleString()} />
-          <Row k="Credits Remaining" v={<strong>{user.creditsRemaining.toLocaleString()}</strong>} />
-        </dl>
-        <div className="mt-3">
-          <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-            <div className="h-full bg-primary-600" style={{ width: `${(user.creditsUsed / user.totalCredits) * 100}%` }} />
-          </div>
-          <p className="text-xs text-text-muted mt-1.5 text-right">{Math.round((user.creditsUsed / user.totalCredits) * 1000) / 10}% used</p>
-        </div>
-      </div>
-    </Drawer>
-  );
-}
-
-function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between">
-      <dt className="text-text-muted">{k}</dt>
-      <dd className="font-medium text-text-primary">{v}</dd>
-    </div>
+    <Modal open={open} onClose={onClose}>
+      <form onSubmit={submit} className="p-5 max-w-md">
+        <div className="flex items-start justify-between">
+          <h2 className="text-base font-bold text-text-primary">Create User</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 rounded hover:bg-gray-100"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">
+              Name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              minLength={2}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">
+              Temporary Password
+            </label>
+            <input
+              type="text"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">
+              Role
+            </label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as UserRole)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="USER">User (own credit balance)</option>
+              <option value="ENTERPRISE_USER">Enterprise User</option>
+              <option value="ENTERPRISE_ADMIN">Enterprise Admin</option>
+              <option value="SUPER_ADMIN">Super Admin</option>
+            </select>
+          </div>
+
+          {needsEnterprise ? (
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">
+                Enterprise
+              </label>
+              <select
+                value={enterpriseId}
+                onChange={(e) => setEnterpriseId(e.target.value)}
+                required
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="">Select enterprise…</option>
+                {enterprises.map((ent) => (
+                  <option key={ent.id} value={ent.id}>
+                    {ent.name}
+                    {ent.domain ? ` (${ent.domain})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
+          {allowsInitialCredits ? (
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">
+                Initial Credits (optional)
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={initialCredits}
+                onChange={(e) => setInitialCredits(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+              <p className="mt-1 text-[11px] text-text-muted">
+                Only normal Users have a personal balance.
+              </p>
+            </div>
+          ) : null}
+        </div>
+
+        {err ? (
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {err}
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" disabled={submitting}>
+            {submitting ? "Creating…" : "Create User"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

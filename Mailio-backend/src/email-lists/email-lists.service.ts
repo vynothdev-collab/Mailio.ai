@@ -7,9 +7,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { parse } from 'csv-parse';
 import * as fs from 'fs';
 import type { Response } from 'express';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { DataScopeService } from '../common/scope/data-scope.service';
 import { VerificationResult } from '../common/types/verification-result.enum';
 import { Email, EmailStatus } from '../emails/entities/email.entity';
+import { User } from '../users/entities/user.entity';
 import { EmailList, EmailListStatus } from './entities/email-list.entity';
 
 const CHUNK_SIZE = 500;
@@ -36,6 +38,7 @@ export class EmailListsService {
     private readonly listsRepo: Repository<EmailList>,
     @InjectRepository(Email)
     private readonly emailsRepo: Repository<Email>,
+    private readonly scope: DataScopeService,
   ) {}
 
   async createFromFile(
@@ -195,6 +198,19 @@ export class EmailListsService {
     return list;
   }
 
+  /**
+   * Endpoint-facing variant that lets an ENTERPRISE_ADMIN read any list
+   * belonging to a user in their enterprise.
+   */
+  async findByIdForUser(id: string, user: User): Promise<EmailList> {
+    const userIds = await this.scope.resolveUserIds(user);
+    const list = await this.listsRepo.findOne({
+      where: { id, userId: In(userIds), isDeleted: false },
+    });
+    if (!list) throw new NotFoundException('List not found');
+    return list;
+  }
+
   async findByIdRaw(id: string): Promise<EmailList | null> {
     return this.listsRepo.findOne({ where: { id } });
   }
@@ -210,12 +226,16 @@ export class EmailListsService {
   }
 
   async findByUser(
-    userId: string,
+    user: User,
     page: number,
     limit: number,
     status?: EmailListStatus,
   ): Promise<[EmailList[], number]> {
-    const where: Record<string, unknown> = { userId, isDeleted: false };
+    const userIds = await this.scope.resolveUserIds(user);
+    const where: Record<string, unknown> = {
+      userId: In(userIds),
+      isDeleted: false,
+    };
     if (status) where['status'] = status;
     return this.listsRepo.findAndCount({
       where,
@@ -227,12 +247,12 @@ export class EmailListsService {
 
   async findEmailsInList(
     listId: string,
-    userId: string,
+    user: User,
     page: number,
     limit: number,
     result?: VerificationResult,
   ): Promise<[Email[], number]> {
-    await this.findById(listId, userId);
+    await this.findByIdForUser(listId, user);
     const where: Record<string, unknown> = { listId, isDeleted: false };
     if (result) where['verificationResult'] = result;
     return this.emailsRepo.findAndCount({
@@ -245,9 +265,9 @@ export class EmailListsService {
 
   async retryFailed(
     listId: string,
-    userId: string,
+    user: User,
   ): Promise<{ requeuedCount: number }> {
-    const list = await this.findById(listId, userId);
+    const list = await this.findByIdForUser(listId, user);
 
     const failed = await this.emailsRepo.find({
       where: { listId, status: EmailStatus.FAILED, isDeleted: false },
@@ -276,12 +296,12 @@ export class EmailListsService {
 
   async streamDownload(
     listId: string,
-    userId: string,
+    user: User,
     res: Response,
     format: 'csv' | 'json',
     type: 'verified' | 'full',
   ): Promise<void> {
-    const list = await this.findById(listId, userId);
+    const list = await this.findByIdForUser(listId, user);
 
     const qb = this.emailsRepo
       .createQueryBuilder('e')
@@ -377,8 +397,8 @@ export class EmailListsService {
     }
   }
 
-  async remove(id: string, userId: string): Promise<void> {
-    const list = await this.findById(id, userId);
+  async remove(id: string, user: User): Promise<void> {
+    const list = await this.findByIdForUser(id, user);
     await this.listsRepo.remove(list);
   }
 

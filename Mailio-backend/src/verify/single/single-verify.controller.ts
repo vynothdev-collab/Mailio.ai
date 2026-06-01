@@ -75,7 +75,7 @@ export class SingleVerifyController {
   @ApiResponse({ status: 400, description: 'Invalid email address' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   verify(@Body() dto: VerifyEmailDto, @CurrentUser() user: User) {
-    return this.singleVerifyService.verifySingle(dto.email, user.id);
+    return this.singleVerifyService.verifySingle(dto.email, user);
   }
 
   @Get('recent')
@@ -119,7 +119,7 @@ export class SingleVerifyController {
     @Query('page', new ParseIntPipe({ optional: true })) page = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 10,
   ) {
-    return this.singleVerifyService.getRecent(user.id, page, limit);
+    return this.singleVerifyService.getRecent(user, page, limit);
   }
 
   @Get('stats')
@@ -147,7 +147,7 @@ export class SingleVerifyController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getStats(@CurrentUser() user: User) {
-    return this.singleVerifyService.getStats(user.id);
+    return this.singleVerifyService.getStats(user);
   }
 
   @Get(':id/download')

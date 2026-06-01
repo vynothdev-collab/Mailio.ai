@@ -52,7 +52,7 @@ export class DashboardController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getStats(@CurrentUser() user: User) {
-    return this.dashboardService.getStats(user.id);
+    return this.dashboardService.getStats(user);
   }
 
   @ApiTags('dashboard')
@@ -79,7 +79,7 @@ export class DashboardController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getActiveJob(@CurrentUser() user: User) {
-    return this.dashboardService.getActiveJob(user.id);
+    return this.dashboardService.getActiveJob(user);
   }
 
   @ApiTags('dashboard')
@@ -149,7 +149,7 @@ export class DashboardController {
     @Query('to') to?: string,
   ) {
     const range = this.resolveDateRange(period, from, to);
-    return this.dashboardService.getRecentVerifications(user.id, page, limit, {
+    return this.dashboardService.getRecentVerifications(user, page, limit, {
       status,
       from: range.from,
       to: range.to,
@@ -225,7 +225,7 @@ export class DashboardController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getChart(@CurrentUser() user: User, @Query('period') period = '7d') {
-    return this.dashboardService.getChart(user.id, period);
+    return this.dashboardService.getChart(user, period);
   }
 
   @ApiTags('account')
@@ -248,6 +248,6 @@ export class DashboardController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getUsage(@CurrentUser() user: User) {
-    return this.dashboardService.getUsage(user.id, user.plan);
+    return this.dashboardService.getUsage(user);
   }
 }

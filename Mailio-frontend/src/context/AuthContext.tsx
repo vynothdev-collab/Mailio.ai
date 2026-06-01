@@ -14,16 +14,22 @@ import { authService } from "@/src/services/authService";
 import { userService } from "@/src/services/userService";
 import type { ApiError } from "@/src/types/auth";
 import type { UserProfile } from "@/src/types/user";
-import { STORAGE_KEYS, clearSession, getItem } from "@/src/utils/storage";
+import {
+  clearSession,
+  getItem,
+  STORAGE_KEYS,
+  loadUserProfile,
+  saveUserProfile,
+} from "@/src/utils/storage";
 
 interface AuthContextValue {
-  user:             UserProfile | null;
-  loading:          boolean;
-  isInitialized:    boolean;
-  error:            string | null;
-  isAuthenticated:  boolean;
-  refresh:          () => Promise<UserProfile | null>;
-  logout:           () => Promise<void>;
+  user:            UserProfile | null;
+  loading:         boolean;
+  isInitialized:   boolean;
+  error:           string | null;
+  isAuthenticated: boolean;
+  refresh:         () => Promise<UserProfile | null>;
+  logout:          () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -34,7 +40,11 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
-  const [user,          setUser]          = useState<UserProfile | null>(null);
+
+  // Seed from sessionStorage so the UI is never blank on first paint.
+  const [user,          setUser]          = useState<UserProfile | null>(() =>
+    typeof window !== "undefined" ? loadUserProfile() : null,
+  );
   const [loading,       setLoading]       = useState<boolean>(true);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [error,         setError]         = useState<string | null>(null);
@@ -59,9 +69,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const profile = await userService.getCurrentUser();
         setUser(profile);
+        saveUserProfile(profile);
         return profile;
       } catch (err) {
-
         const apiErr = err as ApiError;
         setError(apiErr?.message ?? "Failed to load user profile.");
         setUser(null);
@@ -81,6 +91,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await authService.logout();
     } finally {
+      clearSession();
       setUser(null);
       setError(null);
       router.push("/login");
@@ -92,21 +103,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     bootstrappedRef.current = true;
     void refresh();
   }, [refresh]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const authKeys = new Set<string>(Object.values(STORAGE_KEYS));
-    const onStorage = (e: StorageEvent) => {
-      if (e.key && !authKeys.has(e.key)) return;
-      clearSession();
-      setUser(null);
-      if (!window.location.pathname.startsWith("/login")) {
-        window.location.assign("/login");
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({

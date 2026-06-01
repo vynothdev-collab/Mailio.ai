@@ -5,6 +5,10 @@ import { Job } from 'bullmq';
 import { parse } from 'csv-parse';
 import * as fs from 'fs';
 import { DataSource, Repository } from 'typeorm';
+import {
+  CreditsService,
+  InsufficientCreditsException,
+} from '../credits/credits.service';
 import { DlqService } from '../dlq/dlq.service';
 import {
   EmailList,
@@ -13,6 +17,7 @@ import {
 } from '../email-lists/entities/email-list.entity';
 import { EmailStatus } from '../emails/entities/email.entity';
 import { MetricsService } from '../metrics/metrics.service';
+import { User } from '../users/entities/user.entity';
 import { VerificationService } from '../verification/verification.service';
 import { CSV_PARSE_QUEUE, CsvParseJob } from './csv-parse.types';
 
@@ -26,9 +31,12 @@ export class CsvParseProcessor extends WorkerHost {
   constructor(
     @InjectRepository(EmailList)
     private readonly listsRepo: Repository<EmailList>,
+    @InjectRepository(User)
+    private readonly usersRepo: Repository<User>,
     private readonly dataSource: DataSource,
     private readonly verification: VerificationService,
     private readonly dlq: DlqService,
+    private readonly credits: CreditsService,
     @Optional() private readonly metrics?: MetricsService,
   ) {
     super();
@@ -157,33 +165,125 @@ export class CsvParseProcessor extends WorkerHost {
         return;
       }
 
-      await this.listsRepo.update(listId, {
-        parseStatus: EmailListParseStatus.PARSED,
-        status: EmailListStatus.PROCESSING,
-        totalCount: inserted,
-        duplicates,
-        detectedColumn,
-        quotaTruncated,
-      });
+      // Reserve credits for the parsed row count BEFORE handing the list off
+      // to the verification queue. If the caller can't afford it we abort the
+      // job and mark the list FAILED — no provider calls happen, no credits
+      // are deducted.
+      const owner = await this.usersRepo.findOne({ where: { id: userId } });
+      if (!owner) {
+        throw new Error(`Owner user ${userId} not found for list ${listId}`);
+      }
 
-      if (process.env.BULK_BATCH_ENABLED === 'true') {
-        await this.verification.enqueueBulkBatches(
-          collectedIds,
-          userId,
+      let reservedBalanceAfter: number;
+      try {
+        const { balanceAfter } = await this.credits.reserveForBulk(
+          owner,
           listId,
-          undefined,
           inserted,
         );
-      } else {
-        const baseOffset = await this.verification.getEnqueueAnchor();
-        await this.verification.enqueueBulkWithBase(
-          collectedIds,
-          userId,
-          listId,
-          baseOffset,
-          0,
-          inserted,
+        reservedBalanceAfter = balanceAfter;
+        await this.listsRepo.update(listId, {
+          creditsReserved: String(inserted),
+        });
+        this.logger.log(
+          `List ${listId}: reserved ${inserted} credits (balanceAfter=${balanceAfter})`,
         );
+      } catch (e) {
+        if (e instanceof InsufficientCreditsException) {
+          // Mark list FAILED and move child emails to a TERMINAL state. We use
+          // status=COMPLETED + verification_result=UNKNOWN (matching how the
+          // worker's markFailed records system errors) so that the retry
+          // endpoint — which only re-queues EmailStatus.FAILED rows — cannot
+          // re-enqueue them without a fresh reservation. Users must re-upload
+          // after topping up.
+          await this.listsRepo.update(listId, {
+            parseStatus: EmailListParseStatus.PARSED,
+            status: EmailListStatus.FAILED,
+            totalCount: inserted,
+            duplicates,
+            detectedColumn,
+            quotaTruncated,
+            parseError: 'Insufficient credits to start this bulk job.',
+          });
+          this.logger.warn(
+            `List ${listId}: insufficient credits for ${inserted} rows — marked FAILED`,
+          );
+          await this.dataSource.query(
+            `UPDATE emails
+                SET status              = 'COMPLETED'::emails_status_enum,
+                    verification_result = 'UNKNOWN'::emails_verification_result_enum,
+                    error_message       = $1
+              WHERE list_id = $2 AND status = $3::emails_status_enum`,
+            ['Insufficient credits', listId, EmailStatus.QUEUED],
+          );
+          return;
+        }
+        throw e;
+      }
+
+      // From this point on the reservation is "live" — if anything below
+      // throws we must refund it, otherwise credits leak from the user's
+      // account with no corresponding work. We DON'T re-throw inside the
+      // refund block because retrying the parse job would (a) re-insert
+      // duplicate email rows and (b) re-attempt the reservation.
+      try {
+        await this.listsRepo.update(listId, {
+          parseStatus: EmailListParseStatus.PARSED,
+          status: EmailListStatus.PROCESSING,
+          totalCount: inserted,
+          duplicates,
+          detectedColumn,
+          quotaTruncated,
+        });
+
+        if (process.env.BULK_BATCH_ENABLED === 'true') {
+          await this.verification.enqueueBulkBatches(
+            collectedIds,
+            userId,
+            listId,
+            undefined,
+            inserted,
+          );
+        } else {
+          const baseOffset = await this.verification.getEnqueueAnchor();
+          await this.verification.enqueueBulkWithBase(
+            collectedIds,
+            userId,
+            listId,
+            baseOffset,
+            0,
+            inserted,
+          );
+        }
+      } catch (e) {
+        this.logger.error(
+          `List ${listId}: failed to publish after reservation (balanceAfter=${reservedBalanceAfter}) — refunding ${inserted} credits: ${(e as Error).message}`,
+        );
+        // Best-effort refund. If THIS fails too, we log loudly; a Super Admin
+        // can reconcile from the ledger.
+        try {
+          await this.credits.refundBulkByListOwner(listId, userId, inserted);
+        } catch (refundErr) {
+          this.logger.error(
+            `List ${listId}: CRITICAL — refund-after-publish-failure also failed: ${(refundErr as Error).message}`,
+          );
+        }
+        // Mark list FAILED and child emails terminal so they aren't retried.
+        await this.listsRepo.update(listId, {
+          parseStatus: EmailListParseStatus.PARSED,
+          status: EmailListStatus.FAILED,
+          totalCount: inserted,
+          parseError: `Failed to queue verification jobs: ${(e as Error).message}`,
+        });
+        await this.dataSource.query(
+          `UPDATE emails
+              SET status              = 'COMPLETED'::emails_status_enum,
+                  verification_result = 'UNKNOWN'::emails_verification_result_enum,
+                  error_message       = $1
+            WHERE list_id = $2 AND status = $3::emails_status_enum`,
+          ['Failed to queue for verification', listId, EmailStatus.QUEUED],
+        );
+        return;
       }
 
       this.logger.log(

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/src/components/shared/ComingSoon";
+import { HelpView } from "@/src/features/help/components/HelpView";
 
 export const metadata: Metadata = {
   title: "Help & Support · emailanswers.ai",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function HelpPage() {
-  return <ComingSoon description="We're building something amazing." />;
+  return <HelpView />;
 }

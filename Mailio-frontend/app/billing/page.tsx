@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/src/components/shared/ComingSoon";
+import { BillingPageClient } from "@/src/features/billing/components/BillingPageClient";
 
 export const metadata: Metadata = {
   title: "Billing · emailanswers.ai",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function BillingPage() {
-  return <ComingSoon description="We're building something amazing." />;
+  return <BillingPageClient />;
 }

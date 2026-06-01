@@ -213,7 +213,14 @@ export class AuthService {
 
   private signAccessToken(user: User): string {
     return this.jwtService.sign(
-      { sub: user.id, email: user.email, plan: user.plan, type: 'access' },
+      {
+        sub: user.id,
+        email: user.email,
+        plan: user.plan,
+        role: user.role,
+        enterpriseId: user.enterpriseId,
+        type: 'access',
+      },
       { expiresIn: '15m' },
     );
   }
@@ -231,6 +238,8 @@ export class AuthService {
       name: user.name,
       email: user.email,
       plan: user.plan,
+      role: user.role,
+      enterpriseId: user.enterpriseId,
       avatarUrl: user.avatarUrl,
       provider: user.provider,
     };

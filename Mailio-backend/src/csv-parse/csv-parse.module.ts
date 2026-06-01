@@ -1,8 +1,10 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CreditsModule } from '../credits/credits.module';
 import { EmailList } from '../email-lists/entities/email-list.entity';
 import { UsageModule } from '../usage/usage.module';
+import { User } from '../users/entities/user.entity';
 import { VerificationModule } from '../verification/verification.module';
 import { CsvParseProcessor } from './csv-parse.processor';
 import { CsvParseService } from './csv-parse.service';
@@ -20,9 +22,10 @@ import { CSV_PARSE_QUEUE } from './csv-parse.types';
         removeOnFail: { age: 7 * 86400 },
       },
     }),
-    TypeOrmModule.forFeature([EmailList]),
+    TypeOrmModule.forFeature([EmailList, User]),
     VerificationModule,
     UsageModule,
+    CreditsModule,
   ],
   providers: [CsvParseService, CsvParseProcessor],
   exports: [CsvParseService],

@@ -10,6 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/src/lib/utils";
 import { bulkVerifyService } from "@/src/services/bulkVerifyService";
 import type { ApiError } from "@/src/types/auth";
+import { useAuth } from "@/src/hooks/useAuth";
+import { getCreditErrorMessage } from "@/src/utils/creditError";
 import type { BulkProgressDto, BulkUploadResponse } from "@/src/types/bulk";
 
 const ACCEPTED_EXTS = [".csv", ".txt"] as const;
@@ -30,6 +32,7 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
   const [uploadPct,  setUploadPct]  = useState(0);
   const [lastUpload, setLastUpload] = useState<BulkUploadResponse | null>(null);
   const [progress,   setProgress]   = useState<BulkProgressDto | null>(null);
+  const { user, refresh } = useAuth();
 
   useEffect(() => {
     if (!lastUpload?.jobId) return;
@@ -98,9 +101,17 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
       setLastUpload(result);
       reset();
       onUploaded(result);
+      // Reservation happens server-side once parsing completes; refresh to
+      // reflect the new balance for the caller.
+      void refresh();
     } catch (err) {
-      const apiErr = err as ApiError;
-      toast.error(apiErr?.message ?? "Upload failed.");
+      const creditMsg = getCreditErrorMessage(err, user);
+      if (creditMsg) {
+        toast.error(creditMsg);
+      } else {
+        const apiErr = err as ApiError;
+        toast.error(apiErr?.message ?? "Upload failed.");
+      }
       onUploadingChange?.(false);
     } finally {
       setUploading(false);

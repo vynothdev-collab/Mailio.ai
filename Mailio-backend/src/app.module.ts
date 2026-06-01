@@ -6,6 +6,9 @@ import { AdminModule } from './admin/admin.module';
 import { AdminActivityLogsModule } from './admin-activity-logs/admin-activity-logs.module';
 import { AdminAuthModule } from './admin-auth/admin-auth.module';
 import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
+import { AdminCreditsModule } from './admin-credits/admin-credits.module';
+import { BillingPlansModule } from './billing-plans/billing-plans.module';
+import { AdminEnterprisesModule } from './admin-enterprises/admin-enterprises.module';
 import { AdminUsersModule } from './admin-users/admin-users.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -14,7 +17,10 @@ import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import mailConfig from './config/mail.config';
 import redisConfig from './config/redis.config';
+import { CreditsModule } from './credits/credits.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { EnterpriseScopeModule } from './enterprise-scope/enterprise-scope.module';
+import { EnterprisesModule } from './enterprises/enterprises.module';
 import { DbWriteModule } from './db-write/db-write.module';
 import { EmailListsModule } from './email-lists/email-lists.module';
 import { EmailsModule } from './emails/emails.module';
@@ -65,6 +71,9 @@ import { VerifyModule } from './verify/verify.module';
       }),
     }),
     AuthModule,
+    EnterprisesModule,
+    EnterpriseScopeModule,
+    CreditsModule,
     UsersModule,
     EmailsModule,
     EmailListsModule,
@@ -87,6 +96,9 @@ import { VerifyModule } from './verify/verify.module';
     AdminDashboardModule,
     AdminActivityLogsModule,
     AdminUsersModule,
+    AdminEnterprisesModule,
+    AdminCreditsModule,
+    BillingPlansModule,
   ],
   controllers: [AppController],
   providers: [AppService],

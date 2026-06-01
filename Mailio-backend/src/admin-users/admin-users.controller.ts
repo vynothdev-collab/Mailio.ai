@@ -19,7 +19,11 @@ import { CurrentAdmin } from '../admin-auth/decorators/current-admin.decorator';
 import { Admin } from '../admin-auth/entities/admin.entity';
 import { AdminActivityLogsService } from '../admin-activity-logs/admin-activity-logs.service';
 import { LogType } from '../admin-activity-logs/entities/admin-activity-log.entity';
+import { AdminRoles } from '../admin-auth/decorators/admin-roles.decorator';
+import { AdminRole } from '../admin-auth/entities/admin.entity';
+import { AdminRolesGuard } from '../admin-auth/guards/admin-roles.guard';
 import { AdminUsersService } from './admin-users.service';
+import { CreateUserDto } from './dto/create-user.dto';
 
 function getIp(req: Request): string {
   const forwarded = req.headers['x-forwarded-for'];
@@ -28,7 +32,7 @@ function getIp(req: Request): string {
 }
 
 @ApiTags('admin-users')
-@UseGuards(AdminJwtGuard)
+@UseGuards(AdminJwtGuard, AdminRolesGuard)
 @Controller('admin/users')
 export class AdminUsersController {
   constructor(
@@ -36,11 +40,44 @@ export class AdminUsersController {
     private readonly logsService: AdminActivityLogsService,
   ) {}
 
+  @Post()
+  @ApiOperation({
+    summary:
+      'Create a user (Super Admin). Supports USER, ENTERPRISE_USER, ENTERPRISE_ADMIN, SUPER_ADMIN roles.',
+  })
+  @AdminRoles(AdminRole.SUPER_ADMIN)
+  async createUser(
+    @Body() dto: CreateUserDto,
+    @CurrentAdmin() admin: Admin,
+    @Req() req: Request,
+  ) {
+    const user = await this.usersService.create(dto, admin.id);
+    await this.logsService.log({
+      type: LogType.SINGLE_USER,
+      module: 'Users',
+      action: `Created ${dto.role}`,
+      targetId: user.id,
+      targetName: user.email,
+      changedByAdminId: admin.id,
+      changedByAdminName: admin.name,
+      newValue: {
+        email: user.email,
+        role: user.role,
+        enterpriseId: user.enterpriseId,
+      },
+      ipAddress: getIp(req),
+    });
+    const { passwordHash, ...safe } = user;
+    return safe;
+  }
+
   @Get()
-  @ApiOperation({ summary: 'List all single users with search and filters' })
+  @ApiOperation({ summary: 'List users with search and filters (role, enterprise, plan, status)' })
   findAll(
     @Query('search') search?: string,
     @Query('plan') plan?: string,
+    @Query('role') role?: string,
+    @Query('enterpriseId') enterpriseId?: string,
     @Query('isActive') isActive?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -48,6 +85,8 @@ export class AdminUsersController {
     return this.usersService.findAll({
       search,
       plan,
+      role,
+      enterpriseId,
       isActive,
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,

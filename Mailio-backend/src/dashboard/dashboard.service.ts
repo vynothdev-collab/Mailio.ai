@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Between, In, Repository } from 'typeorm';
+import { DataScopeService } from '../common/scope/data-scope.service';
 import {
   EmailList,
   EmailListStatus,
 } from '../email-lists/entities/email-list.entity';
 import { Email, EmailStatus } from '../emails/entities/email.entity';
 import { VerificationResult } from '../common/types/verification-result.enum';
-import { Plan } from '../users/entities/user.entity';
+import { Plan, User } from '../users/entities/user.entity';
 
 const UNLIMITED = 1_000_000_000;
 const PLAN_LIMITS: Record<Plan, number> = {
@@ -29,18 +30,26 @@ export class DashboardService {
     private readonly emailsRepo: Repository<Email>,
     @InjectRepository(EmailList)
     private readonly listsRepo: Repository<EmailList>,
+    private readonly scope: DataScopeService,
   ) {}
 
-  async getStats(userId: string) {
+  async getStats(user: User) {
+    const userIds = await this.scope.resolveUserIds(user);
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     const [currentPeriod, allTime] = await Promise.all([
       this.emailsRepo.find({
-        where: { userId, isDeleted: false, createdAt: Between(sevenDaysAgo, now) },
+        where: {
+          userId: In(userIds),
+          isDeleted: false,
+          createdAt: Between(sevenDaysAgo, now),
+        },
         select: ['verificationResult', 'disposable'],
       }),
-      this.emailsRepo.count({ where: { userId, isDeleted: false } }),
+      this.emailsRepo.count({
+        where: { userId: In(userIds), isDeleted: false },
+      }),
     ]);
 
     const currentValid = currentPeriod.filter(
@@ -65,11 +74,20 @@ export class DashboardService {
     };
   }
 
-  async getActiveJob(userId: string) {
+  async getActiveJob(user: User) {
+    const userIds = await this.scope.resolveUserIds(user);
     const list = await this.listsRepo.findOne({
       where: [
-        { userId, isDeleted: false, status: EmailListStatus.PROCESSING },
-        { userId, isDeleted: false, status: EmailListStatus.PENDING },
+        {
+          userId: In(userIds),
+          isDeleted: false,
+          status: EmailListStatus.PROCESSING,
+        },
+        {
+          userId: In(userIds),
+          isDeleted: false,
+          status: EmailListStatus.PENDING,
+        },
       ],
       order: { createdAt: 'DESC' },
     });
@@ -102,7 +120,7 @@ export class DashboardService {
   }
 
   async getRecentVerifications(
-    userId: string,
+    user: User,
     page: number,
     limit: number,
     filters: {
@@ -111,15 +129,16 @@ export class DashboardService {
       to?: Date;
     } = {},
   ) {
+    const userIds = await this.scope.resolveUserIds(user);
     const offset = (page - 1) * limit;
 
-    const params: unknown[] = [userId];
+    const params: unknown[] = [userIds];
     const listStatusValue = this.statusToList(filters.status);
     const emailStatusValue = this.statusToEmail(filters.status);
 
-    const listConditions = ['el.user_id = $1', 'el.is_deleted = FALSE'];
+    const listConditions = ['el.user_id = ANY($1)', 'el.is_deleted = FALSE'];
     const emailConditions = [
-      'e.user_id = $1',
+      'e.user_id = ANY($1)',
       'e.is_single_verify = TRUE',
       'e.is_deleted = FALSE',
     ];
@@ -278,12 +297,17 @@ export class DashboardService {
     }
   }
 
-  async getChart(userId: string, period: string) {
+  async getChart(user: User, period: string) {
+    const userIds = await this.scope.resolveUserIds(user);
     const days = period === '30d' ? 30 : period === '14d' ? 14 : 7;
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     const rows = await this.emailsRepo.find({
-      where: { userId, isDeleted: false, createdAt: Between(since, new Date()) },
+      where: {
+        userId: In(userIds),
+        isDeleted: false,
+        createdAt: Between(since, new Date()),
+      },
       select: ['verificationResult'],
     });
 
@@ -333,15 +357,24 @@ export class DashboardService {
     };
   }
 
-  async getUsage(userId: string, plan: Plan) {
+  async getUsage(user: User) {
+    const userIds = await this.scope.resolveUserIds(user);
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
     const used = await this.emailsRepo.count({
-      where: { userId, isDeleted: false, createdAt: Between(startOfMonth, new Date()) },
+      where: {
+        userId: In(userIds),
+        isDeleted: false,
+        createdAt: Between(startOfMonth, new Date()),
+      },
     });
 
-    return { used, total: PLAN_LIMITS[plan] ?? PLAN_LIMITS[Plan.PRO], plan };
+    return {
+      used,
+      total: PLAN_LIMITS[user.plan] ?? PLAN_LIMITS[Plan.PRO],
+      plan: user.plan,
+    };
   }
 }

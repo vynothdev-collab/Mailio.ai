@@ -10,6 +10,7 @@ import type {
   UsageQuotaDto,
 } from "@/src/types/usage";
 import type { ApiError } from "@/src/types/auth";
+import { PageHeader } from "@/src/components/layout/PageHeader";
 import { PlanQuotaCard } from "./PlanQuotaCard";
 import { UsageBreakdownTiles } from "./UsageBreakdownTiles";
 import { UsageChart } from "./UsageChart";
@@ -49,6 +50,10 @@ export function UsageView() {
 
   return (
     <div className="space-y-4">
+      <PageHeader
+        title="Usage"
+        subtitle="Monitor your email verification usage, quota, and credit consumption."
+      />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-1">
           <PlanQuotaCard quota={quota} loading={loading} />

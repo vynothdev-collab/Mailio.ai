@@ -1,8 +1,8 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { ComingSoon } from "@/src/components/shared/ComingSoon";
 import { JobResultsDetailView } from "@/src/features/results/components/JobResultsDetailView";
+import { ResultsView } from "@/src/features/results/components/ResultsView";
 
 export function ResultsPageClient() {
   const searchParams = useSearchParams();
@@ -11,5 +11,5 @@ export function ResultsPageClient() {
   if (jobId) {
     return <JobResultsDetailView jobId={jobId} />;
   }
-  return <ComingSoon description="We're building something amazing." />;
+  return <ResultsView />;
 }

@@ -8,7 +8,28 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/src/lib/utils";
 import { NAV_ITEMS } from "@/src/features/dashboard/constants";
 import type { NavItem } from "@/src/features/dashboard/types";
+import { useRole } from "@/src/hooks/useRole";
 import { SIDEBAR_ICONS } from "./SidebarIcons";
+
+/**
+ * Filter the global nav for the current user's role.
+ *
+ * - Enterprise members (ENTERPRISE_USER, ENTERPRISE_ADMIN) never see Billing.
+ * - The "Enterprise Users" item is only visible to ENTERPRISE_ADMIN.
+ * - All other items are visible to everyone.
+ *
+ * Auth not yet loaded → show the lowest-privilege set (no admin-only links).
+ */
+function filterNavItemsForRole(
+  items: NavItem[],
+  flags: ReturnType<typeof useRole>,
+): NavItem[] {
+  return items.filter((item) => {
+    if (item.id === "billing") return flags.canAccessBilling;
+    if (item.id === "enterprise-users") return flags.isEnterpriseAdmin;
+    return true;
+  });
+}
 
 function EmailanswersLogo({ collapsed }: { collapsed: boolean }) {
   if (collapsed) {
@@ -72,6 +93,8 @@ function readCollapsed(): boolean {
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname  = usePathname();
   const [collapsed, setCollapsed] = useState<boolean>(readCollapsed);
+  const roleFlags = useRole();
+  const navItems = filterNavItemsForRole(NAV_ITEMS, roleFlags);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((v) => {
@@ -131,7 +154,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         )}
 
         <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5" aria-label="Main navigation">
-          {NAV_ITEMS.map((item, idx) => (
+          {navItems.map((item, idx) => (
             <div key={item.id}>
               {item.id === "settings" && idx > 0 && (
                 <div className="my-2 border-t border-[#DCE6F3] mx-2" aria-hidden />
