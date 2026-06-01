@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -125,6 +126,7 @@ export function PageHeader({
   backHref,
   backLabel = "Back",
 }: PageHeaderProps) {
+  const router = useRouter();
   const mobileMenu = useMobileMenu();
   useEffect(() => {
     if (!mobileMenu) return;
@@ -135,13 +137,14 @@ export function PageHeader({
       <div className="order-2 min-w-0 flex-1 lg:order-1">
         <div className="flex items-center gap-2">
           {backHref && (
-            <Link
-              href={backHref}
+            <button
+              type="button"
+              onClick={() => router.push(backHref)}
               aria-label={backLabel}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#DCE6F3] bg-white text-[#161514] hover:bg-[#F4F8FF] transition-colors"
             >
               <ArrowLeft size={14} />
-            </Link>
+            </button>
           )}
           <h1 className="truncate text-base font-bold tracking-tight text-[#111827] sm:text-xl lg:text-2xl">
             {title}
