@@ -175,7 +175,7 @@ function ResultCard({ job }: { job: BulkJobDto }) {
         </ul>
 
         <a
-          href={`/bulk-verify?jobId=${job.jobId}`}
+          href={`/bulk-verify/results?jobId=${job.jobId}`}
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0F5BFF] hover:underline"
         >
           View results <span aria-hidden>→</span>
