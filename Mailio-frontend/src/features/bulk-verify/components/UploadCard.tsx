@@ -14,8 +14,9 @@ import { useAuth } from "@/src/hooks/useAuth";
 import { getCreditErrorMessage } from "@/src/utils/creditError";
 import type { BulkProgressDto, BulkUploadResponse } from "@/src/types/bulk";
 
-const ACCEPTED_EXTS = [".csv", ".txt"] as const;
-const MAX_SIZE_MB   = 50;
+const ACCEPTED_EXTS   = [".csv", ".txt"] as const;
+const MAX_SIZE_MB     = 50;
+const MAX_EMAIL_COUNT = 100_000;
 
 interface Props {
   onUploaded:          (result: BulkUploadResponse) => void;
@@ -29,6 +30,7 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
   const [file,       setFile]       = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading,  setUploading]  = useState(false);
+  const [counting,   setCounting]   = useState(false);
   const [uploadPct,  setUploadPct]  = useState(0);
   const [lastUpload, setLastUpload] = useState<BulkUploadResponse | null>(null);
   const [progress,   setProgress]   = useState<BulkProgressDto | null>(null);
@@ -42,6 +44,23 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
       try {
         const p = await bulkVerifyService.getProgress(lastUpload.jobId);
         if (cancelled) return;
+
+        const isFailed =
+          p.parseStatus === 'FAILED' ||
+          p.status?.toUpperCase() === 'FAILED';
+
+        if (isFailed) {
+          window.clearInterval(timer);
+          setLastUpload(null);
+          setProgress(null);
+          toast.error(
+            p.parseError ?? 'Verification job failed. Please try again.',
+            { duration: 8000 },
+          );
+          onUploaded(lastUpload);
+          return;
+        }
+
         setProgress(p);
         if (p.totalCount > 0 && p.processedCount >= p.totalCount) {
           window.clearInterval(timer);
@@ -65,9 +84,30 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
     return null;
   };
 
-  const handleSelect = useCallback((f: File) => {
+  const handleSelect = useCallback(async (f: File) => {
     const err = validate(f);
     if (err) { toast.error(err); return; }
+
+    setCounting(true);
+    try {
+      const text = await f.text();
+      const emailCount = text
+        .split(/\r?\n/)
+        .filter((line) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(line.trim().toLowerCase()))
+        .length;
+      if (emailCount > MAX_EMAIL_COUNT) {
+        toast.error(
+          `File contains ${emailCount.toLocaleString()} emails. Maximum allowed is ${MAX_EMAIL_COUNT.toLocaleString()} per upload. Please split your list into smaller files.`,
+        );
+        if (inputRef.current) inputRef.current.value = "";
+        return;
+      }
+    } catch {
+      // If we can't read the file, let the server validate
+    } finally {
+      setCounting(false);
+    }
+
     setFile(f);
   }, []);
 
@@ -75,12 +115,12 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
     e.preventDefault();
     setIsDragging(false);
     const f = e.dataTransfer.files[0];
-    if (f) handleSelect(f);
+    if (f) void handleSelect(f);
   }, [handleSelect]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) handleSelect(f);
+    if (f) void handleSelect(f);
   }, [handleSelect]);
 
   const reset = () => {
@@ -283,7 +323,7 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
               <circle cx="5" cy="5" r="4" stroke="white" strokeWidth="0.8"/>
             </svg>
           </div>
-          Only email addresses are supported. Duplicates will be automatically removed.
+          Only email addresses are supported. Duplicates will be automatically removed. Maximum {MAX_EMAIL_COUNT.toLocaleString()} emails per upload.
         </div>
 
         {/* Upload progress */}
@@ -309,12 +349,14 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
         <Button
           type="button"
           onClick={startUpload}
-          disabled={!file || uploading || disabled}
+          disabled={!file || uploading || counting || disabled}
           className="w-full gradient-brand border-0 text-white hover:opacity-90 h-11"
         >
-          {uploading
-            ? <><Loader2 size={14} className="animate-spin" /> Uploading…</>
-            : "Upload & Verify"}
+          {counting
+            ? <><Loader2 size={14} className="animate-spin" /> Checking file…</>
+            : uploading
+              ? <><Loader2 size={14} className="animate-spin" /> Uploading…</>
+              : "Upload & Verify"}
         </Button>
 
         <TemplateGuide />
@@ -345,6 +387,7 @@ function TemplateGuide() {
     "Each row must contain one email address.",
     "File must be saved as CSV or TXT (UTF-8).",
     "Maximum file size: 50MB.",
+    `Maximum ${MAX_EMAIL_COUNT.toLocaleString()} emails per upload.`,
   ];
   return (
     <div className="mt-4 border-t border-[#DCE6F3] pt-5">

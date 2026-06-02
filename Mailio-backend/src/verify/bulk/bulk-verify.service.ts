@@ -94,6 +94,9 @@ export class BulkVerifyService {
       invalid: list.invalidCount,
       catchall: list.catchallCount + list.unknownCount,
       disposable: list.disposableCount,
+      parseStatus: list.parseStatus,
+      status: list.status,
+      parseError: list.parseError ?? null,
     };
   }
 

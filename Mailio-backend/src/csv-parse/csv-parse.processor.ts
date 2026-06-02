@@ -68,6 +68,7 @@ export class CsvParseProcessor extends WorkerHost {
 
   async process(job: Job<CsvParseJob>): Promise<void> {
     const { listId, userId, filePath, originalFilename } = job.data;
+    const MAX_EMAILS = 100_000;
 
     await this.listsRepo.update(listId, {
       parseStatus: EmailListParseStatus.PARSING,
@@ -77,7 +78,8 @@ export class CsvParseProcessor extends WorkerHost {
     let inserted = 0;
     let duplicates = 0;
     let detectedColumn: string | null = null;
-    const quotaTruncated = false;
+    let limitExceeded = false;
+    let quotaTruncated = false;
     const collectedIds: string[] = [];
 
     try {
@@ -85,13 +87,13 @@ export class CsvParseProcessor extends WorkerHost {
       let isFirstRow = true;
       const buffer: string[] = [];
 
-      const parser = fs.createReadStream(filePath).pipe(
-        parse({
-          trim: true,
-          skip_empty_lines: true,
-          relax_column_count: true,
-        }),
-      );
+      const readStream = fs.createReadStream(filePath);
+      const csvParser = parse({
+        trim: true,
+        skip_empty_lines: true,
+        relax_column_count: true,
+      });
+      const parser = readStream.pipe(csvParser);
 
       const flushIfFull = async (): Promise<void> => {
         if (buffer.length < this.BATCH) return;
@@ -111,6 +113,7 @@ export class CsvParseProcessor extends WorkerHost {
 
       await new Promise<void>((resolve, reject) => {
         parser.on('data', (row: string[]) => {
+          if (limitExceeded) return;
           void (async () => {
             try {
               const raw = (row[0] ?? '').trim().toLowerCase();
@@ -129,6 +132,12 @@ export class CsvParseProcessor extends WorkerHost {
               }
               seen.add(raw);
 
+              if (seen.size > MAX_EMAILS) {
+                limitExceeded = true;
+                readStream.destroy();
+                return;
+              }
+
               buffer.push(raw);
               await flushIfFull();
             } catch (e) {
@@ -138,8 +147,34 @@ export class CsvParseProcessor extends WorkerHost {
         });
 
         parser.on('end', () => resolve());
-        parser.on('error', reject);
+        parser.on('close', () => resolve());
+        parser.on('error', (e) => {
+          if (limitExceeded) resolve();
+          else reject(e);
+        });
       });
+
+      // Exceeded limit: delete any partially-inserted rows so credits are not charged
+      if (limitExceeded) {
+        if (collectedIds.length > 0) {
+          await this.dataSource.query(`DELETE FROM emails WHERE list_id = $1`, [
+            listId,
+          ]);
+        }
+        await this.listsRepo.update(listId, {
+          parseStatus: EmailListParseStatus.FAILED,
+          parseError: `File exceeds the ${MAX_EMAILS.toLocaleString()} email limit per upload. Please split your list into smaller files.`,
+          status: EmailListStatus.FAILED,
+          totalCount: 0,
+          duplicates,
+          detectedColumn,
+          quotaTruncated: false,
+        });
+        this.logger.warn(
+          `List ${listId}: rejected — exceeded ${MAX_EMAILS} email limit (file=${originalFilename})`,
+        );
+        return;
+      }
 
       if (buffer.length > 0) {
         const ids = await this.insertBatch(userId, listId, buffer);
@@ -148,19 +183,16 @@ export class CsvParseProcessor extends WorkerHost {
       }
 
       if (inserted === 0) {
-        const parseError = quotaTruncated
-          ? 'Monthly quota exhausted before any rows could be inserted — upgrade your plan or wait for the quota to reset.'
-          : 'No valid email addresses found in file';
         await this.listsRepo.update(listId, {
           parseStatus: EmailListParseStatus.FAILED,
-          parseError,
+          parseError: 'No valid email addresses found in file',
           status: EmailListStatus.FAILED,
           duplicates,
           detectedColumn,
-          quotaTruncated,
+          quotaTruncated: false,
         });
         this.logger.warn(
-          `List ${listId}: no usable rows — marked FAILED (${quotaTruncated ? 'quota' : 'parse'})`,
+          `List ${listId}: no usable rows — marked FAILED (parse)`,
         );
         return;
       }
@@ -287,7 +319,7 @@ export class CsvParseProcessor extends WorkerHost {
       }
 
       this.logger.log(
-        `List ${listId}: parsed ${inserted} (dup=${duplicates}, truncated=${quotaTruncated}, file=${originalFilename})`,
+        `List ${listId}: parsed ${inserted} (dup=${duplicates}, file=${originalFilename})`,
       );
     } catch (e) {
       const msg = (e as Error).message;
@@ -298,7 +330,7 @@ export class CsvParseProcessor extends WorkerHost {
         totalCount: inserted,
         duplicates,
         detectedColumn,
-        quotaTruncated,
+        quotaTruncated: false,
       });
       throw e;
     } finally {

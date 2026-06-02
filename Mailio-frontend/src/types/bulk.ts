@@ -67,8 +67,11 @@ export interface BulkProgressDto {
   etaSeconds:     number;
   valid:          number;
   invalid:        number;
-  catchall:          number;
+  catchall:       number;
   disposable:     number;
+  parseStatus:    "PENDING" | "PARSING" | "PARSED" | "FAILED" | null;
+  status:         string | null;
+  parseError:     string | null;
 }
 
 export interface BulkBreakdownDto {
