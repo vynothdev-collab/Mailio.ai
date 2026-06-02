@@ -364,10 +364,14 @@ export function EnterpriseBillingView() {
     toast.success(`${plan.name} activated!`, {
       description: `${plan.credits.toLocaleString()} credits added to your enterprise account.`,
     });
-    // Refresh overview to show updated balance
+    // Refresh overview + ledger to reflect the new balance and transaction
     try {
-      const ov = await enterpriseService.getOverview();
+      const [ov, led] = await Promise.all([
+        enterpriseService.getOverview(),
+        enterpriseService.getLedger(1, 30),
+      ]);
       setOverview(ov);
+      setLedger(led.data);
     } catch { /* ignore */ }
   }
 

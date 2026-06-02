@@ -226,7 +226,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       </div>
 
       {/* SSO button */}
-      <button
+      {/* <button
         type="button"
         className="h-11 w-full rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
       >
@@ -234,7 +234,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
         Use Single Sign-On (SSO)
-      </button>
+      </button> */}
 
       {/* Secure connection badge */}
       <div className="mt-5 flex flex-col items-center gap-1">

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BillingPlan, BillingPlanType } from './entities/billing-plan.entity';
-import { User } from '../users/entities/user.entity';
+import { ENTERPRISE_ROLES, User } from '../users/entities/user.entity';
 import { CreditsService } from '../credits/credits.service';
 import {
   CreditTransaction,
@@ -42,6 +42,20 @@ export class BillingPlansService {
     });
     if (!plan) throw new NotFoundException('Plan not found or inactive');
 
+    const isEnterpriseMember = ENTERPRISE_ROLES.includes(user.role);
+
+    if (isEnterpriseMember && user.enterpriseId) {
+      // Enterprise users draw from the shared enterprise balance — allocate there
+      const result = await this.creditsService.allocateToEnterprise(
+        user.enterpriseId,
+        plan.credits,
+        user.id,
+        `Plan activated: ${plan.name} (+${plan.credits} credits)`,
+      );
+      return { success: true, plan, creditBalance: result.balanceAfter };
+    }
+
+    // Regular users: allocate to their personal balance
     await this.creditsService.allocateToUser(
       user.id,
       plan.credits,
