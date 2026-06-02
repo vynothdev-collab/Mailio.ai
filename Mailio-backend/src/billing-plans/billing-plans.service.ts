@@ -4,7 +4,10 @@ import { Repository } from 'typeorm';
 import { BillingPlan, BillingPlanType } from './entities/billing-plan.entity';
 import { User } from '../users/entities/user.entity';
 import { CreditsService } from '../credits/credits.service';
-import { CreditTransaction, CreditAccountType } from '../credits/entities/credit-transaction.entity';
+import {
+  CreditTransaction,
+  CreditAccountType,
+} from '../credits/entities/credit-transaction.entity';
 
 @Injectable()
 export class BillingPlansService {
@@ -26,12 +29,17 @@ export class BillingPlansService {
 
     return this.planRepo.find({
       where: { isActive: true, planType },
-      order: { price: 'ASC' },
+      order: { sortOrder: 'ASC', price: 'ASC' },
     });
   }
 
-  async activatePlan(user: User, planId: string): Promise<{ success: boolean; plan: BillingPlan; creditBalance: number }> {
-    const plan = await this.planRepo.findOne({ where: { id: planId, isActive: true } });
+  async activatePlan(
+    user: User,
+    planId: string,
+  ): Promise<{ success: boolean; plan: BillingPlan; creditBalance: number }> {
+    const plan = await this.planRepo.findOne({
+      where: { id: planId, isActive: true },
+    });
     if (!plan) throw new NotFoundException('Plan not found or inactive');
 
     await this.creditsService.allocateToUser(
@@ -40,6 +48,9 @@ export class BillingPlansService {
       user.id,
       `Plan activated: ${plan.name} (+${plan.credits} credits)`,
     );
+
+    // Track which plan is currently active for this user
+    await this.userRepo.update(user.id, { currentPlanId: plan.id });
 
     const updated = await this.userRepo.findOne({ where: { id: user.id } });
 

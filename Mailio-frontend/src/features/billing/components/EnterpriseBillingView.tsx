@@ -1,19 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Wallet, TrendingDown, Building2, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import {
+  Wallet, TrendingDown, Building2, ArrowUpRight, ArrowDownRight,
+  Zap, Star, Check, Info,
+} from "lucide-react";
 import { PageHeader } from "@/src/components/layout/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   enterpriseService,
   type EnterpriseOverview,
   type EnterpriseLedgerEntry,
 } from "@/src/services/enterpriseService";
+import { billingService, type BillingPlan } from "@/src/services/billingService";
 import type { ApiError } from "@/src/types/auth";
 import { cn } from "@/src/lib/utils";
+import { ConfirmPlanModal } from "./ConfirmPlanModal";
 
-// ── Credit balance card (mirrors CurrentPlanCard style) ──────────────────────
+// ── Credit overview card ───────────────────────────────────────────────────
 
 function CreditOverviewCard({ overview, loading }: { overview: EnterpriseOverview | null; loading: boolean }) {
   const balance = overview?.enterprise.creditBalance ?? 0;
@@ -21,17 +28,15 @@ function CreditOverviewCard({ overview, loading }: { overview: EnterpriseOvervie
   const name    = overview?.enterprise.name ?? "—";
 
   return (
-    <Card>
-      <CardContent className="pt-3 space-y-4">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-              <Building2 size={16} className="text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">{loading ? "Loading…" : name}</p>
-              <p className="text-xs text-muted-foreground">Enterprise account</p>
-            </div>
+    <Card className="border-border/60">
+      <CardContent className="pt-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+            <Building2 size={16} className="text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">{loading ? "Loading…" : name}</p>
+            <p className="text-xs text-muted-foreground">Enterprise account</p>
           </div>
         </div>
 
@@ -66,7 +71,7 @@ function CreditOverviewCard({ overview, loading }: { overview: EnterpriseOvervie
   );
 }
 
-// ── Member usage card (mirrors PaymentMethodCard style) ──────────────────────
+// ── Member usage card ──────────────────────────────────────────────────────
 
 function MemberUsageCard({ overview, loading }: { overview: EnterpriseOverview | null; loading: boolean }) {
   const total  = overview?.users.total ?? 0;
@@ -74,8 +79,8 @@ function MemberUsageCard({ overview, loading }: { overview: EnterpriseOverview |
   const verifs = overview?.verifications.total ?? 0;
 
   return (
-    <Card>
-      <CardContent className="pt-3 space-y-4">
+    <Card className="border-border/60">
+      <CardContent className="pt-5 space-y-4">
         <div>
           <h2 className="text-sm font-semibold">Team Usage</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Verification activity across the enterprise</p>
@@ -83,14 +88,12 @@ function MemberUsageCard({ overview, loading }: { overview: EnterpriseOverview |
 
         {loading ? (
           <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-10 rounded-lg bg-muted/40 animate-pulse" />
-            ))}
+            {[1, 2, 3].map((i) => <div key={i} className="h-10 rounded-lg bg-muted/40 animate-pulse" />)}
           </div>
         ) : (
           <div className="space-y-2">
             {[
-              { label: "Total Members",       value: total.toLocaleString() },
+              { label: "Total Members",       value: total.toLocaleString()  },
               { label: "Active Members",      value: active.toLocaleString() },
               { label: "Total Verifications", value: verifs.toLocaleString() },
             ].map(({ label, value }) => (
@@ -109,7 +112,118 @@ function MemberUsageCard({ overview, loading }: { overview: EnterpriseOverview |
   );
 }
 
-// ── Ledger table (mirrors BillingHistoryTable style) ─────────────────────────
+// ── Plan cards ─────────────────────────────────────────────────────────────
+
+function PlanCardSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {[0, 1, 2].map((i) => <Skeleton key={i} className="h-64 rounded-xl" />)}
+    </div>
+  );
+}
+
+function PlansSection({
+  plans,
+  loading,
+  onSelect,
+}: {
+  plans: BillingPlan[];
+  loading: boolean;
+  onSelect: (plan: BillingPlan) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="text-base font-bold">Enterprise Plans</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Choose a plan to add credits to your enterprise account.
+          </p>
+        </div>
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Info size={12} />
+          Most Popular badge is managed by admin.
+        </span>
+      </div>
+
+      {loading ? <PlanCardSkeleton /> : plans.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            No enterprise plans available at this time. Contact your administrator.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {plans.map((plan) => (
+            <div
+              key={plan.id}
+              className={cn(
+                "relative flex flex-col rounded-xl border p-5 transition-all duration-200",
+                plan.isPopular
+                  ? "border-primary shadow-lg shadow-primary/10 bg-gradient-to-b from-primary/[0.04] to-transparent"
+                  : "border-border bg-card hover:border-primary/30 hover:shadow-md",
+              )}
+            >
+              {plan.isPopular && (
+                <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full gradient-brand px-3 py-1 text-[11px] font-semibold text-white shadow whitespace-nowrap">
+                  <Star size={9} fill="white" />
+                  Most Popular
+                </span>
+              )}
+
+              <div className="flex items-center gap-2 mb-3 mt-1">
+                <div className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-lg shrink-0",
+                  plan.isPopular ? "bg-primary/10" : "bg-muted/60",
+                )}>
+                  <Zap size={15} className={plan.isPopular ? "text-primary" : "text-muted-foreground"} />
+                </div>
+                <span className={cn("text-sm font-bold", plan.isPopular ? "text-primary" : "text-foreground")}>
+                  {plan.name}
+                </span>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-3xl font-extrabold tabular-nums leading-none">
+                  {plan.currency}{plan.price.toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  {plan.credits.toLocaleString()} credits • {plan.validityDays} days validity
+                </p>
+              </div>
+
+              <ul className="space-y-2 flex-1 mb-5">
+                {(plan.features ?? []).map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <Check size={13} className="shrink-0 text-emerald-500 mt-0.5" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="border-t border-border/50 mb-4" />
+
+              <Button
+                size="sm"
+                className={cn(
+                  "w-full text-xs h-9 font-semibold",
+                  plan.isPopular
+                    ? "gradient-brand border-0 text-white hover:opacity-90"
+                    : "border border-primary/50 text-primary bg-primary/5 hover:bg-primary hover:text-white transition-colors",
+                )}
+                onClick={() => onSelect(plan)}
+              >
+                {plan.isPopular ? `Get ${plan.name}` : `Select ${plan.name}`}
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Ledger table ───────────────────────────────────────────────────────────
 
 type LedgerStatus = "credit" | "debit";
 
@@ -120,8 +234,8 @@ const STATUS_CONFIG: Record<LedgerStatus, { label: string; textColor: string; bg
 
 function LedgerTable({ entries, loading }: { entries: EnterpriseLedgerEntry[]; loading: boolean }) {
   return (
-    <Card>
-      <CardContent className="pt-3 space-y-3">
+    <Card className="border-border/60">
+      <CardContent className="pt-5 space-y-3">
         <div>
           <h2 className="text-sm font-semibold">Credit History</h2>
           <p className="text-xs text-muted-foreground mt-0.5">All credit transactions for your enterprise</p>
@@ -132,10 +246,7 @@ function LedgerTable({ entries, loading }: { entries: EnterpriseLedgerEntry[]; l
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 {["Description", "Date", "Amount", "Balance After", "Type"].map((h) => (
-                  <th
-                    key={h}
-                    className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap"
-                  >
+                  <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -159,12 +270,17 @@ function LedgerTable({ entries, loading }: { entries: EnterpriseLedgerEntry[]; l
                   </td>
                 </tr>
               ) : (
-                entries.map((entry) => {
+                entries.map((entry, i) => {
                   const isCredit = entry.delta > 0;
-                  const type: LedgerStatus = isCredit ? "credit" : "debit";
-                  const cfg = STATUS_CONFIG[type];
+                  const cfg = STATUS_CONFIG[isCredit ? "credit" : "debit"];
                   return (
-                    <tr key={entry.id} className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
+                    <tr
+                      key={entry.id}
+                      className={cn(
+                        "border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors",
+                        i % 2 === 1 && "bg-muted/[0.04]",
+                      )}
+                    >
                       <td className="px-3 py-2.5 max-w-[200px]">
                         <div className="flex items-center gap-1.5">
                           {isCredit
@@ -177,12 +293,12 @@ function LedgerTable({ entries, loading }: { entries: EnterpriseLedgerEntry[]; l
                         </div>
                       </td>
                       <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                        {new Date(entry.createdAt).toLocaleDateString()}
+                        {new Date(entry.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </td>
-                      <td className={cn("px-3 py-2.5 text-xs font-semibold whitespace-nowrap", isCredit ? "text-emerald-600" : "text-red-500")}>
+                      <td className={cn("px-3 py-2.5 text-xs font-semibold whitespace-nowrap tabular-nums", isCredit ? "text-emerald-600" : "text-red-500")}>
                         {isCredit ? "+" : ""}{entry.delta.toLocaleString()}
                       </td>
-                      <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap tabular-nums">
                         {entry.balanceAfter.toLocaleString()}
                       </td>
                       <td className="px-3 py-2.5">
@@ -203,12 +319,17 @@ function LedgerTable({ entries, loading }: { entries: EnterpriseLedgerEntry[]; l
   );
 }
 
-// ── Root view ─────────────────────────────────────────────────────────────────
+// ── Root view ─────────────────────────────────────────────────────────────
 
 export function EnterpriseBillingView() {
-  const [overview, setOverview] = useState<EnterpriseOverview | null>(null);
-  const [ledger,   setLedger]   = useState<EnterpriseLedgerEntry[]>([]);
-  const [loading,  setLoading]  = useState(true);
+  const plansRef = useRef<HTMLDivElement>(null);
+
+  const [overview,      setOverview]      = useState<EnterpriseOverview | null>(null);
+  const [ledger,        setLedger]        = useState<EnterpriseLedgerEntry[]>([]);
+  const [plans,         setPlans]         = useState<BillingPlan[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [loadingPlans,  setLoadingPlans]  = useState(true);
+  const [confirmPlan,   setConfirmPlan]   = useState<BillingPlan | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -232,13 +353,33 @@ export function EnterpriseBillingView() {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    billingService.getPlans()
+      .then(setPlans)
+      .catch(() => setPlans([]))
+      .finally(() => setLoadingPlans(false));
+  }, []);
+
+  async function handleActivated(plan: BillingPlan) {
+    toast.success(`${plan.name} activated!`, {
+      description: `${plan.credits.toLocaleString()} credits added to your enterprise account.`,
+    });
+    // Refresh overview to show updated balance
+    try {
+      const ov = await enterpriseService.getOverview();
+      setOverview(ov);
+    } catch { /* ignore */ }
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageHeader
-        title="Billing"
-        subtitle="Enterprise credit balance and transaction history."
+        title="Billing & Plans"
+        subtitle="Enterprise credit balance, plans, and transaction history."
       />
-      <div className="px-4 lg:px-6 space-y-4">
+      <div className="px-4 lg:px-6 space-y-8">
+
+        {/* ── Top: Overview + Team Usage ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
             <CreditOverviewCard overview={overview} loading={loading} />
@@ -248,8 +389,25 @@ export function EnterpriseBillingView() {
           </div>
         </div>
 
+        {/* ── Enterprise Plans ── */}
+        <div ref={plansRef}>
+          <PlansSection
+            plans={plans}
+            loading={loadingPlans}
+            onSelect={setConfirmPlan}
+          />
+        </div>
+
+        {/* ── Credit History ── */}
         <LedgerTable entries={ledger} loading={loading} />
+
       </div>
+
+      <ConfirmPlanModal
+        plan={confirmPlan}
+        onClose={() => setConfirmPlan(null)}
+        onActivated={handleActivated}
+      />
     </div>
   );
 }

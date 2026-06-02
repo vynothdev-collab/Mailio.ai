@@ -71,6 +71,9 @@ export class User {
   @Column({ name: 'credits_used', type: 'bigint', default: 0 })
   creditsUsed!: string;
 
+  @Column({ name: 'current_plan_id', type: 'uuid', nullable: true })
+  currentPlanId!: string | null;
+
   @Column({ type: 'enum', enum: AuthProvider, default: AuthProvider.LOCAL })
   provider: AuthProvider;
 

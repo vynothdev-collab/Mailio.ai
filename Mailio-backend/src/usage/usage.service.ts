@@ -58,6 +58,7 @@ export class UsageService {
 
     return {
       plan: user.plan,
+      currentPlanId: user.currentPlanId ?? null,
       accountLabel,
       creditBalance,
       creditsUsed,

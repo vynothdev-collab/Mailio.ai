@@ -51,4 +51,15 @@ export class CreateBillingPlanDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  @IsOptional()
+  isPopular?: boolean;
+
+  @ApiProperty({ example: 0 })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  sortOrder?: number;
 }

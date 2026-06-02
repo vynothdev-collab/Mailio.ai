@@ -12,6 +12,8 @@ export interface BillingPlan {
   validityDays: number;
   features: string[];
   isActive: boolean;
+  isPopular: boolean;
+  sortOrder: number;
   createdByAdminId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -26,7 +28,11 @@ export interface CreatePlanPayload {
   validityDays: number;
   features?: string[];
   isActive?: boolean;
+  isPopular?: boolean;
+  sortOrder?: number;
 }
+
+export type UpdatePlanPayload = Partial<CreatePlanPayload>;
 
 export const plansService = {
   list: () => apiService.get<BillingPlan[]>("/admin/plans"),
@@ -34,9 +40,15 @@ export const plansService = {
   create: (payload: CreatePlanPayload) =>
     apiService.post<BillingPlan>("/admin/plans", payload),
 
-  delete: (id: string) =>
-    apiService.delete<void>(`/admin/plans/${id}`),
+  update: (id: string, payload: UpdatePlanPayload) =>
+    apiService.patch<BillingPlan>(`/admin/plans/${id}`, payload),
+
+  setPopular: (id: string) =>
+    apiService.patch<BillingPlan>(`/admin/plans/${id}/set-popular`, {}),
 
   toggle: (id: string) =>
     apiService.patch<BillingPlan>(`/admin/plans/${id}/toggle`, {}),
+
+  delete: (id: string) =>
+    apiService.delete<void>(`/admin/plans/${id}`),
 };

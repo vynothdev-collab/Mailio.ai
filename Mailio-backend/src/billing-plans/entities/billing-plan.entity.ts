@@ -40,6 +40,12 @@ export class BillingPlan {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 
+  @Column({ name: 'is_popular', type: 'boolean', default: false })
+  isPopular!: boolean;
+
+  @Column({ name: 'sort_order', type: 'int', default: 0 })
+  sortOrder!: number;
+
   @Column({ name: 'created_by_admin_id', type: 'uuid', nullable: true })
   createdByAdminId: string | null;
 

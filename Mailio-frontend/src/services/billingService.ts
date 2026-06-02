@@ -12,6 +12,8 @@ export interface BillingPlan {
   validityDays: number;
   features: string[];
   isActive: boolean;
+  isPopular: boolean;
+  sortOrder: number;
   createdAt: string;
 }
 

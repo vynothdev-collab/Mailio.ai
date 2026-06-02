@@ -3,6 +3,7 @@ export type UsageType   = "all" | "single" | "bulk";
 
 export interface UsageQuotaDto {
   plan:          "PRO" | "ULTIMATE" | string;
+  currentPlanId: string | null;
   accountLabel:  string;   // "Personal" | "Enterprise"
   creditBalance: number;   // remaining credits
   creditsUsed:   number;   // lifetime credits consumed

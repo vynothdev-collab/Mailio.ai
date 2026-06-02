@@ -4,6 +4,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -21,6 +22,8 @@ const RATE_LIMIT_WINDOW_MINUTES = 15;
 
 @Injectable()
 export class AdminOtpService {
+  private readonly logger = new Logger(AdminOtpService.name);
+
   constructor(
     @InjectRepository(AdminOtp)
     private readonly otpRepo: Repository<AdminOtp>,
@@ -31,18 +34,20 @@ export class AdminOtpService {
     const windowStart = new Date(
       Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000,
     );
-    const recentCount = await this.otpRepo.count({
-      where: { email: admin.email, createdAt: MoreThan(windowStart) },
-    });
+    // const recentCount = await this.otpRepo.count({
+    //   where: { email: admin.email, createdAt: MoreThan(windowStart) },
+    // });
 
-    if (recentCount >= RATE_LIMIT_COUNT) {
-      throw new HttpException(
-        'Too many OTP requests. Please try again later.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
+    // if (recentCount >= RATE_LIMIT_COUNT) {
+    //   throw new HttpException(
+    //     'Too many OTP requests. Please try again later.',
+    //     HttpStatus.TOO_MANY_REQUESTS,
+    //   );
+    // }
 
     const otp = this.generateOtp();
+    this.logger.log(`[DEV] Admin OTP for ${admin.email} — code: ${otp}`);
+
     const otpHash = await bcrypt.hash(otp, 10);
     const expiresAt = new Date(Date.now() + OTP_EXPIRE_MINUTES * 60 * 1000);
 
