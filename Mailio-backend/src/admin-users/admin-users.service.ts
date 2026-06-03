@@ -210,10 +210,51 @@ export class AdminUsersService {
     };
   }
 
+  async updateUser(id: string, dto: { name?: string; email?: string }) {
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('User not found.');
+
+    if (dto.email) {
+      const conflict = await this.userRepo.findOne({
+        where: { email: dto.email.toLowerCase() },
+      });
+      if (conflict && conflict.id !== id) {
+        throw new ConflictException('Email already in use.');
+      }
+    }
+
+    const updates: Partial<User> = {};
+    if (dto.name)  updates.name  = dto.name.trim();
+    if (dto.email) updates.email = dto.email.toLowerCase();
+    await this.userRepo.update(id, updates);
+    return { success: true };
+  }
+
+  async addCredits(id: string, amount: number, reason: string, adminId: string) {
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('User not found.');
+    await this.credits.allocateToUser(
+      id,
+      amount,
+      adminId,
+      reason || `Admin top-up: +${amount} credits`,
+    );
+    const updated = await this.userRepo.findOneOrFail({ where: { id } });
+    return { success: true, creditBalance: Number(updated.creditBalance) };
+  }
+
   async updateStatus(id: string, isActive: boolean) {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found.');
     await this.userRepo.update(id, { isActive });
+    return { success: true };
+  }
+
+  async changePassword(id: string, newPassword: string): Promise<{ success: boolean }> {
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('User not found.');
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.userRepo.update(id, { passwordHash });
     return { success: true };
   }
 

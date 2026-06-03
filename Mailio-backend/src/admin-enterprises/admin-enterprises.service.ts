@@ -225,11 +225,62 @@ export class AdminEnterprisesService {
       where: { id, deletedAt: IsNull() },
     });
     if (!enterprise) throw new NotFoundException('Enterprise not found.');
+    // Deactivate all enterprise members first
+    await this.usersRepo.update({ enterpriseId: id }, { isActive: false });
     await this.enterprisesRepo.update(id, {
       isActive: false,
       deletedAt: new Date(),
     });
     return { success: true };
+  }
+
+  async addCredits(
+    id: string,
+    amount: number,
+    adminId: string,
+    reason?: string,
+  ): Promise<{ balanceAfter: number }> {
+    const enterprise = await this.enterprisesRepo.findOne({
+      where: { id, deletedAt: IsNull() },
+    });
+    if (!enterprise) throw new NotFoundException('Enterprise not found.');
+    return this.credits.allocateToEnterprise(
+      id,
+      amount,
+      adminId,
+      reason ?? `Admin allocation: +${amount}`,
+    );
+  }
+
+  async setStatus(id: string, isActive: boolean) {
+    const enterprise = await this.enterprisesRepo.findOne({
+      where: { id, deletedAt: IsNull() },
+    });
+    if (!enterprise) throw new NotFoundException('Enterprise not found.');
+    // Toggle enterprise and all its members together
+    await this.enterprisesRepo.update(id, { isActive });
+    await this.usersRepo.update({ enterpriseId: id }, { isActive });
+    return { success: true };
+  }
+
+  async resetAdminPassword(
+    id: string,
+    newPassword: string,
+  ): Promise<{ email: string }> {
+    const enterprise = await this.enterprisesRepo.findOne({
+      where: { id, deletedAt: IsNull() },
+    });
+    if (!enterprise) throw new NotFoundException('Enterprise not found.');
+
+    const admin = await this.usersRepo.findOne({
+      where: { enterpriseId: id, role: UserRole.ENTERPRISE_ADMIN },
+      order: { createdAt: 'ASC' },
+    });
+    if (!admin) throw new NotFoundException('No enterprise admin found.');
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.usersRepo.update(admin.id, { passwordHash });
+    return { email: admin.email };
   }
 
   async listMembers(

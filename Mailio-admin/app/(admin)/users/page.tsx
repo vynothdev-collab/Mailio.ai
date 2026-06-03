@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Plus, Users, UserCheck, X, Building2, Shield } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Plus, Users, UserCheck, UserX, X, MoreVertical, KeyRound, Coins, UserMinus, UserPlus } from "lucide-react";
+import { toast } from "sonner";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
@@ -14,29 +16,205 @@ import {
   adminUsersExtService,
   type AdminUserRow,
   type CreateUserPayload,
-  type UserRole,
 } from "@/services/users.service";
-import {
-  enterprisesService,
-  type Enterprise,
-} from "@/services/enterprises.service";
 
-const ROLE_LABEL: Record<UserRole, string> = {
-  USER: "User",
-  ENTERPRISE_USER: "Enterprise User",
-  ENTERPRISE_ADMIN: "Enterprise Admin",
-  SUPER_ADMIN: "Super Admin",
-};
+// ── Confirm dialog ──────────────────────────────────────────────────────────
+
+function ConfirmDialog({
+  open,
+  title,
+  message,
+  confirmLabel,
+  confirmVariant = "primary",
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  confirmVariant?: "primary" | "danger" | "success";
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  if (!open) return null;
+
+  const accentBg =
+    confirmVariant === "danger"   ? "bg-red-500" :
+    confirmVariant === "success"  ? "bg-emerald-500" :
+                                    "bg-blue-600";
+
+  const confirmBg =
+    confirmVariant === "danger"   ? "bg-red-600 hover:bg-red-700" :
+    confirmVariant === "success"  ? "bg-emerald-600 hover:bg-emerald-700" :
+                                    "bg-blue-600 hover:bg-blue-700";
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onCancel} />
+      <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden">
+        <div className={`h-1 w-full ${accentBg}`} />
+        <div className="px-6 pt-5 pb-6">
+          <h3 className="text-base font-bold text-gray-900">{title}</h3>
+          <p className="mt-2 text-sm text-gray-500 leading-relaxed">{message}</p>
+          <div className="mt-6 flex gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 bg-white hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors ${confirmBg}`}
+            >
+              {confirmLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// ── Three-dot action menu ───────────────────────────────────────────────────
+
+function ActionMenu({
+  user,
+  onChangePassword,
+  onAddCredits,
+  onToggleStatus,
+}: {
+  user: AdminUserRow;
+  onChangePassword: () => void;
+  onAddCredits: () => void;
+  onToggleStatus: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0, openUp: false });
+  const btnRef  = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      // Don't close if click is inside the toggle button OR inside the portal menu
+      if (btnRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const onScroll = () => setOpen(false);
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("scroll", onScroll, true);
+    };
+  }, [open]);
+
+  function handleToggle() {
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    const menuHeight = user.isActive ? 132 : 44;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUp = spaceBelow < menuHeight + 8;
+    setCoords({
+      top: openUp ? rect.top + window.scrollY - menuHeight - 4 : rect.bottom + window.scrollY + 4,
+      left: rect.right + window.scrollX - 180,
+      openUp,
+    });
+    setOpen((v) => !v);
+  }
+
+  const menu = open ? (
+    <div
+      ref={menuRef}
+      style={{ position: "absolute", top: coords.top, left: coords.left }}
+      className="z-[9999] w-44 rounded-xl border border-gray-200 bg-white shadow-xl py-1.5"
+    >
+      {user.isActive ? (
+        <>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-text-primary hover:bg-gray-50 rounded-lg mx-auto transition-colors"
+            onClick={() => { setOpen(false); onChangePassword(); }}
+          >
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-50">
+              <KeyRound className="w-3 h-3 text-blue-600" />
+            </span>
+            Change Password
+          </button>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-text-primary hover:bg-gray-50 rounded-lg mx-auto transition-colors"
+            onClick={() => { setOpen(false); onAddCredits(); }}
+          >
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50">
+              <Coins className="w-3 h-3 text-emerald-600" />
+            </span>
+            Add Credits
+          </button>
+          <div className="my-1 mx-3 border-t border-gray-100" />
+          <button
+            type="button"
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg mx-auto transition-colors"
+            onClick={() => { setOpen(false); onToggleStatus(); }}
+          >
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-red-50">
+              <UserMinus className="w-3 h-3 text-red-500" />
+            </span>
+            Deactivate
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-emerald-600 hover:bg-emerald-50 rounded-lg mx-auto transition-colors"
+          onClick={() => { setOpen(false); onToggleStatus(); }}
+        >
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50">
+            <UserPlus className="w-3 h-3 text-emerald-600" />
+          </span>
+          Activate
+        </button>
+      )}
+    </div>
+  ) : null;
+
+  return (
+    <div data-action-menu className="inline-flex justify-center">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={handleToggle}
+        className="p-1.5 rounded-md hover:bg-gray-100 text-text-muted hover:text-text-primary transition-colors"
+        aria-label="Actions"
+      >
+        <MoreVertical className="w-4 h-4" />
+      </button>
+      {open && typeof document !== "undefined" && createPortal(menu, document.body)}
+    </div>
+  );
+}
+
+// ── Main page ───────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"" | UserRole>("");
   const [statusFilter, setStatusFilter] = useState("");
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
+
+  // Modals
+  const [createOpen, setCreateOpen]           = useState(false);
+  const [passwordTarget, setPasswordTarget]   = useState<AdminUserRow | null>(null);
+  const [creditsTarget, setCreditsTarget]     = useState<AdminUserRow | null>(null);
+  const [statusTarget, setStatusTarget]       = useState<AdminUserRow | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,7 +222,7 @@ export default function UsersPage() {
     try {
       const res = await adminUsersExtService.list({
         search: search || undefined,
-        role: (roleFilter || undefined) as UserRole | undefined,
+        role: "USER",
         isActive: statusFilter || undefined,
         limit: 50,
       });
@@ -55,17 +233,31 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, roleFilter, statusFilter]);
+  }, [search, statusFilter]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
-  const enterpriseUsersCount = users.filter(
-    (u) =>
-      u.role === "ENTERPRISE_USER" || u.role === "ENTERPRISE_ADMIN",
-  ).length;
-  const activeCount = users.filter((u) => u.isActive).length;
+  const activeCount   = users.filter((u) => u.isActive).length;
+  const inactiveCount = users.filter((u) => !u.isActive).length;
+
+  // Toggle activate / deactivate
+  async function confirmStatusToggle() {
+    if (!statusTarget) return;
+    const next = !statusTarget.isActive;
+    try {
+      await adminUsersExtService.setStatus(statusTarget.id, next);
+      toast.success(
+        next
+          ? `${statusTarget.name} has been activated.`
+          : `${statusTarget.name} has been deactivated.`,
+      );
+      void load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update status.");
+    } finally {
+      setStatusTarget(null);
+    }
+  }
 
   return (
     <div>
@@ -78,21 +270,10 @@ export default function UsersPage() {
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <StatCard label="Total (current view)" value={String(total)} icon={Users} accent="blue" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <StatCard label="Total" value={String(total)} icon={Users} accent="blue" />
         <StatCard label="Active" value={String(activeCount)} icon={UserCheck} accent="green" />
-        <StatCard
-          label="Enterprise members"
-          value={String(enterpriseUsersCount)}
-          icon={Building2}
-          accent="purple"
-        />
-        <StatCard
-          label="Super Admins"
-          value={String(users.filter((u) => u.role === "SUPER_ADMIN").length)}
-          icon={Shield}
-          accent="orange"
-        />
+        <StatCard label="Inactive" value={String(inactiveCount)} icon={UserX} accent="orange" />
       </div>
 
       <Card noPadding>
@@ -105,17 +286,6 @@ export default function UsersPage() {
               placeholder="Search by name or email..."
               className="w-56"
             />
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value as "" | UserRole)}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-            >
-              <option value="">All Roles</option>
-              <option value="USER">User</option>
-              <option value="ENTERPRISE_USER">Enterprise User</option>
-              <option value="ENTERPRISE_ADMIN">Enterprise Admin</option>
-              <option value="SUPER_ADMIN">Super Admin</option>
-            </select>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -141,19 +311,10 @@ export default function UsersPage() {
             <table className="w-full text-xs sm:text-sm">
               <thead>
                 <tr className="border-y border-gray-100 bg-gray-50/50">
-                  {[
-                    "User",
-                    "Email",
-                    "Role",
-                    "Enterprise",
-                    "Credit Balance",
-                    "Used",
-                    "Status",
-                    "Created",
-                  ].map((h) => (
+                  {["User", "Email", "Credit Balance", "Used", "Status", "Created", "Actions"].map((h) => (
                     <th
                       key={h}
-                      className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wide whitespace-nowrap"
+                      className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wide whitespace-nowrap last:text-center"
                     >
                       {h}
                     </th>
@@ -162,27 +323,14 @@ export default function UsersPage() {
               </thead>
               <tbody>
                 {users.map((u) => (
-                  <tr
-                    key={u.id}
-                    className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60"
-                  >
+                  <tr key={u.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
                     <td className="px-3 sm:px-4 py-2 sm:py-3">
                       <div className="flex items-center gap-2.5">
                         <Avatar name={u.name} size="sm" />
-                        <p className="font-medium text-text-primary whitespace-nowrap">
-                          {u.name}
-                        </p>
+                        <p className="font-medium text-text-primary whitespace-nowrap">{u.name}</p>
                       </div>
                     </td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary">
-                      {u.email}
-                    </td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-primary font-medium">
-                      {ROLE_LABEL[u.role]}
-                    </td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-[11px] text-text-muted font-mono">
-                      {u.enterpriseId ? `${u.enterpriseId.slice(0, 8)}…` : "—"}
-                    </td>
+                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary">{u.email}</td>
                     <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-primary font-medium">
                       {Number(u.creditBalance).toLocaleString()}
                     </td>
@@ -198,6 +346,14 @@ export default function UsersPage() {
                     <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary whitespace-nowrap">
                       {new Date(u.createdAt).toLocaleDateString()}
                     </td>
+                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-center">
+                      <ActionMenu
+                        user={u}
+                        onChangePassword={() => setPasswordTarget(u)}
+                        onAddCredits={() => setCreditsTarget(u)}
+                        onToggleStatus={() => setStatusTarget(u)}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -206,17 +362,46 @@ export default function UsersPage() {
         )}
       </Card>
 
+      {/* Create user */}
       <CreateUserModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreated={() => {
-          setCreateOpen(false);
-          void load();
-        }}
+        onCreated={() => { setCreateOpen(false); void load(); }}
+      />
+
+      {/* Change password */}
+      <ChangePasswordModal
+        user={passwordTarget}
+        onClose={() => setPasswordTarget(null)}
+        onSaved={() => setPasswordTarget(null)}
+      />
+
+      {/* Add credits */}
+      <AddCreditsModal
+        user={creditsTarget}
+        onClose={() => setCreditsTarget(null)}
+        onSaved={() => { setCreditsTarget(null); void load(); }}
+      />
+
+      {/* Activate / Deactivate confirm */}
+      <ConfirmDialog
+        open={!!statusTarget}
+        title={statusTarget?.isActive ? "Deactivate User?" : "Activate User?"}
+        message={
+          statusTarget?.isActive
+            ? `Are you sure you want to deactivate ${statusTarget?.name}? They will not be able to log in until reactivated.`
+            : `Are you sure you want to activate ${statusTarget?.name}? They will regain access to the platform.`
+        }
+        confirmLabel={statusTarget?.isActive ? "Deactivate" : "Activate"}
+        confirmVariant={statusTarget?.isActive ? "danger" : "success"}
+        onConfirm={confirmStatusToggle}
+        onCancel={() => setStatusTarget(null)}
       />
     </div>
   );
 }
+
+// ── Create User modal ───────────────────────────────────────────────────────
 
 function CreateUserModal({
   open,
@@ -230,30 +415,11 @@ function CreateUserModal({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("USER");
-  const [enterpriseId, setEnterpriseId] = useState("");
   const [initialCredits, setInitialCredits] = useState("");
-  const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const needsEnterprise =
-    role === "ENTERPRISE_USER" || role === "ENTERPRISE_ADMIN";
-  const allowsInitialCredits = role === "USER";
-
-  useEffect(() => {
-    if (!open) return;
-    void enterprisesService
-      .list({ limit: 100, isActive: "true" })
-      .then((res) => setEnterprises(res.data))
-      .catch(() => setEnterprises([]));
-  }, [open]);
-
-  // Clear fields that don't apply when the role changes.
-  useEffect(() => {
-    if (!needsEnterprise) setEnterpriseId("");
-    if (!allowsInitialCredits) setInitialCredits("");
-  }, [needsEnterprise, allowsInitialCredits]);
+  const reset = () => { setName(""); setEmail(""); setPassword(""); setInitialCredits(""); setErr(null); };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -263,33 +429,20 @@ function CreateUserModal({
       name: name.trim(),
       email: email.trim().toLowerCase(),
       password,
-      role,
+      role: "USER",
     };
-    if (needsEnterprise) {
-      if (!enterpriseId) {
-        setErr("Pick an enterprise for this role.");
-        return;
-      }
-      payload.enterpriseId = enterpriseId;
-    }
-    if (allowsInitialCredits && initialCredits) {
+
+    if (initialCredits) {
       const n = parseInt(initialCredits, 10);
-      if (!Number.isFinite(n) || n < 0) {
-        setErr("Initial credits must be a positive integer.");
-        return;
-      }
+      if (!Number.isFinite(n) || n < 0) { setErr("Initial credits must be a positive integer."); return; }
       if (n > 0) payload.initialCredits = n;
     }
 
     setSubmitting(true);
     try {
       await adminUsersExtService.create(payload);
-      setName("");
-      setEmail("");
-      setPassword("");
-      setRole("USER");
-      setEnterpriseId("");
-      setInitialCredits("");
+      toast.success("User created successfully.");
+      reset();
       onCreated();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to create user.");
@@ -299,130 +452,268 @@ function CreateUserModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={() => { reset(); onClose(); }}>
       <form onSubmit={submit} className="p-5 max-w-md">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between mb-4">
           <h2 className="text-base font-bold text-text-primary">Create User</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded hover:bg-gray-100"
-          >
+          <button type="button" onClick={() => { reset(); onClose(); }} className="p-1 rounded hover:bg-gray-100">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="mt-4 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              minLength={2}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              Temporary Password
-            </label>
-            <input
-              type="text"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1">
-              Role
-            </label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            >
-              <option value="USER">User (own credit balance)</option>
-              <option value="ENTERPRISE_USER">Enterprise User</option>
-              <option value="ENTERPRISE_ADMIN">Enterprise Admin</option>
-              <option value="SUPER_ADMIN">Super Admin</option>
-            </select>
-          </div>
-
-          {needsEnterprise ? (
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                Enterprise
-              </label>
-              <select
-                value={enterpriseId}
-                onChange={(e) => setEnterpriseId(e.target.value)}
-                required
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="">Select enterprise…</option>
-                {enterprises.map((ent) => (
-                  <option key={ent.id} value={ent.id}>
-                    {ent.name}
-                    {ent.domain ? ` (${ent.domain})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-
-          {allowsInitialCredits ? (
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                Initial Credits (optional)
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={initialCredits}
-                onChange={(e) => setInitialCredits(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-              <p className="mt-1 text-[11px] text-text-muted">
-                Only normal Users have a personal balance.
-              </p>
-            </div>
-          ) : null}
+        <div className="space-y-4">
+          <Field label="Name">
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+          </Field>
+          <Field label="Email">
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+          </Field>
+          <Field label="Temporary Password">
+            <input type="text" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+          </Field>
+          <Field label="Initial Credits" hint="optional">
+            <input type="number" min={0} value={initialCredits} onChange={(e) => setInitialCredits(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+          </Field>
         </div>
 
-        {err ? (
-          <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {err}
-          </div>
-        ) : null}
+        {err && <ErrorBox msg={err} />}
 
         <div className="mt-5 flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="primary" disabled={submitting}>
-            {submitting ? "Creating…" : "Create User"}
-          </Button>
+          <Button type="button" variant="secondary" onClick={() => { reset(); onClose(); }}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={submitting}>{submitting ? "Creating…" : "Create User"}</Button>
         </div>
       </form>
     </Modal>
+  );
+}
+
+// ── Change Password modal ───────────────────────────────────────────────────
+
+function ChangePasswordModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: AdminUserRow | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [password, setPassword]     = useState("");
+  const [confirm, setConfirm]       = useState("");
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr]               = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) { setPassword(""); setConfirm(""); setErr(null); setShowConfirm(false); }
+  }, [user]);
+
+  if (!user) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null);
+    if (password.length < 8) { setErr("Password must be at least 8 characters."); return; }
+    if (password !== confirm) { setErr("Passwords do not match."); return; }
+    setShowConfirm(true);
+  };
+
+  const doChange = async () => {
+    setSubmitting(true);
+    try {
+      await adminUsersExtService.changePassword(user.id, password);
+      toast.success(`Password updated for ${user.name}.`);
+      onSaved();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to change password.");
+      setShowConfirm(false);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <Modal open onClose={onClose}>
+        <form onSubmit={handleSubmit} className="p-5 max-w-md">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-base font-bold text-text-primary">Change Password</h2>
+              <p className="text-xs text-text-muted mt-0.5">
+                Setting new password for <span className="font-medium text-text-primary">{user.name}</span>
+              </p>
+            </div>
+            <button type="button" onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
+          </div>
+
+          <div className="space-y-4">
+            <Field label="New Password">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={8}
+                placeholder="Min. 8 characters"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </Field>
+            <Field label="Confirm Password">
+              <input
+                type="password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                required
+                minLength={8}
+                placeholder="Re-enter new password"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </Field>
+          </div>
+
+          {err && <ErrorBox msg={err} />}
+
+          <div className="mt-5 flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button type="submit" variant="primary">Change Password</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={showConfirm}
+        title="Confirm Password Change"
+        message={`Are you sure you want to change the password for ${user.name}? They will need to use the new password on their next login.`}
+        confirmLabel={submitting ? "Changing…" : "Yes, Change Password"}
+        onConfirm={doChange}
+        onCancel={() => setShowConfirm(false)}
+      />
+    </>
+  );
+}
+
+// ── Add Credits modal ───────────────────────────────────────────────────────
+
+function AddCreditsModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: AdminUserRow | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [amount, setAmount]   = useState("");
+  const [reason, setReason]   = useState("");
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [submitting, setSubmitting]   = useState(false);
+  const [err, setErr]         = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) { setAmount(""); setReason(""); setErr(null); setShowConfirm(false); }
+  }, [user]);
+
+  if (!user) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null);
+    const n = parseInt(amount, 10);
+    if (!Number.isFinite(n) || n < 1) { setErr("Please enter a valid amount (minimum 1)."); return; }
+    setShowConfirm(true);
+  };
+
+  const confirm = async () => {
+    setSubmitting(true);
+    try {
+      await adminUsersExtService.addCredits(user.id, parseInt(amount, 10), reason || undefined);
+      toast.success(`${parseInt(amount, 10).toLocaleString()} credits added to ${user.name}.`);
+      onSaved();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to add credits.");
+      setShowConfirm(false);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <Modal open onClose={onClose}>
+        <form onSubmit={handleSubmit} className="p-5 max-w-md">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-base font-bold text-text-primary">Add Credits</h2>
+              <p className="text-xs text-text-muted mt-0.5">Adding credits to <span className="font-medium text-text-primary">{user.name}</span></p>
+            </div>
+            <button type="button" onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
+          </div>
+
+          <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+            Current balance: <span className="font-semibold">{Number(user.creditBalance).toLocaleString()} credits</span>
+          </div>
+
+          <div className="space-y-4">
+            <Field label="Amount to Add">
+              <input
+                type="number"
+                min={1}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+                placeholder="e.g. 500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </Field>
+            <Field label="Reason" hint="optional">
+              <input
+                type="text"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g. Promotional top-up"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </Field>
+          </div>
+
+          {err && <ErrorBox msg={err} />}
+
+          <div className="mt-5 flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button type="submit" variant="primary">Add Credits</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={showConfirm}
+        title="Confirm Credit Addition"
+        message={`Add ${parseInt(amount || "0", 10).toLocaleString()} credits to ${user.name}? This action cannot be undone.`}
+        confirmLabel={submitting ? "Adding…" : "Yes, Add Credits"}
+        onConfirm={confirm}
+        onCancel={() => setShowConfirm(false)}
+      />
+    </>
+  );
+}
+
+// ── Shared small helpers ────────────────────────────────────────────────────
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-text-secondary mb-1">
+        {label}{hint && <span className="ml-1 font-normal text-text-muted">({hint})</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function ErrorBox({ msg }: { msg: string }) {
+  return (
+    <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+      {msg}
+    </div>
   );
 }

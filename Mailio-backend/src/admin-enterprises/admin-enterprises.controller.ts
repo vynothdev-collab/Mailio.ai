@@ -124,6 +124,83 @@ export class AdminEnterprisesController {
     return after;
   }
 
+  @Post(':id/credits')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Add credits to an enterprise account' })
+  async addCredits(
+    @Param('id') id: string,
+    @Body() body: { amount: number; reason?: string },
+    @CurrentAdmin() admin: Admin,
+    @Req() req: Request,
+  ) {
+    const result = await this.service.addCredits(
+      id,
+      body.amount,
+      admin.id,
+      body.reason,
+    );
+    await this.logs.log({
+      type: LogType.SYSTEM,
+      module: 'Enterprises',
+      action: `Added ${body.amount} credits`,
+      targetId: id,
+      changedByAdminId: admin.id,
+      changedByAdminName: admin.name,
+      newValue: {
+        amount: body.amount,
+        reason: body.reason,
+        balanceAfter: result.balanceAfter,
+      },
+      ipAddress: getIp(req),
+    });
+    return result;
+  }
+
+  @Patch(':id/status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Activate or deactivate an enterprise and all its members' })
+  async setStatus(
+    @Param('id') id: string,
+    @Body() body: { isActive: boolean },
+    @CurrentAdmin() admin: Admin,
+    @Req() req: Request,
+  ) {
+    const result = await this.service.setStatus(id, body.isActive);
+    await this.logs.log({
+      type: LogType.SYSTEM,
+      module: 'Enterprises',
+      action: body.isActive ? 'Activated Enterprise' : 'Deactivated Enterprise',
+      targetId: id,
+      changedByAdminId: admin.id,
+      changedByAdminName: admin.name,
+      newValue: { isActive: body.isActive },
+      ipAddress: getIp(req),
+    });
+    return result;
+  }
+
+  @Post(':id/reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset enterprise admin password and return temp password' })
+  async resetAdminPassword(
+    @Param('id') id: string,
+    @Body() body: { newPassword: string },
+    @CurrentAdmin() admin: Admin,
+    @Req() req: Request,
+  ) {
+    const result = await this.service.resetAdminPassword(id, body.newPassword);
+    await this.logs.log({
+      type: LogType.SYSTEM,
+      module: 'Enterprises',
+      action: 'Reset Enterprise Admin Password',
+      targetId: id,
+      changedByAdminId: admin.id,
+      changedByAdminName: admin.name,
+      ipAddress: getIp(req),
+    });
+    return result;
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Soft-delete enterprise (Super Admin)' })

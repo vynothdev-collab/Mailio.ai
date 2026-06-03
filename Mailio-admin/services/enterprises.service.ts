@@ -67,6 +67,15 @@ export const enterprisesService = {
   softDelete: (id: string) =>
     apiService.delete<{ success: boolean }>(`/admin/enterprises/${id}`),
 
+  setStatus: (id: string, isActive: boolean) =>
+    apiService.patch<{ success: boolean }>(`/admin/enterprises/${id}/status`, { isActive }),
+
+  addCredits: (id: string, amount: number, reason?: string) =>
+    apiService.post<{ balanceAfter: number }>(`/admin/enterprises/${id}/credits`, { amount, reason }),
+
+  resetAdminPassword: (id: string, newPassword: string) =>
+    apiService.post<{ email: string }>(`/admin/enterprises/${id}/reset-password`, { newPassword }),
+
   members: (id: string, page = 1, limit = 50, role?: string) => {
     const params = new URLSearchParams();
     params.set("page", String(page));

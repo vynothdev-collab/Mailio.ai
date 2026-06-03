@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus, Archive, FileText, CheckCheck, ClipboardList,
-  Loader2, X, ToggleLeft, ToggleRight, Pencil, Star,
+  Loader2, X, Pencil, Star, MoreVertical, ToggleLeft, ToggleRight,
 } from "lucide-react";
+import { toast } from "sonner";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
@@ -23,6 +25,210 @@ const TABS = [
   { key: "USER",       label: "Normal User Plans" },
   { key: "ENTERPRISE", label: "Enterprise Plans"  },
 ];
+
+// ── ConfirmDialog ─────────────────────────────────────────────────────────────
+
+function ConfirmDialog({
+  open,
+  title,
+  message,
+  confirmLabel = "Confirm",
+  cancelLabel  = "Cancel",
+  danger        = false,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  danger?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  if (!open) return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60" onClick={onCancel} />
+      <div className="relative z-10 w-full max-w-sm mx-4 rounded-2xl bg-white shadow-2xl p-6">
+        <h3 className="text-base font-bold text-text-primary mb-2">{title}</h3>
+        <p className="text-sm text-text-secondary leading-relaxed mb-6">{message}</p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-text-primary hover:bg-gray-50 transition-colors"
+          >
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors ${
+              danger ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// ── PlanActionMenu ────────────────────────────────────────────────────────────
+
+function PlanActionMenu({
+  plan,
+  onEdit,
+  onToggle,
+  onDelete,
+}: {
+  plan: BillingPlan;
+  onEdit: () => void;
+  onToggle: () => Promise<void>;
+  onDelete: () => Promise<void>;
+}) {
+  const [open,    setOpen]    = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const btnRef  = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const [confirm, setConfirm] = useState<null | {
+    title: string;
+    message: string;
+    confirmLabel: string;
+    danger: boolean;
+    action: () => Promise<void>;
+  }>(null);
+  const [busy, setBusy] = useState(false);
+
+  const openMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setMenuPos({ top: rect.bottom + 4, left: rect.right - 160 });
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const execConfirm = async () => {
+    if (!confirm) return;
+    setBusy(true);
+    try {
+      await confirm.action();
+    } finally {
+      setBusy(false);
+      setConfirm(null);
+    }
+  };
+
+  const handleEdit = () => {
+    setOpen(false);
+    onEdit();
+  };
+
+  const handleToggle = () => {
+    setOpen(false);
+    setConfirm({
+      title: plan.isActive ? "Deactivate Plan" : "Activate Plan",
+      message: plan.isActive
+        ? `"${plan.name}" will be hidden from users until reactivated.`
+        : `"${plan.name}" will become visible and purchasable by users.`,
+      confirmLabel: plan.isActive ? "Deactivate" : "Activate",
+      danger: plan.isActive,
+      action: onToggle,
+    });
+  };
+
+  const handleDelete = () => {
+    setOpen(false);
+    setConfirm({
+      title: "Delete Plan",
+      message: `"${plan.name}" will be permanently deleted. This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+      action: onDelete,
+    });
+  };
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={openMenu}
+        disabled={busy}
+        className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-40"
+        title="Actions"
+      >
+        <MoreVertical className="w-4 h-4 text-text-muted" />
+      </button>
+
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          style={{ position: "fixed", top: menuPos.top, left: menuPos.left, zIndex: 9998 }}
+          className="w-44 rounded-xl bg-white shadow-lg border border-gray-100 py-1 text-sm"
+        >
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-3 py-2 text-text-primary hover:bg-gray-50"
+            onClick={handleEdit}
+          >
+            <Pencil className="w-3.5 h-3.5 text-blue-500" />
+            Edit
+          </button>
+          <button
+            type="button"
+            className={`flex w-full items-center gap-2 px-3 py-2 hover:bg-gray-50 ${
+              plan.isActive ? "text-amber-600" : "text-emerald-600"
+            }`}
+            onClick={handleToggle}
+          >
+            {plan.isActive
+              ? <><ToggleLeft  className="w-3.5 h-3.5" />Deactivate</>
+              : <><ToggleRight className="w-3.5 h-3.5" />Activate</>}
+          </button>
+          <div className="my-1 border-t border-gray-100" />
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50"
+            onClick={handleDelete}
+          >
+            <Archive className="w-3.5 h-3.5" />
+            Delete
+          </button>
+        </div>,
+        document.body,
+      )}
+
+      <ConfirmDialog
+        open={!!confirm}
+        title={confirm?.title ?? ""}
+        message={confirm?.message ?? ""}
+        confirmLabel={confirm?.confirmLabel ?? "Confirm"}
+        danger={confirm?.danger ?? false}
+        onConfirm={execConfirm}
+        onCancel={() => setConfirm(null)}
+      />
+    </>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PlansPage() {
   const [tab,          setTab]          = useState<"USER" | "ENTERPRISE">("USER");
@@ -63,20 +269,21 @@ export default function PlansPage() {
     setSelected(null);
   };
 
-  async function handleDelete(id: string) {
-    if (!confirm("Delete this plan? This cannot be undone.")) return;
-    await plansService.delete(id);
-    if (selected?.id === id) setSelected(null);
+  async function handleDelete(plan: BillingPlan) {
+    await plansService.delete(plan.id);
+    if (selected?.id === plan.id) setSelected(null);
+    toast.success(`"${plan.name}" deleted.`);
     await load();
   }
 
-  async function handleToggle(id: string) {
-    await plansService.toggle(id);
+  async function handleToggle(plan: BillingPlan) {
+    await plansService.toggle(plan.id);
+    toast.success(plan.isActive ? `"${plan.name}" deactivated.` : `"${plan.name}" activated.`);
     await load();
   }
 
   async function handleSetPopular(plan: BillingPlan) {
-    if (plan.isPopular) return; // already popular
+    if (plan.isPopular) return;
     setSettingPop(plan.id);
     try {
       await plansService.setPopular(plan.id);
@@ -100,7 +307,6 @@ export default function PlansPage() {
         className="mb-6"
       />
 
-      {/* Stat tiles */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <StatCard
           label={tab === "USER" ? "Normal User Plans" : "Enterprise Plans"}
@@ -125,7 +331,6 @@ export default function PlansPage() {
         />
       </div>
 
-      {/* Popular plan info banner */}
       <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-2.5 flex items-center gap-2 text-xs text-blue-700">
         <Star className="w-3.5 h-3.5 shrink-0" />
         The plan marked as popular will display the &quot;Most Popular&quot; badge on the user billing page. Only one plan can be popular per type at a time.
@@ -179,7 +384,9 @@ export default function PlansPage() {
                   <tr
                     key={p.id}
                     onClick={() => setSelected(p)}
-                    className={`border-b border-gray-50 last:border-0 hover:bg-gray-50/60 cursor-pointer ${p.id === selected?.id ? "bg-primary-50/40" : ""}`}
+                    className={`border-b border-gray-50 last:border-0 hover:bg-gray-50/60 cursor-pointer ${
+                      p.id === selected?.id ? "bg-primary-50/40" : ""
+                    }`}
                   >
                     <td className="px-3 sm:px-4 py-2 sm:py-3 font-medium text-text-primary">
                       <span className="flex items-center gap-1.5">
@@ -206,7 +413,6 @@ export default function PlansPage() {
                         tone={p.isActive ? "green" : "red"}
                       />
                     </td>
-                    {/* Set as Popular radio */}
                     <td className="px-3 sm:px-4 py-2 sm:py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
                         <button
@@ -232,33 +438,13 @@ export default function PlansPage() {
                         </button>
                       </div>
                     </td>
-                    {/* Actions */}
                     <td className="px-3 sm:px-4 py-2 sm:py-3" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-1">
-                        <button
-                          title="Edit plan"
-                          onClick={() => setEditTarget(p)}
-                          className="p-1.5 rounded hover:bg-gray-100"
-                        >
-                          <Pencil className="w-3.5 h-3.5 text-text-muted" />
-                        </button>
-                        <button
-                          title={p.isActive ? "Deactivate" : "Activate"}
-                          onClick={() => handleToggle(p.id)}
-                          className="p-1.5 rounded hover:bg-gray-100"
-                        >
-                          {p.isActive
-                            ? <ToggleRight className="w-4 h-4 text-emerald-500" />
-                            : <ToggleLeft  className="w-4 h-4 text-text-muted"  />}
-                        </button>
-                        <button
-                          title="Delete plan"
-                          onClick={() => handleDelete(p.id)}
-                          className="p-1.5 rounded hover:bg-gray-100"
-                        >
-                          <Archive className="w-3.5 h-3.5 text-red-400" />
-                        </button>
-                      </div>
+                      <PlanActionMenu
+                        plan={p}
+                        onEdit={() => setEditTarget(p)}
+                        onToggle={() => handleToggle(p)}
+                        onDelete={() => handleDelete(p)}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -268,7 +454,6 @@ export default function PlansPage() {
         </div>
       </Card>
 
-      {/* Plan detail panel */}
       {selected && (
         <Card className="p-3 sm:p-5">
           <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
@@ -375,7 +560,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-// ─── Create / Edit Modal ──────────────────────────────────────────────────────
+// ── Create / Edit Modal ───────────────────────────────────────────────────────
 
 function PlanFormModal({
   planType,
@@ -393,16 +578,16 @@ function PlanFormModal({
   type FormState = CreatePlanPayload & { isPopular: boolean; sortOrder: number };
 
   const [form, setForm] = useState<FormState>({
-    name:        initial?.name        ?? "",
+    name:         initial?.name         ?? "",
     planType,
-    price:       initial?.price       ?? 0,
-    currency:    initial?.currency    ?? "INR",
-    credits:     initial?.credits     ?? 1000,
-    validityDays:initial?.validityDays ?? 30,
-    features:    initial?.features    ?? [],
-    isActive:    initial?.isActive    ?? true,
-    isPopular:   initial?.isPopular   ?? false,
-    sortOrder:   initial?.sortOrder   ?? 0,
+    price:        initial?.price        ?? 0,
+    currency:     initial?.currency     ?? "INR",
+    credits:      initial?.credits      ?? 1000,
+    validityDays: initial?.validityDays ?? 30,
+    features:     initial?.features     ?? [],
+    isActive:     initial?.isActive     ?? true,
+    isPopular:    initial?.isPopular    ?? false,
+    sortOrder:    initial?.sortOrder    ?? 0,
   });
 
   const [saving, setSaving] = useState(false);
@@ -415,9 +600,9 @@ function PlanFormModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim())           { setError("Plan name is required.");         return; }
-    if ((form.credits ?? 0) < 1)     { setError("Credits must be at least 1.");    return; }
-    if ((form.validityDays ?? 0) < 1){ setError("Validity must be at least 1 day."); return; }
+    if (!form.name.trim())            { setError("Plan name is required.");          return; }
+    if ((form.credits ?? 0) < 1)      { setError("Credits must be at least 1.");     return; }
+    if ((form.validityDays ?? 0) < 1) { setError("Validity must be at least 1 day."); return; }
     setSaving(true);
     setError("");
     try {

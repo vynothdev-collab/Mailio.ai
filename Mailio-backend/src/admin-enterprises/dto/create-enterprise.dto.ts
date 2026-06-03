@@ -54,6 +54,16 @@ export class CreateEnterpriseDto {
   initialCredits?: number;
 }
 
+export class ResetEnterpriseAdminPasswordDto {
+  @ApiProperty({
+    description: 'New password for the enterprise admin (>= 8 chars).',
+    example: 'NewStr0ng!',
+  })
+  @IsString()
+  @Length(8, 128)
+  newPassword!: string;
+}
+
 export class UpdateEnterpriseDto {
   @ApiPropertyOptional()
   @IsOptional()

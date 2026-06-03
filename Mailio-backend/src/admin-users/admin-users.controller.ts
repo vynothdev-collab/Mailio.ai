@@ -24,6 +24,9 @@ import { AdminRole } from '../admin-auth/entities/admin.entity';
 import { AdminRolesGuard } from '../admin-auth/guards/admin-roles.guard';
 import { AdminUsersService } from './admin-users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { AddCreditsDto } from './dto/add-credits.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 function getIp(req: Request): string {
   const forwarded = req.headers['x-forwarded-for'];
@@ -97,6 +100,82 @@ export class AdminUsersController {
   @ApiOperation({ summary: 'Get single user detail with verification stats' })
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
+  }
+
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update user name / email' })
+  @AdminRoles(AdminRole.SUPER_ADMIN)
+  async updateUser(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+    @CurrentAdmin() admin: Admin,
+    @Req() req: Request,
+  ) {
+    const result = await this.usersService.updateUser(id, dto);
+    await this.logsService.log({
+      type: LogType.SINGLE_USER,
+      module: 'Users',
+      action: 'Updated User',
+      targetId: id,
+      changedByAdminId: admin.id,
+      changedByAdminName: admin.name,
+      newValue: dto as unknown as Record<string, unknown>,
+      ipAddress: getIp(req),
+    });
+    return result;
+  }
+
+  @Post(':id/credits')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Add credits to a user account' })
+  @AdminRoles(AdminRole.SUPER_ADMIN)
+  async addCredits(
+    @Param('id') id: string,
+    @Body() dto: AddCreditsDto,
+    @CurrentAdmin() admin: Admin,
+    @Req() req: Request,
+  ) {
+    const result = await this.usersService.addCredits(
+      id,
+      dto.amount,
+      dto.reason ?? '',
+      admin.id,
+    );
+    await this.logsService.log({
+      type: LogType.SINGLE_USER,
+      module: 'Users',
+      action: `Added ${dto.amount} credits`,
+      targetId: id,
+      changedByAdminId: admin.id,
+      changedByAdminName: admin.name,
+      newValue: { amount: dto.amount, reason: dto.reason },
+      ipAddress: getIp(req),
+    });
+    return result;
+  }
+
+  @Patch(':id/password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change user password (admin-set)' })
+  @AdminRoles(AdminRole.SUPER_ADMIN)
+  async changePassword(
+    @Param('id') id: string,
+    @Body() dto: ChangePasswordDto,
+    @CurrentAdmin() admin: Admin,
+    @Req() req: Request,
+  ) {
+    const result = await this.usersService.changePassword(id, dto.password);
+    await this.logsService.log({
+      type: LogType.SINGLE_USER,
+      module: 'Users',
+      action: 'Changed Password',
+      targetId: id,
+      changedByAdminId: admin.id,
+      changedByAdminName: admin.name,
+      ipAddress: getIp(req),
+    });
+    return result;
   }
 
   @Patch(':id/status')

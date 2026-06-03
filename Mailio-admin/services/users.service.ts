@@ -63,4 +63,19 @@ export const adminUsersExtService = {
 
   create: (payload: CreateUserPayload) =>
     apiService.post<AdminUserRow>("/admin/users", payload),
+
+  update: (id: string, payload: { name?: string; email?: string }) =>
+    apiService.patch<{ success: boolean }>(`/admin/users/${id}`, payload),
+
+  addCredits: (id: string, amount: number, reason?: string) =>
+    apiService.post<{ success: boolean; creditBalance: number }>(
+      `/admin/users/${id}/credits`,
+      { amount, reason },
+    ),
+
+  setStatus: (id: string, isActive: boolean) =>
+    apiService.patch<{ success: boolean }>(`/admin/users/${id}/status`, { isActive }),
+
+  changePassword: (id: string, password: string) =>
+    apiService.patch<{ success: boolean }>(`/admin/users/${id}/password`, { password }),
 };
