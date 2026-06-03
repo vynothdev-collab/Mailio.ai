@@ -200,6 +200,77 @@ function ActionMenu({
   );
 }
 
+// ── Pagination ──────────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 10;
+
+function Pagination({
+  page,
+  total,
+  pageSize,
+  onChange,
+}: {
+  page: number;
+  total: number;
+  pageSize: number;
+  onChange: (p: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (totalPages <= 1 && total <= pageSize) return null;
+  const start = (page - 1) * pageSize + 1;
+  const end   = Math.min(page * pageSize, total);
+
+  const pageNums = Array.from({ length: totalPages }, (_, i) => i + 1)
+    .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+    .reduce<(number | "…")[]>((acc, p, i, arr) => {
+      if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("…");
+      acc.push(p);
+      return acc;
+    }, []);
+
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-xs text-text-muted">
+      <span>Showing {start}–{end} of {total}</span>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          disabled={page === 1}
+          onClick={() => onChange(page - 1)}
+          className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-text-primary hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Previous
+        </button>
+        {pageNums.map((p, i) =>
+          p === "…" ? (
+            <span key={`e${i}`} className="px-2">…</span>
+          ) : (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onChange(p as number)}
+              className={`min-w-[32px] px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                page === p
+                  ? "border-blue-600 bg-blue-600 text-white"
+                  : "border-gray-200 text-text-primary hover:bg-gray-50"
+              }`}
+            >
+              {p}
+            </button>
+          ),
+        )}
+        <button
+          type="button"
+          disabled={page === totalPages}
+          onClick={() => onChange(page + 1)}
+          className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-text-primary hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ───────────────────────────────────────────────────────────────
 
 export default function UsersPage() {
@@ -207,6 +278,7 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -216,7 +288,7 @@ export default function UsersPage() {
   const [creditsTarget, setCreditsTarget]     = useState<AdminUserRow | null>(null);
   const [statusTarget, setStatusTarget]       = useState<AdminUserRow | null>(null);
 
-  const load = useCallback(async () => {
+  const fetchUsers = useCallback(async (p: number) => {
     setLoading(true);
     setErr(null);
     try {
@@ -224,7 +296,8 @@ export default function UsersPage() {
         search: search || undefined,
         role: "USER",
         isActive: statusFilter || undefined,
-        limit: 50,
+        page: p,
+        limit: PAGE_SIZE,
       });
       setUsers(res.data);
       setTotal(res.total);
@@ -235,10 +308,21 @@ export default function UsersPage() {
     }
   }, [search, statusFilter]);
 
-  useEffect(() => { void load(); }, [load]);
+  // Reset to page 1 and re-fetch when filters change
+  useEffect(() => {
+    setPage(1);
+    void fetchUsers(1);
+  }, [fetchUsers]);
 
-  const activeCount   = users.filter((u) => u.isActive).length;
-  const inactiveCount = users.filter((u) => !u.isActive).length;
+  const handlePageChange = (p: number) => {
+    setPage(p);
+    void fetchUsers(p);
+  };
+
+  const reload = () => {
+    setPage(1);
+    void fetchUsers(1);
+  };
 
   // Toggle activate / deactivate
   async function confirmStatusToggle() {
@@ -251,13 +335,16 @@ export default function UsersPage() {
           ? `${statusTarget.name} has been activated.`
           : `${statusTarget.name} has been deactivated.`,
       );
-      void load();
+      void fetchUsers(page);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to update status.");
     } finally {
       setStatusTarget(null);
     }
   }
+
+  const activeCount   = users.filter((u) => u.isActive).length;
+  const inactiveCount = users.filter((u) => !u.isActive).length;
 
   return (
     <div>
@@ -272,13 +359,20 @@ export default function UsersPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <StatCard label="Total" value={String(total)} icon={Users} accent="blue" />
-        <StatCard label="Active" value={String(activeCount)} icon={UserCheck} accent="green" />
-        <StatCard label="Inactive" value={String(inactiveCount)} icon={UserX} accent="orange" />
+        <StatCard label="Active (this page)" value={String(activeCount)} icon={UserCheck} accent="green" />
+        <StatCard label="Inactive (this page)" value={String(inactiveCount)} icon={UserX} accent="orange" />
       </div>
 
       <Card noPadding>
         <div className="flex items-center justify-between p-4 gap-3 flex-wrap">
-          <h3 className="text-sm font-semibold text-text-primary">Users</h3>
+          <h3 className="text-sm font-semibold text-text-primary">
+            Users
+            {!loading && (
+              <span className="ml-2 text-xs font-normal text-text-muted">
+                {total.toLocaleString()} total
+              </span>
+            )}
+          </h3>
           <div className="flex items-center gap-2 flex-wrap">
             <SearchInput
               value={search}
@@ -301,64 +395,76 @@ export default function UsersPage() {
         {err ? (
           <div className="p-6 text-sm text-red-600">{err}</div>
         ) : loading ? (
-          <div className="p-6 text-sm text-text-muted">Loading users…</div>
+          <div className="divide-y divide-gray-50">
+            {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
+                <div className="h-8 w-8 rounded-full bg-gray-100 shrink-0" />
+                <div className="h-3 w-32 rounded bg-gray-100" />
+                <div className="h-3 w-44 rounded bg-gray-100 ml-2" />
+                <div className="h-3 w-16 rounded bg-gray-100 ml-auto" />
+              </div>
+            ))}
+          </div>
         ) : users.length === 0 ? (
           <div className="p-8 text-center text-sm text-text-muted">
             No users match these filters.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs sm:text-sm">
-              <thead>
-                <tr className="border-y border-gray-100 bg-gray-50/50">
-                  {["User", "Email", "Credit Balance", "Used", "Status", "Created", "Actions"].map((h) => (
-                    <th
-                      key={h}
-                      className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wide whitespace-nowrap last:text-center"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
-                    <td className="px-3 sm:px-4 py-2 sm:py-3">
-                      <div className="flex items-center gap-2.5">
-                        <Avatar name={u.name} size="sm" />
-                        <p className="font-medium text-text-primary whitespace-nowrap">{u.name}</p>
-                      </div>
-                    </td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary">{u.email}</td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-primary font-medium">
-                      {Number(u.creditBalance).toLocaleString()}
-                    </td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary">
-                      {Number(u.creditsUsed).toLocaleString()}
-                    </td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3">
-                      <StatusBadge
-                        label={u.isActive ? "Active" : "Inactive"}
-                        tone={u.isActive ? "green" : "gray"}
-                      />
-                    </td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary whitespace-nowrap">
-                      {new Date(u.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-center">
-                      <ActionMenu
-                        user={u}
-                        onChangePassword={() => setPasswordTarget(u)}
-                        onAddCredits={() => setCreditsTarget(u)}
-                        onToggleStatus={() => setStatusTarget(u)}
-                      />
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs sm:text-sm">
+                <thead>
+                  <tr className="border-y border-gray-100 bg-gray-50/50">
+                    {["User", "Email", "Credit Balance", "Used", "Status", "Created", "Actions"].map((h) => (
+                      <th
+                        key={h}
+                        className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wide whitespace-nowrap last:text-center"
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60">
+                      <td className="px-3 sm:px-4 py-2 sm:py-3">
+                        <div className="flex items-center gap-2.5">
+                          <Avatar name={u.name} size="sm" />
+                          <p className="font-medium text-text-primary whitespace-nowrap">{u.name}</p>
+                        </div>
+                      </td>
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary">{u.email}</td>
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-primary font-medium">
+                        {Number(u.creditBalance).toLocaleString()}
+                      </td>
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary">
+                        {Number(u.creditsUsed).toLocaleString()}
+                      </td>
+                      <td className="px-3 sm:px-4 py-2 sm:py-3">
+                        <StatusBadge
+                          label={u.isActive ? "Active" : "Inactive"}
+                          tone={u.isActive ? "green" : "gray"}
+                        />
+                      </td>
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary whitespace-nowrap">
+                        {new Date(u.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-center">
+                        <ActionMenu
+                          user={u}
+                          onChangePassword={() => setPasswordTarget(u)}
+                          onAddCredits={() => setCreditsTarget(u)}
+                          onToggleStatus={() => setStatusTarget(u)}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination page={page} total={total} pageSize={PAGE_SIZE} onChange={handlePageChange} />
+          </>
         )}
       </Card>
 
@@ -366,7 +472,7 @@ export default function UsersPage() {
       <CreateUserModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreated={() => { setCreateOpen(false); void load(); }}
+        onCreated={() => { setCreateOpen(false); reload(); }}
       />
 
       {/* Change password */}
@@ -380,7 +486,7 @@ export default function UsersPage() {
       <AddCreditsModal
         user={creditsTarget}
         onClose={() => setCreditsTarget(null)}
-        onSaved={() => { setCreditsTarget(null); void load(); }}
+        onSaved={() => { setCreditsTarget(null); void fetchUsers(page); }}
       />
 
       {/* Activate / Deactivate confirm */}

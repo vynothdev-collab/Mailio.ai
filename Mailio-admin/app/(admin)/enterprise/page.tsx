@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Plus,
@@ -997,48 +997,119 @@ function EnterpriseMembersModal({
   );
 }
 
+// ── Pagination ───────────────────────────────────────────────────────────────
+
+const ENT_PAGE_SIZE = 10;
+
+function Pagination({
+  page,
+  total,
+  pageSize,
+  onChange,
+}: {
+  page: number;
+  total: number;
+  pageSize: number;
+  onChange: (p: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (totalPages <= 1 && total <= pageSize) return null;
+  const start = (page - 1) * pageSize + 1;
+  const end   = Math.min(page * pageSize, total);
+
+  const pageNums = Array.from({ length: totalPages }, (_, i) => i + 1)
+    .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+    .reduce<(number | "…")[]>((acc, p, i, arr) => {
+      if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("…");
+      acc.push(p);
+      return acc;
+    }, []);
+
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-xs text-text-muted">
+      <span>Showing {start}–{end} of {total}</span>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          disabled={page === 1}
+          onClick={() => onChange(page - 1)}
+          className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-text-primary hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Previous
+        </button>
+        {pageNums.map((p, i) =>
+          p === "…" ? (
+            <span key={`e${i}`} className="px-2">…</span>
+          ) : (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onChange(p as number)}
+              className={`min-w-[32px] px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                page === p
+                  ? "border-blue-600 bg-blue-600 text-white"
+                  : "border-gray-200 text-text-primary hover:bg-gray-50"
+              }`}
+            >
+              {p}
+            </button>
+          ),
+        )}
+        <button
+          type="button"
+          disabled={page === totalPages}
+          onClick={() => onChange(page + 1)}
+          className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-text-primary hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function EnterprisePage() {
   const [search, setSearch] = useState("");
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [membersTarget, setMembersTarget] = useState<Enterprise | null>(null);
 
-  const load = useCallback(async () => {
+  const fetchEnterprises = useCallback(async (p: number) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await enterprisesService.list({ limit: 100 });
+      const res = await enterprisesService.list({ search: search || undefined, page: p, limit: ENT_PAGE_SIZE });
       setEnterprises(res.data);
+      setTotal(res.total);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load enterprises.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [search]);
 
+  // Reset to page 1 and re-fetch when search changes
   useEffect(() => {
-    void load();
-  }, [load]);
+    setPage(1);
+    void fetchEnterprises(1);
+  }, [fetchEnterprises]);
 
-  const filtered = useMemo(
-    () =>
-      enterprises.filter((e) =>
-        `${e.name} ${e.domain ?? ""}`.toLowerCase().includes(search.toLowerCase()),
-      ),
-    [enterprises, search],
-  );
+  const handlePageChange = (p: number) => {
+    setPage(p);
+    void fetchEnterprises(p);
+  };
 
-  const totals = useMemo(() => {
-    const totalEnterprises = enterprises.length;
-    const active = enterprises.filter((e) => e.isActive).length;
-    const totalMembers = enterprises.reduce((s, e) => s + e.membersCount, 0);
-    const totalCredits = enterprises.reduce((s, e) => s + Number(e.creditBalance), 0);
-    return { totalEnterprises, active, totalMembers, totalCredits };
-  }, [enterprises]);
+  const reload = () => void fetchEnterprises(page);
+
+  const activeCount  = enterprises.filter((e) => e.isActive).length;
+  const totalMembers = enterprises.reduce((s, e) => s + e.membersCount, 0);
+  const totalCredits = enterprises.reduce((s, e) => s + Number(e.creditBalance), 0);
 
   return (
     <div>
@@ -1052,35 +1123,22 @@ export default function EnterprisePage() {
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <StatCard
-          label="Total Enterprises"
-          value={String(totals.totalEnterprises)}
-          icon={Building2}
-          accent="blue"
-        />
-        <StatCard
-          label="Active"
-          value={String(totals.active)}
-          icon={UserCheck}
-          accent="green"
-        />
-        <StatCard
-          label="Members"
-          value={String(totals.totalMembers)}
-          icon={UsersIcon}
-          accent="purple"
-        />
-        <StatCard
-          label="Outstanding Credits"
-          value={totals.totalCredits.toLocaleString()}
-          icon={Coins}
-          accent="orange"
-        />
+        <StatCard label="Total Enterprises"    value={String(total)}                    icon={Building2} accent="blue" />
+        <StatCard label="Active (this page)"   value={String(activeCount)}              icon={UserCheck} accent="green" />
+        <StatCard label="Members (this page)"  value={String(totalMembers)}             icon={UsersIcon} accent="purple" />
+        <StatCard label="Credits (this page)"  value={totalCredits.toLocaleString()}    icon={Coins}     accent="orange" />
       </div>
 
       <Card noPadding className="mb-6">
         <div className="flex items-center justify-between p-4 gap-3 flex-wrap">
-          <h3 className="text-sm font-semibold text-text-primary">Enterprise Accounts</h3>
+          <h3 className="text-sm font-semibold text-text-primary">
+            Enterprise Accounts
+            {!loading && (
+              <span className="ml-2 text-xs font-normal text-text-muted">
+                {total.toLocaleString()} total
+              </span>
+            )}
+          </h3>
           <SearchInput
             value={search}
             onChange={setSearch}
@@ -1092,49 +1150,61 @@ export default function EnterprisePage() {
         {error ? (
           <div className="p-6 text-sm text-red-600">{error}</div>
         ) : loading ? (
-          <div className="p-6 text-sm text-text-muted">Loading…</div>
-        ) : filtered.length === 0 ? (
+          <div className="divide-y divide-gray-50">
+            {Array.from({ length: ENT_PAGE_SIZE }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
+                <div className="h-8 w-8 rounded-full bg-gray-100 shrink-0" />
+                <div className="h-3 w-36 rounded bg-gray-100" />
+                <div className="h-3 w-20 rounded bg-gray-100 ml-4" />
+                <div className="h-3 w-16 rounded bg-gray-100 ml-auto" />
+              </div>
+            ))}
+          </div>
+        ) : enterprises.length === 0 ? (
           <div className="p-8 text-center text-sm text-text-muted">
             {search
               ? "No enterprises match your search."
               : "No enterprises yet. Click Add Enterprise to create one."}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs sm:text-sm">
-              <thead>
-                <tr className="border-y border-gray-100 bg-gray-50/50">
-                  {[
-                    "Enterprise",
-                    "Domain",
-                    "Members",
-                    "Credit Balance",
-                    "Credits Used",
-                    "Status",
-                    "Created",
-                    "Actions",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wide whitespace-nowrap"
-                    >
-                      {h}
-                    </th>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs sm:text-sm">
+                <thead>
+                  <tr className="border-y border-gray-100 bg-gray-50/50">
+                    {[
+                      "Enterprise",
+                      "Domain",
+                      "Members",
+                      "Credit Balance",
+                      "Credits Used",
+                      "Status",
+                      "Created",
+                      "Actions",
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wide whitespace-nowrap"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {enterprises.map((e) => (
+                    <EnterpriseRow
+                      key={e.id}
+                      enterprise={e}
+                      onRefresh={reload}
+                      onViewMembers={() => setMembersTarget(e)}
+                    />
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((e) => (
-                  <EnterpriseRow
-                    key={e.id}
-                    enterprise={e}
-                    onRefresh={() => void load()}
-                    onViewMembers={() => setMembersTarget(e)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+            <Pagination page={page} total={total} pageSize={ENT_PAGE_SIZE} onChange={handlePageChange} />
+          </>
         )}
       </Card>
 
@@ -1143,7 +1213,8 @@ export default function EnterprisePage() {
         onClose={() => setCreateOpen(false)}
         onCreated={() => {
           setCreateOpen(false);
-          void load();
+          setPage(1);
+          void fetchEnterprises(1);
         }}
       />
 

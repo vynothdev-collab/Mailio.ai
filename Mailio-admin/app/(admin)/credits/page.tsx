@@ -13,27 +13,100 @@ import {
   type AccountType,
 } from "@/services/credits.service";
 
+const PAGE_SIZE = 10;
+
+function Pagination({
+  page,
+  total,
+  pageSize,
+  onChange,
+}: {
+  page: number;
+  total: number;
+  pageSize: number;
+  onChange: (p: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (totalPages <= 1 && total <= pageSize) return null;
+  const start = (page - 1) * pageSize + 1;
+  const end   = Math.min(page * pageSize, total);
+
+  const pageNums = Array.from({ length: totalPages }, (_, i) => i + 1)
+    .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+    .reduce<(number | "…")[]>((acc, p, i, arr) => {
+      if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("…");
+      acc.push(p);
+      return acc;
+    }, []);
+
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-xs text-text-muted">
+      <span>Showing {start}–{end} of {total.toLocaleString()} transactions</span>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          disabled={page === 1}
+          onClick={() => onChange(page - 1)}
+          className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-text-primary hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Previous
+        </button>
+        {pageNums.map((p, i) =>
+          p === "…" ? (
+            <span key={`e${i}`} className="px-2">…</span>
+          ) : (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onChange(p as number)}
+              className={`min-w-[32px] px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                page === p
+                  ? "border-blue-600 bg-blue-600 text-white"
+                  : "border-gray-200 text-text-primary hover:bg-gray-50"
+              }`}
+            >
+              {p}
+            </button>
+          ),
+        )}
+        <button
+          type="button"
+          disabled={page === Math.ceil(total / pageSize)}
+          onClick={() => onChange(page + 1)}
+          className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-text-primary hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function CreditsPage() {
   const [summary, setSummary] = useState<CreditSummary | null>(null);
   const [ledger, setLedger] = useState<CreditLedgerEntry[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<"" | AccountType>("");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [allocOpen, setAllocOpen] = useState<null | "user" | "enterprise">(null);
 
-  const load = useCallback(async () => {
+  const fetchLedger = useCallback(async (p: number) => {
     setLoading(true);
     setErr(null);
     try {
       const [s, l] = await Promise.all([
-        creditsService.summary(),
+        p === 1 ? creditsService.summary() : Promise.resolve(null),
         creditsService.ledger({
           accountType: filter || undefined,
-          limit: 100,
+          page: p,
+          limit: PAGE_SIZE,
         }),
       ]);
-      setSummary(s);
+      if (s) setSummary(s);
       setLedger(l.data);
+      setTotal(l.total);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to load credits data.");
     } finally {
@@ -41,9 +114,16 @@ export default function CreditsPage() {
     }
   }, [filter]);
 
+  // Reset to page 1 when filter changes
   useEffect(() => {
-    void load();
-  }, [load]);
+    setPage(1);
+    void fetchLedger(1);
+  }, [fetchLedger]);
+
+  const handlePageChange = (p: number) => {
+    setPage(p);
+    void fetchLedger(p);
+  };
 
   return (
     <div>
@@ -97,104 +177,93 @@ export default function CreditsPage() {
         <div className="flex items-center justify-between p-4">
           <h3 className="text-sm font-semibold text-text-primary">
             Credit Ledger
+            {!loading && total > 0 && (
+              <span className="ml-2 text-xs font-normal text-text-muted">
+                {total.toLocaleString()} transactions
+              </span>
+            )}
           </h3>
-          <div className="flex items-center gap-2 text-xs">
-            <button
-              className={`px-2.5 py-1 rounded ${filter === "" ? "bg-primary-50 text-primary-700" : "text-text-secondary hover:bg-gray-50"}`}
-              onClick={() => setFilter("")}
-            >
-              All
-            </button>
-            <button
-              className={`px-2.5 py-1 rounded ${filter === "USER" ? "bg-primary-50 text-primary-700" : "text-text-secondary hover:bg-gray-50"}`}
-              onClick={() => setFilter("USER")}
-            >
-              User
-            </button>
-            <button
-              className={`px-2.5 py-1 rounded ${filter === "ENTERPRISE" ? "bg-primary-50 text-primary-700" : "text-text-secondary hover:bg-gray-50"}`}
-              onClick={() => setFilter("ENTERPRISE")}
-            >
-              Enterprise
-            </button>
+          <div className="flex items-center gap-1 text-xs">
+            {(["", "USER", "ENTERPRISE"] as const).map((f) => (
+              <button
+                key={f || "ALL"}
+                className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                  filter === f
+                    ? "bg-blue-600 text-white"
+                    : "text-text-secondary hover:bg-gray-100"
+                }`}
+                onClick={() => setFilter(f)}
+              >
+                {f === "" ? "All" : f === "USER" ? "User" : "Enterprise"}
+              </button>
+            ))}
           </div>
         </div>
 
         {err ? (
           <div className="p-6 text-sm text-red-600">{err}</div>
         ) : loading ? (
-          <div className="p-6 text-sm text-text-muted">Loading ledger…</div>
+          <div className="divide-y divide-gray-50">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-3 animate-pulse">
+                <div className="h-3 w-32 rounded bg-gray-100 shrink-0" />
+                <div className="h-3 w-24 rounded bg-gray-100" />
+                <div className="h-3 w-20 rounded bg-gray-100" />
+                <div className="h-3 w-16 rounded bg-gray-100 ml-auto" />
+              </div>
+            ))}
+          </div>
         ) : ledger.length === 0 ? (
           <div className="p-8 text-center text-sm text-text-muted">
             No credit transactions yet.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs sm:text-sm">
-              <thead>
-                <tr className="border-y border-gray-100 bg-gray-50/50">
-                  {[
-                    "When",
-                    "Account",
-                    "Type",
-                    "Reason",
-                    "Delta",
-                    "Balance After",
-                    "Reference",
-                    "Description",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wide whitespace-nowrap"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {ledger.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="border-b border-gray-50 last:border-0"
-                  >
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary whitespace-nowrap">
-                      {new Date(row.createdAt).toLocaleString()}
-                    </td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-primary">
-                      <span className="font-medium">{row.accountType}</span>
-                      <div className="text-[10px] text-text-muted font-mono">
-                        {row.accountId.slice(0, 8)}…
-                      </div>
-                    </td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary">
-                      {row.type}
-                    </td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary">
-                      {row.reason}
-                    </td>
-                    <td
-                      className={`px-3 sm:px-4 py-2 sm:py-3 font-semibold ${row.delta >= 0 ? "text-emerald-600" : "text-red-600"}`}
-                    >
-                      {row.delta >= 0 ? "+" : ""}
-                      {row.delta.toLocaleString()}
-                    </td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-primary font-medium">
-                      {row.balanceAfter.toLocaleString()}
-                    </td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-[11px] text-text-muted">
-                      {row.referenceType
-                        ? `${row.referenceType}:${row.referenceId?.slice(0, 8) ?? ""}…`
-                        : "—"}
-                    </td>
-                    <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary max-w-xs truncate">
-                      {row.description ?? "—"}
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs sm:text-sm">
+                <thead>
+                  <tr className="border-y border-gray-100 bg-gray-50/50">
+                    {["When", "Account", "Type", "Reason", "Delta", "Balance After", "Reference", "Description"].map((h) => (
+                      <th
+                        key={h}
+                        className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wide whitespace-nowrap"
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {ledger.map((row) => (
+                    <tr key={row.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/40">
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary whitespace-nowrap">
+                        {new Date(row.createdAt).toLocaleString()}
+                      </td>
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-primary">
+                        <span className="font-medium">{row.accountType}</span>
+                        <div className="text-[10px] text-text-muted font-mono">{row.accountId.slice(0, 8)}…</div>
+                      </td>
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary">{row.type}</td>
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary">{row.reason}</td>
+                      <td className={`px-3 sm:px-4 py-2 sm:py-3 font-semibold tabular-nums ${row.delta >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                        {row.delta >= 0 ? "+" : ""}{row.delta.toLocaleString()}
+                      </td>
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-primary font-medium tabular-nums">
+                        {row.balanceAfter.toLocaleString()}
+                      </td>
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-[11px] text-text-muted">
+                        {row.referenceType ? `${row.referenceType}:${row.referenceId?.slice(0, 8) ?? ""}…` : "—"}
+                      </td>
+                      <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary max-w-xs truncate">
+                        {row.description ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination page={page} total={total} pageSize={PAGE_SIZE} onChange={handlePageChange} />
+          </>
         )}
       </Card>
 
@@ -203,7 +272,8 @@ export default function CreditsPage() {
         onClose={() => setAllocOpen(null)}
         onDone={() => {
           setAllocOpen(null);
-          void load();
+          setPage(1);
+          void fetchLedger(1);
         }}
       />
     </div>

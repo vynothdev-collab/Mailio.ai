@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, IsUUID, Length, Min } from 'class-validator';
+import { IsArray, IsInt, IsOptional, IsString, IsUUID, Length, Min, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class AllocateUserCreditsDto {
   @ApiProperty({ description: 'Enterprise user ID to allocate credits to.' })
@@ -29,6 +30,9 @@ export class ConfirmReallocationDto {
   planId!: string;
 
   @ApiProperty({ type: [ReallocateUserDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ReallocateUserDto)
   allocations!: ReallocateUserDto[];
 }
 
