@@ -37,12 +37,21 @@ export class UsageService {
     let accountLabel = 'Personal';
 
     if (isEnterprise && user.enterpriseId) {
-      const enterprise = await this.enterpriseRepo.findOne({
-        where: { id: user.enterpriseId },
-      });
-      creditBalance = Number(enterprise?.creditBalance ?? 0);
-      creditsUsed = Number(enterprise?.creditsUsed ?? 0);
-      accountLabel = 'Enterprise';
+      if (user.role === UserRole.ENTERPRISE_USER && user.creditLimit !== null) {
+        // Enterprise users see their own allocated slice: creditLimit is their cap.
+        const limit = Number(user.creditLimit);
+        creditsUsed = Number(user.creditsUsed ?? 0);
+        creditBalance = Math.max(0, limit - creditsUsed);
+        accountLabel = 'Enterprise';
+      } else {
+        // Enterprise admins see the full shared pool.
+        const enterprise = await this.enterpriseRepo.findOne({
+          where: { id: user.enterpriseId },
+        });
+        creditBalance = Number(enterprise?.creditBalance ?? 0);
+        creditsUsed = Number(enterprise?.creditsUsed ?? 0);
+        accountLabel = 'Enterprise';
+      }
     } else {
       creditBalance = Number(user.creditBalance ?? 0);
       creditsUsed = Number(user.creditsUsed ?? 0);
@@ -62,6 +71,7 @@ export class UsageService {
       accountLabel,
       creditBalance,
       creditsUsed,
+      creditExpiresAt: user.creditExpiresAt ?? null,
       percentage,
       periodStart: periodStart.toISOString(),
       periodEnd: periodEnd.toISOString(),

@@ -30,6 +30,7 @@ import {
   enterprisesService,
   type Enterprise,
   type EnterpriseMember,
+  type EnterpriseCreditSummary,
   type CreateEnterprisePayload,
 } from "@/services/enterprises.service";
 
@@ -318,6 +319,132 @@ function ResetPasswordModal({
   );
 }
 
+// ── CreditSummaryModal ───────────────────────────────────────────────────────
+
+function CreditSummaryModal({
+  enterprise,
+  onClose,
+}: {
+  enterprise: Enterprise | null;
+  onClose: () => void;
+}) {
+  const [summary, setSummary] = useState<EnterpriseCreditSummary | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enterprise) return;
+    setLoading(true);
+    setErr(null);
+    setSummary(null);
+    enterprisesService
+      .creditSummary(enterprise.id)
+      .then(setSummary)
+      .catch((e) => setErr(e instanceof Error ? e.message : "Failed to load credit summary."))
+      .finally(() => setLoading(false));
+  }, [enterprise]);
+
+  if (!enterprise) return null;
+
+  return (
+    <Modal open onClose={onClose} size="xl">
+      <div className="p-5 flex flex-col gap-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50">
+              <Coins className="w-5 h-5 text-orange-500" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-text-primary">Credit Summary</h2>
+              <p className="text-xs text-text-muted mt-0.5">{enterprise.name}</p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="p-1 rounded hover:bg-gray-100">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {loading && <div className="py-10 text-center text-sm text-text-muted">Loading…</div>}
+        {err && <div className="py-6 text-center text-sm text-red-500">{err}</div>}
+
+        {summary && (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {[
+                { label: "Enterprise Pool", value: summary.enterprisePool.toLocaleString() },
+                { label: "Total Allocated", value: summary.totalAllocated.toLocaleString() },
+                { label: "Total Used", value: summary.totalUsed.toLocaleString() },
+                { label: "Admin Usable", value: summary.adminUsable.toLocaleString() },
+                {
+                  label: "Expires",
+                  value: summary.expiresAt
+                    ? new Date(summary.expiresAt).toLocaleDateString()
+                    : "—",
+                },
+                {
+                  label: "Days Left",
+                  value: summary.daysRemaining != null ? String(summary.daysRemaining) : "—",
+                },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                  <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wide">{label}</p>
+                  <p className="text-base font-bold text-text-primary mt-0.5">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            {summary.users.length === 0 ? (
+              <div className="py-8 text-center text-sm text-text-muted">No enterprise users yet.</div>
+            ) : (
+              <div className="rounded-xl border border-gray-100 overflow-hidden">
+                <table className="w-full text-xs sm:text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50/70">
+                      {["Member", "Email", "Allocated", "Used", "Remaining", "Expires"].map((h) => (
+                        <th
+                          key={h}
+                          className="px-4 py-2.5 text-left text-[10px] font-semibold text-text-muted uppercase tracking-wide whitespace-nowrap"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summary.users.map((u) => (
+                      <tr key={u.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <Avatar name={u.name} size="sm" />
+                            <span className="font-medium text-text-primary whitespace-nowrap">{u.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-text-secondary">{u.email}</td>
+                        <td className="px-4 py-3 font-medium text-text-primary">
+                          {u.allocated > 0 ? u.allocated.toLocaleString() : <span className="text-text-muted">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-text-secondary">{u.used.toLocaleString()}</td>
+                        <td className="px-4 py-3">
+                          <span className={u.remaining > 0 ? "text-emerald-600 font-medium" : "text-text-muted"}>
+                            {u.remaining.toLocaleString()}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-text-secondary whitespace-nowrap">
+                          {u.expiresAt ? new Date(u.expiresAt).toLocaleDateString() : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 // ── EnterpriseActionMenu ─────────────────────────────────────────────────────
 
 function EnterpriseActionMenu({
@@ -343,6 +470,7 @@ function EnterpriseActionMenu({
 
   const [addCreditsOpen, setAddCreditsOpen] = useState(false);
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [creditSummaryOpen, setCreditSummaryOpen] = useState(false);
 
   // Position menu below button
   const openMenu = (evt: React.MouseEvent) => {
@@ -450,6 +578,14 @@ function EnterpriseActionMenu({
             <button
               type="button"
               className="flex w-full items-center gap-2 px-3 py-2 text-text-primary hover:bg-gray-50"
+              onClick={() => { setOpen(false); setCreditSummaryOpen(true); }}
+            >
+              <Coins className="w-3.5 h-3.5 text-blue-500" />
+              Credit Summary
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-3 py-2 text-text-primary hover:bg-gray-50"
               onClick={handleAddCredits}
             >
               <Coins className="w-3.5 h-3.5 text-orange-500" />
@@ -525,6 +661,13 @@ function EnterpriseActionMenu({
           toast.success(`Admin password for "${enterprise.name}" has been reset.`);
         }}
       />
+
+      {creditSummaryOpen && (
+        <CreditSummaryModal
+          enterprise={enterprise}
+          onClose={() => setCreditSummaryOpen(false)}
+        />
+      )}
     </>
   );
 }

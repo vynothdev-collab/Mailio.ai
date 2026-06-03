@@ -11,23 +11,32 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { enterpriseService, type PurchasePlanResult } from "@/src/services/enterpriseService";
 import { billingService, type BillingPlan } from "@/src/services/billingService";
+import { useAuth } from "@/src/hooks/useAuth";
 
 interface Props {
-  plan: BillingPlan | null;
-  onClose: () => void;
-  onActivated: (plan: BillingPlan) => void;
+  plan:          BillingPlan | null;
+  onClose:       () => void;
+  onActivated:   (plan: BillingPlan, result?: PurchasePlanResult) => void;
 }
 
 export function ConfirmPlanModal({ plan, onClose, onActivated }: Props) {
+  const { user } = useAuth();
   const [confirming, setConfirming] = useState(false);
+  const isEnterpriseAdmin = user?.role === "ENTERPRISE_ADMIN";
 
   async function handleConfirm() {
     if (!plan) return;
     setConfirming(true);
     try {
-      await billingService.activatePlan(plan.id);
-      onActivated(plan);
+      if (isEnterpriseAdmin) {
+        const result = await enterpriseService.purchasePlan(plan.id);
+        onActivated(plan, result);
+      } else {
+        await billingService.activatePlan(plan.id);
+        onActivated(plan);
+      }
       onClose();
     } catch {
       toast.error("Failed to activate plan. Please try again.");
@@ -41,9 +50,7 @@ export function ConfirmPlanModal({ plan, onClose, onActivated }: Props) {
       <DialogContent className="max-w-md!" showCloseButton>
         <DialogHeader>
           <DialogTitle>Confirm Plan Activation</DialogTitle>
-          <DialogDescription>
-            Review your selection before activating.
-          </DialogDescription>
+          <DialogDescription>Review your selection before activating.</DialogDescription>
         </DialogHeader>
 
         <div className="rounded-xl border border-border bg-muted/30 divide-y divide-border overflow-hidden">
@@ -54,27 +61,19 @@ export function ConfirmPlanModal({ plan, onClose, onActivated }: Props) {
               </div>
               <div>
                 <p className="text-sm font-semibold">{plan?.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {plan?.credits.toLocaleString()} credits
-                </p>
+                <p className="text-xs text-muted-foreground">{plan?.credits.toLocaleString()} credits</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-sm font-bold tabular-nums">
-                {plan?.currency}{plan?.price.toLocaleString()}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {plan?.validityDays}d validity
-              </p>
+              <p className="text-sm font-bold tabular-nums">{plan?.currency}{plan?.price.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">{plan?.validityDays}d validity</p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3">
           <span className="text-sm font-semibold">Credits you will receive</span>
-          <span className="text-lg font-bold tabular-nums">
-            {plan?.credits.toLocaleString()}
-          </span>
+          <span className="text-lg font-bold tabular-nums">{plan?.credits.toLocaleString()}</span>
         </div>
 
         <Button

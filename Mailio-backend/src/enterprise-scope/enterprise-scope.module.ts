@@ -4,6 +4,7 @@ import { CreditTransaction } from '../credits/entities/credit-transaction.entity
 import { EmailList } from '../email-lists/entities/email-list.entity';
 import { Email } from '../emails/entities/email.entity';
 import { Enterprise } from '../enterprises/entities/enterprise.entity';
+import { EnterpriseCreditsModule } from '../enterprise-credits/enterprise-credits.module';
 import { MailModule } from '../mail/mail.module';
 import { User } from '../users/entities/user.entity';
 import { EnterpriseScopeController } from './enterprise-scope.controller';
@@ -18,6 +19,7 @@ import { EnterpriseScopeService } from './enterprise-scope.service';
       EmailList,
       CreditTransaction,
     ]),
+    EnterpriseCreditsModule,
     MailModule,
   ],
   controllers: [EnterpriseScopeController],

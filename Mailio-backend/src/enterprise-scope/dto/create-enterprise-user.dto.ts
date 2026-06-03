@@ -1,17 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, Length } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsEmail,
+  IsInt,
+  IsOptional,
+  IsString,
+  Length,
+  Min,
+} from 'class-validator';
 
-/**
- * DTO for Enterprise Admin creating a user inside their own enterprise.
- *
- * Notes:
- * - `role` is implicit (always ENTERPRISE_USER). Enterprise Admins cannot
- *   create other Enterprise Admins or Super Admins.
- * - `enterpriseId` is derived from the authenticated admin's own
- *   `enterpriseId` — it is never accepted from the request body.
- * - No `initialCredits` field — enterprise members share the enterprise
- *   balance; only Super Admins can top up the enterprise.
- */
 export class CreateEnterpriseUserDto {
   @ApiProperty({ example: 'Carol Member' })
   @IsString()
@@ -26,4 +22,13 @@ export class CreateEnterpriseUserDto {
   @IsString()
   @Length(8, 128)
   password!: string;
+
+  @ApiPropertyOptional({
+    description: 'Credits to allocate to this user on creation (>= 1)',
+    minimum: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  creditAllocation?: number;
 }

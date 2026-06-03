@@ -45,6 +45,27 @@ export interface EnterpriseMember {
   createdAt: string;
 }
 
+export interface EnterpriseCreditUser {
+  id:        string;
+  name:      string;
+  email:     string;
+  allocated: number;
+  used:      number;
+  remaining: number;
+  expiresAt: string | null;
+}
+
+export interface EnterpriseCreditSummary {
+  totalPurchased: number;
+  enterprisePool: number;
+  totalAllocated: number;
+  totalUsed:      number;
+  adminUsable:    number;
+  expiresAt:      string | null;
+  daysRemaining:  number | null;
+  users:          EnterpriseCreditUser[];
+}
+
 export const enterprisesService = {
   list: (q: { search?: string; isActive?: string; page?: number; limit?: number } = {}) => {
     const params = new URLSearchParams();
@@ -75,6 +96,9 @@ export const enterprisesService = {
 
   resetAdminPassword: (id: string, newPassword: string) =>
     apiService.post<{ email: string }>(`/admin/enterprises/${id}/reset-password`, { newPassword }),
+
+  creditSummary: (id: string) =>
+    apiService.get<EnterpriseCreditSummary>(`/admin/enterprises/${id}/credit-summary`),
 
   members: (id: string, page = 1, limit = 50, role?: string) => {
     const params = new URLSearchParams();

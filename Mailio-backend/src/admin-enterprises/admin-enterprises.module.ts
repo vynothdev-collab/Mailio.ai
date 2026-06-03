@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminActivityLogsModule } from '../admin-activity-logs/admin-activity-logs.module';
 import { CreditsModule } from '../credits/credits.module';
+import { EnterpriseCreditsModule } from '../enterprise-credits/enterprise-credits.module';
 import { Enterprise } from '../enterprises/entities/enterprise.entity';
 import { MailModule } from '../mail/mail.module';
 import { User } from '../users/entities/user.entity';
@@ -13,6 +14,7 @@ import { AdminEnterprisesService } from './admin-enterprises.service';
     TypeOrmModule.forFeature([Enterprise, User]),
     AdminActivityLogsModule,
     CreditsModule,
+    EnterpriseCreditsModule,
     MailModule,
   ],
   controllers: [AdminEnterprisesController],

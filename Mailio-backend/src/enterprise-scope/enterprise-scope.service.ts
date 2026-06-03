@@ -19,7 +19,10 @@ import {
   UserRole,
 } from '../users/entities/user.entity';
 import { MailService } from '../mail/mail.service';
+import { EnterpriseCreditsService } from '../enterprise-credits/enterprise-credits.service';
 import { CreateEnterpriseUserDto } from './dto/create-enterprise-user.dto';
+import { UpdateEnterpriseUserDto } from './dto/update-enterprise-user.dto';
+import { ChangeEnterpriseUserPasswordDto } from './dto/change-enterprise-user-password.dto';
 
 @Injectable()
 export class EnterpriseScopeService {
@@ -35,6 +38,7 @@ export class EnterpriseScopeService {
     @InjectRepository(CreditTransaction)
     private readonly txRepo: Repository<CreditTransaction>,
     private readonly mail: MailService,
+    private readonly enterpriseCredits: EnterpriseCreditsService,
   ) {}
 
   /**
@@ -87,6 +91,16 @@ export class EnterpriseScopeService {
       }),
     );
 
+    // Optionally allocate an initial credit limit to the new user.
+    if (dto.creditAllocation && dto.creditAllocation > 0) {
+      await this.enterpriseCredits.allocateToUser(
+        enterprise.id,
+        created.id,
+        dto.creditAllocation,
+        admin.id,
+      );
+    }
+
     const loginUrl =
       process.env.FRONTEND_URL
         ? `${process.env.FRONTEND_URL}/auth/login`
@@ -100,7 +114,9 @@ export class EnterpriseScopeService {
       loginUrl,
     );
 
-    return this.serializeUser(created);
+    // Re-fetch to include the credit limit that may have been set above.
+    const fresh = await this.usersRepo.findOne({ where: { id: created.id } });
+    return this.serializeUser(fresh ?? created);
   }
 
   async listUsers(admin: User, page = 1, limit = 50) {
@@ -155,6 +171,79 @@ export class EnterpriseScopeService {
     );
 
     return this.serializeUser(saved);
+  }
+
+  async softDeleteUser(admin: User, userId: string) {
+    const enterprise = await this.resolveEnterprise(admin);
+
+    const user = await this.usersRepo.findOne({
+      where: { id: userId, enterpriseId: enterprise.id },
+    });
+    if (!user) throw new NotFoundException('User not found in your enterprise.');
+    if (user.id === admin.id)
+      throw new BadRequestException('You cannot delete yourself.');
+
+    user.isActive = false;
+    await this.usersRepo.save(user);
+    return { success: true };
+  }
+
+  async toggleUserStatus(admin: User, userId: string) {
+    const enterprise = await this.resolveEnterprise(admin);
+
+    const user = await this.usersRepo.findOne({
+      where: { id: userId, enterpriseId: enterprise.id },
+    });
+    if (!user) throw new NotFoundException('User not found in your enterprise.');
+    if (user.id === admin.id)
+      throw new BadRequestException('You cannot change your own status.');
+
+    user.isActive = !user.isActive;
+    const saved = await this.usersRepo.save(user);
+    return this.serializeUser(saved);
+  }
+
+  async updateUserDetails(
+    admin: User,
+    userId: string,
+    dto: UpdateEnterpriseUserDto,
+  ) {
+    const enterprise = await this.resolveEnterprise(admin);
+
+    const user = await this.usersRepo.findOne({
+      where: { id: userId, enterpriseId: enterprise.id },
+    });
+    if (!user) throw new NotFoundException('User not found in your enterprise.');
+
+    if (dto.email && dto.email.toLowerCase() !== user.email) {
+      const conflict = await this.usersRepo.findOne({
+        where: { email: dto.email.toLowerCase() },
+      });
+      if (conflict) throw new ConflictException('Email already in use.');
+    }
+
+    if (dto.name) user.name = dto.name.trim();
+    if (dto.email) user.email = dto.email.toLowerCase().trim();
+
+    const saved = await this.usersRepo.save(user);
+    return this.serializeUser(saved);
+  }
+
+  async changeUserPassword(
+    admin: User,
+    userId: string,
+    dto: ChangeEnterpriseUserPasswordDto,
+  ) {
+    const enterprise = await this.resolveEnterprise(admin);
+
+    const user = await this.usersRepo.findOne({
+      where: { id: userId, enterpriseId: enterprise.id },
+    });
+    if (!user) throw new NotFoundException('User not found in your enterprise.');
+
+    user.passwordHash = await bcrypt.hash(dto.password, 10);
+    await this.usersRepo.save(user);
+    return { success: true };
   }
 
   async removeUser(admin: User, userId: string) {
@@ -362,6 +451,8 @@ export class EnterpriseScopeService {
   }
 
   private serializeUser(u: User) {
+    const creditLimit = u.creditLimit !== null ? Number(u.creditLimit) : null;
+    const creditsUsed = Number(u.creditsUsed ?? 0);
     return {
       id: u.id,
       name: u.name,
@@ -370,7 +461,10 @@ export class EnterpriseScopeService {
       enterpriseId: u.enterpriseId,
       isActive: u.isActive,
       emailVerified: u.emailVerified,
-      creditsUsed: Number(u.creditsUsed ?? 0),
+      creditLimit,
+      creditsUsed,
+      creditsRemaining: creditLimit !== null ? Math.max(0, creditLimit - creditsUsed) : null,
+      creditExpiresAt: u.creditExpiresAt ?? null,
       createdAt: u.createdAt,
       updatedAt: u.updatedAt,
     };

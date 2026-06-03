@@ -9,6 +9,7 @@ import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
 import { AdminCreditsModule } from './admin-credits/admin-credits.module';
 import { BillingPlansModule } from './billing-plans/billing-plans.module';
 import { AdminEnterprisesModule } from './admin-enterprises/admin-enterprises.module';
+import { EnterpriseCreditsModule } from './enterprise-credits/enterprise-credits.module';
 import { AdminUsersModule } from './admin-users/admin-users.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -99,6 +100,7 @@ import { VerifyModule } from './verify/verify.module';
     AdminEnterprisesModule,
     AdminCreditsModule,
     BillingPlansModule,
+    EnterpriseCreditsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

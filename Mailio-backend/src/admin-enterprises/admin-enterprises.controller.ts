@@ -23,6 +23,7 @@ import { Admin, AdminRole } from '../admin-auth/entities/admin.entity';
 import { AdminJwtGuard } from '../admin-auth/guards/admin-jwt.guard';
 import { AdminRolesGuard } from '../admin-auth/guards/admin-roles.guard';
 import { UserRole } from '../users/entities/user.entity';
+import { EnterpriseCreditsService } from '../enterprise-credits/enterprise-credits.service';
 import { AdminEnterprisesService } from './admin-enterprises.service';
 import {
   CreateEnterpriseDto,
@@ -53,6 +54,7 @@ export class AdminEnterprisesController {
   constructor(
     private readonly service: AdminEnterprisesService,
     private readonly logs: AdminActivityLogsService,
+    private readonly enterpriseCredits: EnterpriseCreditsService,
   ) {}
 
   @Post()
@@ -220,6 +222,14 @@ export class AdminEnterprisesController {
       ipAddress: getIp(req),
     });
     return result;
+  }
+
+  @Get(':id/credit-summary')
+  @ApiOperation({
+    summary: 'Per-user credit breakdown for an enterprise (Super Admin)',
+  })
+  creditSummary(@Param('id') id: string) {
+    return this.enterpriseCredits.getCreditSummary(id);
   }
 
   @Get(':id/members')

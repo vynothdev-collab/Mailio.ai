@@ -9,7 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Enterprise } from '../enterprises/entities/enterprise.entity';
-import { ENTERPRISE_ROLES, User } from '../users/entities/user.entity';
+import { ENTERPRISE_ROLES, User, UserRole } from '../users/entities/user.entity';
 import {
   CreditAccountType,
   CreditTransaction,
@@ -103,6 +103,17 @@ export class CreditsService {
 
   async ensureSufficient(user: User, required: number): Promise<void> {
     if (required <= 0) return;
+
+    // Enterprise users are additionally capped by their individual credit_limit.
+    if (user.role === UserRole.ENTERPRISE_USER && user.creditLimit !== null) {
+      const limit = Number(user.creditLimit);
+      const used = Number(user.creditsUsed ?? 0);
+      const remaining = Math.max(0, limit - used);
+      if (remaining < required) {
+        throw new InsufficientCreditsException(required, remaining);
+      }
+    }
+
     const account = await this.getEffectiveAccount(user);
     if (account.balance < required) {
       throw new InsufficientCreditsException(required, account.balance);
@@ -346,7 +357,11 @@ export class CreditsService {
     return ENTERPRISE_ROLES.includes(user.role);
   }
 
-  /** Apply a mutation to the account the user draws from. */
+  /**
+   * Apply a mutation to the account the user draws from.
+   * For enterprise members consuming credits, also bumps their personal
+   * `credits_used` counter so per-user tracking stays accurate.
+   */
   private async mutate(
     user: User,
     opts: MutationOptions,
@@ -355,11 +370,39 @@ export class CreditsService {
       if (!user.enterpriseId) {
         throw new ForbiddenException('Enterprise account is missing.');
       }
-      return this.mutateByAccount(
+
+      // Enforce per-user credit limit for ENTERPRISE_USER before touching the pool.
+      if (user.role === UserRole.ENTERPRISE_USER && user.creditLimit !== null && opts.delta < 0) {
+        const limit = Number(user.creditLimit);
+        const used = Number(user.creditsUsed ?? 0);
+        const wouldUse = used + Math.abs(opts.delta);
+        if (wouldUse > limit) {
+          throw new InsufficientCreditsException(
+            Math.abs(opts.delta),
+            Math.max(0, limit - used),
+          );
+        }
+      }
+
+      const result = await this.mutateByAccount(
         CreditAccountType.ENTERPRISE,
         user.enterpriseId,
         opts,
       );
+
+      // Track per-user consumption so Enterprise Admin can see per-user usage.
+      const usedDelta = this.usedDeltaFor(opts);
+      if (usedDelta !== 0) {
+        await this.dataSource.query(
+          `UPDATE users
+             SET credits_used = GREATEST(0, credits_used + $1),
+                 updated_at   = now()
+           WHERE id = $2`,
+          [usedDelta, user.id],
+        );
+      }
+
+      return result;
     }
     return this.mutateByAccount(CreditAccountType.USER, user.id, opts);
   }

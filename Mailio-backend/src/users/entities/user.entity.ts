@@ -71,6 +71,18 @@ export class User {
   @Column({ name: 'credits_used', type: 'bigint', default: 0 })
   creditsUsed!: string;
 
+  /**
+   * For ENTERPRISE_USER: the max credits the enterprise admin has allocated
+   * to this user. NULL means no limit has been set (user can't consume until
+   * an allocation is set). Not used for other roles.
+   */
+  @Column({ name: 'credit_limit', type: 'bigint', nullable: true })
+  creditLimit!: string | null;
+
+  /** Expiry date for this user's credits. NULL means no explicit expiry. */
+  @Column({ name: 'credit_expires_at', type: 'timestamptz', nullable: true })
+  creditExpiresAt!: Date | null;
+
   @Column({ name: 'current_plan_id', type: 'uuid', nullable: true })
   currentPlanId!: string | null;
 

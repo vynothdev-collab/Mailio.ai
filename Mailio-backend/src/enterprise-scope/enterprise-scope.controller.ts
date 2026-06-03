@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -17,7 +18,9 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { User, UserRole } from '../users/entities/user.entity';
+import { ChangeEnterpriseUserPasswordDto } from './dto/change-enterprise-user-password.dto';
 import { CreateEnterpriseUserDto } from './dto/create-enterprise-user.dto';
+import { UpdateEnterpriseUserDto } from './dto/update-enterprise-user.dto';
 import { EnterpriseScopeService } from './enterprise-scope.service';
 
 @ApiTags('enterprise')
@@ -50,12 +53,44 @@ export class EnterpriseScopeController {
 
   @Delete('users/:userId')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Remove a user from the calling admin enterprise.' })
-  removeUser(
+  @ApiOperation({ summary: 'Soft-delete a user (blocks login, keeps in enterprise).' })
+  softDeleteUser(
     @CurrentUser() admin: User,
     @Param('userId') userId: string,
   ) {
-    return this.service.removeUser(admin, userId);
+    return this.service.softDeleteUser(admin, userId);
+  }
+
+  @Patch('users/:userId/status')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Toggle active/inactive status for an enterprise user.' })
+  toggleUserStatus(
+    @CurrentUser() admin: User,
+    @Param('userId') userId: string,
+  ) {
+    return this.service.toggleUserStatus(admin, userId);
+  }
+
+  @Patch('users/:userId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update name/email for an enterprise user.' })
+  updateUserDetails(
+    @CurrentUser() admin: User,
+    @Param('userId') userId: string,
+    @Body() dto: UpdateEnterpriseUserDto,
+  ) {
+    return this.service.updateUserDetails(admin, userId, dto);
+  }
+
+  @Post('users/:userId/change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change password for an enterprise user.' })
+  changeUserPassword(
+    @CurrentUser() admin: User,
+    @Param('userId') userId: string,
+    @Body() dto: ChangeEnterpriseUserPasswordDto,
+  ) {
+    return this.service.changeUserPassword(admin, userId, dto);
   }
 
   @Get('users')
