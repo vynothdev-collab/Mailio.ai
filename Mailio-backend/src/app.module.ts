@@ -10,6 +10,7 @@ import { AdminReportsModule } from './admin-reports/admin-reports.module';
 import { AdminCreditsModule } from './admin-credits/admin-credits.module';
 import { BillingPlansModule } from './billing-plans/billing-plans.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { SupportTicketsModule } from './support-tickets/support-tickets.module';
 import { AdminEnterprisesModule } from './admin-enterprises/admin-enterprises.module';
 import { EnterpriseCreditsModule } from './enterprise-credits/enterprise-credits.module';
 import { AdminUsersModule } from './admin-users/admin-users.module';
@@ -103,6 +104,7 @@ import { VerifyModule } from './verify/verify.module';
     AdminEnterprisesModule,
     AdminCreditsModule,
     SubscriptionsModule,
+    SupportTicketsModule,
     BillingPlansModule,
     EnterpriseCreditsModule,
   ],
