@@ -8,23 +8,31 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
-import { BillingPlanType } from '../entities/billing-plan.entity';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { BillingPlanType, PlanCategory } from '../entities/billing-plan.entity';
 
 export class CreateBillingPlanDto {
   @ApiProperty({ example: 'Pro Plan' })
   @IsString()
   @MaxLength(100)
-  name: string;
+  name!: string;
 
   @ApiProperty({ enum: BillingPlanType })
   @IsEnum(BillingPlanType)
-  planType: BillingPlanType;
+  planType!: BillingPlanType;
+
+  @ApiPropertyOptional({
+    enum: PlanCategory,
+    default: PlanCategory.VALIDITY_BASED,
+  })
+  @IsEnum(PlanCategory)
+  @IsOptional()
+  planCategory?: PlanCategory;
 
   @ApiProperty({ example: 499 })
   @IsInt()
   @Min(0)
-  price: number;
+  price!: number;
 
   @ApiProperty({ example: 'INR' })
   @IsString()
@@ -34,12 +42,24 @@ export class CreateBillingPlanDto {
   @ApiProperty({ example: 10000 })
   @IsInt()
   @Min(1)
-  credits: number;
+  credits!: number;
 
-  @ApiProperty({ example: 30 })
+  @ApiPropertyOptional({
+    example: 30,
+    description: 'Required for VALIDITY_BASED plans; omit for TOPUP.',
+  })
   @IsInt()
   @Min(1)
-  validityDays: number;
+  @IsOptional()
+  validityDays?: number;
+
+  @ApiPropertyOptional({
+    description: 'Free-form plan description shown to users.',
+  })
+  @IsString()
+  @IsOptional()
+  @MaxLength(2000)
+  description?: string;
 
   @ApiProperty({ example: ['Email verification', 'Bulk processing'] })
   @IsArray()

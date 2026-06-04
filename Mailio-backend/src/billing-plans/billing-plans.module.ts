@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CreditsModule } from '../credits/credits.module';
 import { CreditTransaction } from '../credits/entities/credit-transaction.entity';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { User } from '../users/entities/user.entity';
 import { AdminBillingPlansController } from './admin-billing-plans.controller';
 import { AdminBillingPlansService } from './admin-billing-plans.service';
@@ -12,7 +13,8 @@ import { BillingPlan } from './entities/billing-plan.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([BillingPlan, User, CreditTransaction]),
-    CreditsModule,    // provides CreditsService + DataSource
+    CreditsModule, // provides CreditsService + DataSource
+    SubscriptionsModule, // delegate plan purchase / topup to the new system
   ],
   controllers: [AdminBillingPlansController, BillingPlansController],
   providers: [AdminBillingPlansService, BillingPlansService],

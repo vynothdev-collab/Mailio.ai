@@ -1,15 +1,18 @@
 import { apiService } from "./api";
 
 export type PlanType = "USER" | "ENTERPRISE";
+export type PlanCategory = "VALIDITY_BASED" | "TOPUP";
 
 export interface BillingPlan {
   id: string;
   name: string;
   planType: PlanType;
+  planCategory: PlanCategory;
   price: number;
   currency: string;
   credits: number;
-  validityDays: number;
+  validityDays: number | null;
+  description: string | null;
   features: string[];
   isActive: boolean;
   isPopular: boolean;
@@ -17,15 +20,18 @@ export interface BillingPlan {
   createdByAdminId: string | null;
   createdAt: string;
   updatedAt: string;
+  deletedAt: string | null;
 }
 
 export interface CreatePlanPayload {
   name: string;
   planType: PlanType;
+  planCategory: PlanCategory;
   price: number;
   currency?: string;
   credits: number;
-  validityDays: number;
+  validityDays?: number | null;
+  description?: string | null;
   features?: string[];
   isActive?: boolean;
   isPopular?: boolean;
@@ -51,4 +57,7 @@ export const plansService = {
 
   delete: (id: string) =>
     apiService.delete<void>(`/admin/plans/${id}`),
+
+  restore: (id: string) =>
+    apiService.patch<BillingPlan>(`/admin/plans/${id}/restore`, {}),
 };

@@ -17,7 +17,11 @@ import {
   type EnterpriseCreditSummary,
   type PurchasePlanResult,
 } from "@/src/services/enterpriseService";
-import { billingService, type BillingPlan } from "@/src/services/billingService";
+import {
+  billingService,
+  type BillingPlan,
+  type CurrentSubscription,
+} from "@/src/services/billingService";
 import type { ApiError } from "@/src/types/auth";
 import { cn } from "@/src/lib/utils";
 import { ConfirmPlanModal } from "./ConfirmPlanModal";
@@ -139,11 +143,114 @@ function MemberUsageCard({ overview, loading }: { overview: EnterpriseOverview |
   );
 }
 
+// ── Plan card ─────────────────────────────────────────────────────────────────
+
+function PlanCard({
+  plan,
+  hasActivePlan,
+  onSelect,
+}: {
+  plan: BillingPlan;
+  hasActivePlan: boolean;
+  onSelect: (p: BillingPlan) => void;
+}) {
+  const isTopup = plan.planCategory === "TOPUP";
+  const blocked = isTopup && !hasActivePlan;
+
+  return (
+    <div
+      className={cn(
+        "relative flex flex-col rounded-xl border p-5 transition-all duration-200",
+        blocked
+          ? "border-border bg-muted/30 opacity-60 cursor-not-allowed"
+          : plan.isPopular
+          ? "border-primary shadow-lg shadow-primary/10 bg-gradient-to-b from-primary/[0.04] to-transparent"
+          : "border-border bg-card hover:border-primary/30 hover:shadow-md",
+      )}
+    >
+      {plan.isPopular && !blocked && (
+        <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full gradient-brand px-3 py-1 text-[11px] font-semibold text-white shadow whitespace-nowrap">
+          <Star size={9} fill="white" />Most Popular
+        </span>
+      )}
+      {isTopup && (
+        <span className="absolute top-3 right-3 inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700">
+          Topup
+        </span>
+      )}
+      <div className="flex items-center gap-2 mb-3 mt-1">
+        <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg shrink-0", plan.isPopular ? "bg-primary/10" : "bg-muted/60")}>
+          <Zap size={15} className={plan.isPopular ? "text-primary" : "text-muted-foreground"} />
+        </div>
+        <span className={cn("text-sm font-bold", plan.isPopular ? "text-primary" : "text-foreground")}>{plan.name}</span>
+      </div>
+      <div className="mb-4">
+        <p className="text-3xl font-extrabold tabular-nums leading-none">{plan.currency}{plan.price.toLocaleString()}</p>
+        <p className="text-xs text-muted-foreground mt-1.5">
+          {plan.credits.toLocaleString()} credits
+          {isTopup
+            ? " • shares active plan expiry"
+            : ` • ${plan.validityDays ?? "—"} days validity`}
+        </p>
+      </div>
+      <ul className="space-y-2 flex-1 mb-5">
+        {(plan.features ?? []).map((f) => (
+          <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Check size={13} className="shrink-0 text-emerald-500 mt-0.5" />{f}
+          </li>
+        ))}
+        {blocked && (
+          <li className="flex items-start gap-2 text-xs text-amber-600">
+            <Info size={13} className="shrink-0 mt-0.5" />Requires an active plan
+          </li>
+        )}
+      </ul>
+      <div className="border-t border-border/50 mb-4" />
+      <Button
+        size="sm"
+        disabled={blocked}
+        className={cn(
+          "w-full text-xs h-9 font-semibold",
+          blocked
+            ? "opacity-50 cursor-not-allowed"
+            : plan.isPopular
+            ? "gradient-brand border-0 text-white hover:opacity-90"
+            : "border border-primary/50 text-primary bg-primary/5 hover:bg-primary hover:text-white transition-colors",
+        )}
+        onClick={() => !blocked && onSelect(plan)}
+      >
+        {isTopup ? `Add ${plan.name}` : plan.isPopular ? `Get ${plan.name}` : `Select ${plan.name}`}
+      </Button>
+    </div>
+  );
+}
+
 // ── Plans section ─────────────────────────────────────────────────────────────
 
-function PlansSection({ plans, loading, onSelect }: { plans: BillingPlan[]; loading: boolean; onSelect: (p: BillingPlan) => void }) {
+function PlansSection({
+  plans,
+  loading,
+  hasActivePlan,
+  onSelect,
+}: {
+  plans: BillingPlan[];
+  loading: boolean;
+  hasActivePlan: boolean;
+  onSelect: (p: BillingPlan) => void;
+}) {
+  const validityPlans = plans.filter((p) => p.planCategory !== "TOPUP");
+  const topupPlans    = plans.filter((p) => p.planCategory === "TOPUP");
+
+  const PlanGrid = ({ items }: { items: BillingPlan[] }) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {items.map((plan) => (
+        <PlanCard key={plan.id} plan={plan} hasActivePlan={hasActivePlan} onSelect={onSelect} />
+      ))}
+    </div>
+  );
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-base font-bold">Enterprise Plans</h2>
@@ -166,55 +273,27 @@ function PlansSection({ plans, loading, onSelect }: { plans: BillingPlan[]; load
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {plans.map((plan) => (
-            <div
-              key={plan.id}
-              className={cn(
-                "relative flex flex-col rounded-xl border p-5 transition-all duration-200",
-                plan.isPopular
-                  ? "border-primary shadow-lg shadow-primary/10 bg-gradient-to-b from-primary/[0.04] to-transparent"
-                  : "border-border bg-card hover:border-primary/30 hover:shadow-md",
-              )}
-            >
-              {plan.isPopular && (
-                <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full gradient-brand px-3 py-1 text-[11px] font-semibold text-white shadow whitespace-nowrap">
-                  <Star size={9} fill="white" />Most Popular
-                </span>
-              )}
-              <div className="flex items-center gap-2 mb-3 mt-1">
-                <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg shrink-0", plan.isPopular ? "bg-primary/10" : "bg-muted/60")}>
-                  <Zap size={15} className={plan.isPopular ? "text-primary" : "text-muted-foreground"} />
-                </div>
-                <span className={cn("text-sm font-bold", plan.isPopular ? "text-primary" : "text-foreground")}>{plan.name}</span>
+        <>
+          {validityPlans.length > 0 && (
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold">Validity-Based Plans</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Fixed credits with a validity period. Stacks with your current plan.</p>
               </div>
-              <div className="mb-4">
-                <p className="text-3xl font-extrabold tabular-nums leading-none">{plan.currency}{plan.price.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground mt-1.5">{plan.credits.toLocaleString()} credits • {plan.validityDays} days validity</p>
-              </div>
-              <ul className="space-y-2 flex-1 mb-5">
-                {(plan.features ?? []).map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground">
-                    <Check size={13} className="shrink-0 text-emerald-500 mt-0.5" />{f}
-                  </li>
-                ))}
-              </ul>
-              <div className="border-t border-border/50 mb-4" />
-              <Button
-                size="sm"
-                className={cn(
-                  "w-full text-xs h-9 font-semibold",
-                  plan.isPopular
-                    ? "gradient-brand border-0 text-white hover:opacity-90"
-                    : "border border-primary/50 text-primary bg-primary/5 hover:bg-primary hover:text-white transition-colors",
-                )}
-                onClick={() => onSelect(plan)}
-              >
-                {plan.isPopular ? `Get ${plan.name}` : `Select ${plan.name}`}
-              </Button>
+              <PlanGrid items={validityPlans} />
             </div>
-          ))}
-        </div>
+          )}
+
+          {topupPlans.length > 0 && (
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold">Topup Plans</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Add extra credits to your existing plan's balance and expiry.</p>
+              </div>
+              <PlanGrid items={topupPlans} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -415,6 +494,7 @@ export function EnterpriseBillingView() {
   const [summary,      setSummary]      = useState<EnterpriseCreditSummary | null>(null);
   const [ledger,       setLedger]       = useState<EnterpriseLedgerEntry[]>([]);
   const [plans,        setPlans]        = useState<BillingPlan[]>([]);
+  const [subscription, setSubscription] = useState<CurrentSubscription | null>(null);
   const [loading,      setLoading]      = useState(true);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [confirmPlan,  setConfirmPlan]  = useState<BillingPlan | null>(null);
@@ -422,14 +502,16 @@ export function EnterpriseBillingView() {
 
   const refresh = async () => {
     try {
-      const [ov, cs, led] = await Promise.all([
+      const [ov, cs, led, sub] = await Promise.all([
         enterpriseService.getOverview(),
         enterpriseService.getCreditSummary(),
         enterpriseService.getLedger(1, 30),
+        enterpriseService.getCurrentSubscription().catch(() => null),
       ]);
       setOverview(ov);
       setSummary(cs);
       setLedger(led.data);
+      setSubscription(sub);
     } catch { /* ignore */ }
   };
 
@@ -479,8 +561,63 @@ export function EnterpriseBillingView() {
           </div>
         </div>
 
+        {subscription && (subscription.activeBase || subscription.queued.length > 0) && (
+          <Card className="border-border/60">
+            <CardContent className="pt-5 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h2 className="text-sm font-semibold">Subscription Timeline</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Active plan + queued upcoming plans</p>
+                </div>
+              </div>
+              {subscription.activeBase && (
+                <div className="rounded-xl border border-primary/30 bg-primary/[0.03] p-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="text-sm font-semibold"><span className="text-primary">Active:</span> {subscription.activeBase.planName}</p>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {subscription.activeBase.remainingCredits.toLocaleString()} / {subscription.activeBase.totalCredits.toLocaleString()} remaining
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date(subscription.activeBase.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                    {subscription.activeBase.endDate && ` → ${new Date(subscription.activeBase.endDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
+                  </p>
+                </div>
+              )}
+              {subscription.activeTopups.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  +{subscription.activeTopups.length} active top-up{subscription.activeTopups.length > 1 ? "s" : ""}, total {subscription.activeTopups.reduce((s, t) => s + t.remainingCredits, 0).toLocaleString()} extra credits remaining
+                </div>
+              )}
+              {subscription.queued.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Queued</p>
+                  {subscription.queued.map((q) => (
+                    <div key={q.id} className="rounded-lg border border-border bg-muted/30 px-3 py-2 flex items-center justify-between text-xs">
+                      <span className="font-medium">{q.planName}</span>
+                      <span className="text-muted-foreground">
+                        Starts {new Date(q.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} • {q.totalCredits.toLocaleString()} credits
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <div ref={plansRef}>
-          <PlansSection plans={plans} loading={loadingPlans} onSelect={setConfirmPlan} />
+          <PlansSection
+            plans={plans}
+            loading={loadingPlans}
+            hasActivePlan={
+              !!subscription?.activeBase ||
+              (summary?.expiresAt !== null &&
+                summary?.expiresAt !== undefined &&
+                new Date(summary.expiresAt) > new Date())
+            }
+            onSelect={setConfirmPlan}
+          />
         </div>
 
         <LedgerTable entries={ledger} loading={loading} />

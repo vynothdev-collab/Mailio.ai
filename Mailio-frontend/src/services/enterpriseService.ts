@@ -132,6 +132,16 @@ export const enterpriseService = {
     return data;
   },
 
+  async purchaseTopup(planId: string): Promise<{ success: boolean }> {
+    const { data } = await api.post("/enterprise/credits/topup", { planId });
+    return data;
+  },
+
+  async getCurrentSubscription(): Promise<import("./billingService").CurrentSubscription> {
+    const { data } = await api.get("/enterprise/credits/subscription");
+    return data;
+  },
+
   async confirmReallocation(
     planId: string,
     allocations: Array<{ userId: string; amount: number }>,

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import {
   Plus, Archive, FileText, CheckCheck, ClipboardList,
   Loader2, X, Pencil, Star, MoreVertical, ToggleLeft, ToggleRight,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import StatCard from "@/components/ui/StatCard";
@@ -19,9 +20,13 @@ import {
   type BillingPlan,
   type CreatePlanPayload,
   type UpdatePlanPayload,
+  type PlanCategory,
+  type PlanType,
 } from "@/services/plans.service";
 
-const TABS = [
+type PlansTab = "USER" | "ENTERPRISE";
+
+const TABS: { key: PlansTab; label: string }[] = [
   { key: "USER",       label: "Normal User Plans" },
   { key: "ENTERPRISE", label: "Enterprise Plans"  },
 ];
@@ -85,11 +90,13 @@ function PlanActionMenu({
   onEdit,
   onToggle,
   onDelete,
+  onRestore,
 }: {
   plan: BillingPlan;
   onEdit: () => void;
   onToggle: () => Promise<void>;
   onDelete: () => Promise<void>;
+  onRestore: () => Promise<void>;
 }) {
   const [open,    setOpen]    = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -157,12 +164,25 @@ function PlanActionMenu({
     setOpen(false);
     setConfirm({
       title: "Delete Plan",
-      message: `"${plan.name}" will be permanently deleted. This cannot be undone.`,
+      message: `"${plan.name}" will be hidden from users. You can restore it from this list later.`,
       confirmLabel: "Delete",
       danger: true,
       action: onDelete,
     });
   };
+
+  const handleRestore = () => {
+    setOpen(false);
+    setConfirm({
+      title: "Restore Plan",
+      message: `Restore "${plan.name}" so it can be edited and made visible again.`,
+      confirmLabel: "Restore",
+      danger: false,
+      action: onRestore,
+    });
+  };
+
+  const isDeleted = !!plan.deletedAt;
 
   return (
     <>
@@ -183,34 +203,48 @@ function PlanActionMenu({
           style={{ position: "fixed", top: menuPos.top, left: menuPos.left, zIndex: 9998 }}
           className="w-44 rounded-xl bg-white shadow-lg border border-gray-100 py-1 text-sm"
         >
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 px-3 py-2 text-text-primary hover:bg-gray-50"
-            onClick={handleEdit}
-          >
-            <Pencil className="w-3.5 h-3.5 text-blue-500" />
-            Edit
-          </button>
-          <button
-            type="button"
-            className={`flex w-full items-center gap-2 px-3 py-2 hover:bg-gray-50 ${
-              plan.isActive ? "text-amber-600" : "text-emerald-600"
-            }`}
-            onClick={handleToggle}
-          >
-            {plan.isActive
-              ? <><ToggleLeft  className="w-3.5 h-3.5" />Deactivate</>
-              : <><ToggleRight className="w-3.5 h-3.5" />Activate</>}
-          </button>
-          <div className="my-1 border-t border-gray-100" />
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50"
-            onClick={handleDelete}
-          >
-            <Archive className="w-3.5 h-3.5" />
-            Delete
-          </button>
+          {!isDeleted && (
+            <>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-3 py-2 text-text-primary hover:bg-gray-50"
+                onClick={handleEdit}
+              >
+                <Pencil className="w-3.5 h-3.5 text-blue-500" />
+                Edit
+              </button>
+              <button
+                type="button"
+                className={`flex w-full items-center gap-2 px-3 py-2 hover:bg-gray-50 ${
+                  plan.isActive ? "text-amber-600" : "text-emerald-600"
+                }`}
+                onClick={handleToggle}
+              >
+                {plan.isActive
+                  ? <><ToggleLeft  className="w-3.5 h-3.5" />Deactivate</>
+                  : <><ToggleRight className="w-3.5 h-3.5" />Activate</>}
+              </button>
+              <div className="my-1 border-t border-gray-100" />
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50"
+                onClick={handleDelete}
+              >
+                <Archive className="w-3.5 h-3.5" />
+                Delete
+              </button>
+            </>
+          )}
+          {isDeleted && (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-3 py-2 text-emerald-600 hover:bg-emerald-50"
+              onClick={handleRestore}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Restore
+            </button>
+          )}
         </div>,
         document.body,
       )}
@@ -231,7 +265,7 @@ function PlanActionMenu({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PlansPage() {
-  const [tab,          setTab]          = useState<"USER" | "ENTERPRISE">("USER");
+  const [tab,          setTab]          = useState<PlansTab>("USER");
   const [plans,        setPlans]        = useState<BillingPlan[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [selected,     setSelected]     = useState<BillingPlan | null>(null);
@@ -265,7 +299,7 @@ export default function PlansPage() {
   const activePlans = tabPlans.filter((p) => p.isActive);
 
   const handleTabChange = (t: string) => {
-    setTab(t as "USER" | "ENTERPRISE");
+    setTab(t as PlansTab);
     setSelected(null);
   };
 
@@ -273,6 +307,12 @@ export default function PlansPage() {
     await plansService.delete(plan.id);
     if (selected?.id === plan.id) setSelected(null);
     toast.success(`"${plan.name}" deleted.`);
+    await load();
+  }
+
+  async function handleRestore(plan: BillingPlan) {
+    await plansService.restore(plan.id);
+    toast.success(`"${plan.name}" restored.`);
     await load();
   }
 
@@ -369,7 +409,7 @@ export default function PlansPage() {
             <table className="w-full text-xs sm:text-sm">
               <thead>
                 <tr className="border-y border-gray-100 bg-gray-50/50">
-                  {["Plan Name", "Price", "Credits", "Validity", "Status", "Set as Popular", "Actions"].map((h) => (
+                  {["Plan Name", "Category", "Price", "Credits", "Validity", "Status", "Set as Popular", "Actions"].map((h) => (
                     <th
                       key={h}
                       className="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-[11px] font-semibold text-text-muted uppercase tracking-wide whitespace-nowrap"
@@ -398,6 +438,15 @@ export default function PlansPage() {
                         )}
                       </span>
                     </td>
+                    <td className="px-3 sm:px-4 py-2 sm:py-3">
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        p.planCategory === "TOPUP"
+                          ? "bg-purple-100 text-purple-700"
+                          : "bg-blue-100 text-blue-700"
+                      }`}>
+                        {p.planCategory === "TOPUP" ? "Topup" : "Validity-Based"}
+                      </span>
+                    </td>
                     <td className="px-3 sm:px-4 py-2 sm:py-3 font-medium text-text-primary">
                       {p.currency}{p.price.toLocaleString()}
                     </td>
@@ -405,7 +454,7 @@ export default function PlansPage() {
                       {p.credits.toLocaleString()}
                     </td>
                     <td className="px-3 sm:px-4 py-2 sm:py-3 text-text-secondary">
-                      {p.validityDays} days
+                      {p.planCategory === "TOPUP" ? "—" : `${p.validityDays ?? "—"} days`}
                     </td>
                     <td className="px-3 sm:px-4 py-2 sm:py-3">
                       <StatusBadge
@@ -444,6 +493,7 @@ export default function PlansPage() {
                         onEdit={() => setEditTarget(p)}
                         onToggle={() => handleToggle(p)}
                         onDelete={() => handleDelete(p)}
+                        onRestore={() => handleRestore(p)}
                       />
                     </td>
                   </tr>
@@ -494,7 +544,8 @@ export default function PlansPage() {
               <dl className="space-y-2 text-sm">
                 <Row k="Price"      v={`${selected.currency}${selected.price.toLocaleString()}`} />
                 <Row k="Credits"    v={selected.credits.toLocaleString()} />
-                <Row k="Validity"   v={`${selected.validityDays} days`} />
+                <Row k="Validity"   v={selected.planCategory === "TOPUP" ? "—" : `${selected.validityDays ?? "—"} days`} />
+                <Row k="Category"   v={selected.planCategory === "TOPUP" ? "Topup" : "Validity-Based"} />
                 <Row k="Sort Order" v={String(selected.sortOrder)} />
                 <Row k="Type"       v={selected.planType === "USER" ? "Normal User" : "Enterprise"} />
                 <Row k="Plan ID"    v={<span className="text-xs font-mono">{selected.id}</span>} />
@@ -551,10 +602,24 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  required,
+  hint,
+}: {
+  label: string;
+  children: React.ReactNode;
+  required?: boolean;
+  hint?: string;
+}) {
   return (
-    <div className="space-y-1">
-      <label className="text-xs font-medium text-text-muted">{label}</label>
+    <div className="space-y-1.5">
+      <label className="flex items-center gap-1.5 text-xs font-semibold text-text-secondary">
+        {label}
+        {required && <span className="text-red-500">*</span>}
+        {hint && <span className="font-normal text-text-muted">({hint})</span>}
+      </label>
       {children}
     </div>
   );
@@ -568,7 +633,7 @@ function PlanFormModal({
   onClose,
   onSaved,
 }: {
-  planType: "USER" | "ENTERPRISE";
+  planType: PlanType;
   initial?: BillingPlan;
   onClose: () => void;
   onSaved: (plan: BillingPlan) => Promise<void>;
@@ -580,38 +645,45 @@ function PlanFormModal({
   const [form, setForm] = useState<FormState>({
     name:         initial?.name         ?? "",
     planType,
+    planCategory: initial?.planCategory ?? "VALIDITY_BASED",
     price:        initial?.price        ?? 0,
     currency:     initial?.currency     ?? "INR",
     credits:      initial?.credits      ?? 1000,
     validityDays: initial?.validityDays ?? 30,
+    description:  initial?.description  ?? "",
     features:     initial?.features     ?? [],
     isActive:     initial?.isActive     ?? true,
     isPopular:    initial?.isPopular    ?? false,
     sortOrder:    initial?.sortOrder    ?? 0,
   });
 
+  const isTopup = form.planCategory === "TOPUP";
+
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState("");
 
   function handleNum(field: "price" | "credits" | "validityDays", raw: string) {
     const n = parseInt(raw.replace(/\D/g, ""), 10);
-    setForm((p) => ({ ...p, [field]: isNaN(n) ? 0 : n }));
+    setForm((p) => ({ ...p, [field]: isNaN(n) ? (field === "validityDays" ? undefined : 0) : n }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim())            { setError("Plan name is required.");          return; }
-    if ((form.credits ?? 0) < 1)      { setError("Credits must be at least 1.");     return; }
-    if ((form.validityDays ?? 0) < 1) { setError("Validity must be at least 1 day."); return; }
+    if (!form.name.trim())                            { setError("Plan name is required.");           return; }
+    if ((form.credits ?? 0) < 1)                      { setError("Credits must be at least 1.");      return; }
+    if (!isTopup && (form.validityDays ?? 0) < 1)    { setError("Validity must be at least 1 day."); return; }
     setSaving(true);
     setError("");
     try {
       let saved: BillingPlan;
+      const payload = {
+        ...form,
+        validityDays: isTopup ? null : (form.validityDays ?? 30),
+      };
       if (isEdit && initial) {
-        const payload: UpdatePlanPayload = { ...form };
-        saved = await plansService.update(initial.id, payload);
+        saved = await plansService.update(initial.id, payload as UpdatePlanPayload);
       } else {
-        saved = await plansService.create(form);
+        saved = await plansService.create(payload as CreatePlanPayload);
       }
       await onSaved(saved);
     } catch {
@@ -621,126 +693,244 @@ function PlanFormModal({
     }
   }
 
-  const typeLabel = planType === "USER" ? "Normal User" : "Enterprise";
+  const typeLabel = form.planType === "USER" ? "Normal User" : "Enterprise";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px] p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[92vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="shrink-0 flex items-start justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <h2 className="text-base font-semibold text-text-primary">
-              {isEdit ? "Edit" : "Create"} {typeLabel} Plan
+            <h2 className="text-lg font-bold text-text-primary">
+              {isEdit ? "Edit Plan" : "Create New Plan"}
             </h2>
             <p className="text-xs text-text-muted mt-0.5">
-              Type: <span className="font-medium text-primary-600">{typeLabel}</span>
+              Audience: <span className="font-semibold text-primary-600">{typeLabel}</span>
+              {form.planCategory === "TOPUP" && (
+                <> · <span className="font-semibold text-purple-600">Topup</span></>
+              )}
             </p>
           </div>
-          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100">
-            <X className="w-4 h-4" />
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-4 h-4 text-text-muted" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <Field label="Plan Name">
-            <input
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              placeholder={planType === "USER" ? "e.g. Pro Plan" : "e.g. Enterprise Basic"}
-              required
-            />
-          </Field>
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 overflow-y-auto px-6 py-5 space-y-6 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent]"
+        >
+          {/* ── Section 1 — Basics ── */}
+          <section className="space-y-4">
+            <SectionHeader title="Plan details" />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Price">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-text-muted">
-                  {form.currency}
-                </span>
+            <Field label="Plan Name" required>
+              <input
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-colors"
+                value={form.name}
+                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                placeholder={form.planType === "USER" ? "e.g. Pro Plan" : "e.g. Enterprise Basic"}
+                required
+              />
+            </Field>
+
+            <Field label="Target Audience">
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { value: "USER"       as PlanType, label: "Normal User",  desc: "For individual customers" },
+                  { value: "ENTERPRISE" as PlanType, label: "Enterprise",   desc: "For team/org accounts" },
+                ] as const).map(({ value, label, desc }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, planType: value }))}
+                    className={`rounded-lg border px-3 py-2.5 text-left transition-all ${
+                      form.planType === value
+                        ? "border-primary-500 bg-primary-50 ring-1 ring-primary-500/20"
+                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className={`text-xs font-semibold ${form.planType === value ? "text-primary-700" : "text-text-primary"}`}>
+                      {label}
+                    </div>
+                    <div className="text-[10px] text-text-muted mt-0.5">{desc}</div>
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Description" hint="optional">
+              <textarea
+                rows={2}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-colors resize-y"
+                value={form.description ?? ""}
+                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                placeholder="Short marketing copy shown on the plan card"
+                maxLength={2000}
+              />
+            </Field>
+          </section>
+
+          {/* ── Section 2 — Plan Category ── */}
+          <section className="space-y-3">
+            <SectionHeader title="Plan category" />
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { value: "VALIDITY_BASED" as PlanCategory, label: "Validity-Based", desc: "Fixed credits with expiry days" },
+                { value: "TOPUP"          as PlanCategory, label: "Topup",          desc: "Extra credits added to active plan" },
+              ] as const).map(({ value, label, desc }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setForm((p) => ({
+                    ...p,
+                    planCategory: value,
+                    validityDays: value === "TOPUP" ? undefined : (p.validityDays ?? 30),
+                  }))}
+                  className={`rounded-lg border px-3 py-2.5 text-left transition-all ${
+                    form.planCategory === value
+                      ? "border-primary-500 bg-primary-50 ring-1 ring-primary-500/20"
+                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <div className={`text-xs font-semibold ${form.planCategory === value ? "text-primary-700" : "text-text-primary"}`}>
+                    {label}
+                  </div>
+                  <div className="text-[10px] text-text-muted mt-0.5">{desc}</div>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* ── Section 3 — Pricing ── */}
+          <section className="space-y-4">
+            <SectionHeader title="Pricing & credits" />
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <Field label="Price">
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-text-muted pointer-events-none">
+                      {form.currency || "INR"}
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      className="w-full border border-gray-200 rounded-lg pl-14 pr-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-colors"
+                      value={form.price === 0 ? "" : String(form.price)}
+                      onChange={(e) => handleNum("price", e.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                </Field>
+              </div>
+              <Field label="Currency">
+                <input
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-colors uppercase"
+                  value={form.currency}
+                  onChange={(e) => setForm((p) => ({ ...p, currency: e.target.value.toUpperCase() }))}
+                  placeholder="INR"
+                  maxLength={5}
+                />
+              </Field>
+            </div>
+
+            <div className={`grid gap-3 ${isTopup ? "grid-cols-1" : "grid-cols-2"}`}>
+              <Field label="Credits">
                 <input
                   type="text"
                   inputMode="numeric"
-                  className="w-full border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  value={form.price === 0 ? "" : String(form.price)}
-                  onChange={(e) => handleNum("price", e.target.value)}
-                  placeholder="0"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-colors"
+                  value={form.credits === 0 ? "" : String(form.credits)}
+                  onChange={(e) => handleNum("credits", e.target.value)}
+                  placeholder="e.g. 10000"
                 />
-              </div>
-            </Field>
-            <Field label="Currency">
-              <input
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                value={form.currency}
-                onChange={(e) => setForm((p) => ({ ...p, currency: e.target.value }))}
-                placeholder="INR"
-              />
-            </Field>
-          </div>
+              </Field>
+              {!isTopup && (
+                <Field label="Validity (days)">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-colors"
+                    value={!form.validityDays || form.validityDays === 0 ? "" : String(form.validityDays)}
+                    onChange={(e) => handleNum("validityDays", e.target.value)}
+                    placeholder="e.g. 30"
+                  />
+                </Field>
+              )}
+            </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Credits">
-              <input
-                type="text"
-                inputMode="numeric"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                value={form.credits === 0 ? "" : String(form.credits)}
-                onChange={(e) => handleNum("credits", e.target.value)}
-                placeholder="e.g. 10000"
-              />
-            </Field>
-            <Field label="Validity (days)">
-              <input
-                type="text"
-                inputMode="numeric"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                value={form.validityDays === 0 ? "" : String(form.validityDays)}
-                onChange={(e) => handleNum("validityDays", e.target.value)}
-                placeholder="e.g. 30"
-              />
-            </Field>
-          </div>
+            {isTopup && (
+              <p className="text-[11px] text-text-muted bg-purple-50 border border-purple-100 rounded-lg px-3 py-2">
+                Topup credits inherit expiry from the customer&apos;s active base plan.
+                Validity days are not required.
+              </p>
+            )}
+          </section>
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={form.isActive}
-                onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))}
-                className="rounded border-gray-300"
-              />
-              <label htmlFor="isActive" className="text-sm text-text-secondary">
-                Active (visible to users)
+          {/* ── Section 4 — Visibility ── */}
+          <section className="space-y-3">
+            <SectionHeader title="Visibility" />
+            <div className="space-y-2.5 rounded-lg border border-gray-100 bg-gray-50/50 p-3">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.isActive}
+                  onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))}
+                  className="mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <div>
+                  <div className="text-sm font-medium text-text-primary">Active</div>
+                  <div className="text-[11px] text-text-muted">Visible to users on the billing page</div>
+                </div>
+              </label>
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.isPopular}
+                  onChange={(e) => setForm((p) => ({ ...p, isPopular: e.target.checked }))}
+                  className="mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <div>
+                  <div className="text-sm font-medium text-text-primary">Mark as Most Popular</div>
+                  <div className="text-[11px] text-amber-600">Replaces the current popular plan for this audience</div>
+                </div>
               </label>
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="isPopular"
-                checked={form.isPopular}
-                onChange={(e) => setForm((p) => ({ ...p, isPopular: e.target.checked }))}
-                className="rounded border-gray-300"
-              />
-              <label htmlFor="isPopular" className="text-sm text-text-secondary">
-                Mark as Most Popular <span className="text-amber-600">(replaces existing popular plan)</span>
-              </label>
+          </section>
+
+          {error && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+              {error}
             </div>
-          </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <div className="flex gap-2 pt-2">
-            <Button type="button" variant="secondary" size="sm" className="flex-1" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" size="sm" className="flex-1" disabled={saving}>
-              {saving
-                ? <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-                : isEdit ? "Save Changes" : `Create ${typeLabel} Plan`}
-            </Button>
-          </div>
+          )}
         </form>
+
+        {/* Footer */}
+        <div className="shrink-0 border-t border-gray-100 px-6 py-3 flex gap-2 justify-end bg-white">
+          <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" size="sm" disabled={saving} onClick={handleSubmit as unknown as React.MouseEventHandler<HTMLButtonElement>}>
+            {saving
+              ? <><Loader2 className="w-4 h-4 animate-spin mr-1.5" />Saving…</>
+              : isEdit ? "Save Changes" : "Create Plan"}
+          </Button>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <h3 className="text-[11px] font-bold text-text-muted uppercase tracking-wider">{title}</h3>
+      <div className="flex-1 h-px bg-gray-100" />
     </div>
   );
 }

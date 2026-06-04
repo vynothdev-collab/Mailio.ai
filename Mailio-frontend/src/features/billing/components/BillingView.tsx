@@ -12,7 +12,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/src/components/layout/PageHeader";
 import { cn } from "@/src/lib/utils";
 import { useAuth } from "@/src/hooks/useAuth";
-import { billingService, type BillingPlan } from "@/src/services/billingService";
+import {
+  billingService,
+  type BillingPlan,
+  type CurrentSubscription,
+} from "@/src/services/billingService";
 import { usageService } from "@/src/services/usageService";
 import type { UsageQuotaDto } from "@/src/types/usage";
 import { BillingHistoryTable } from "./BillingHistoryTable";
@@ -69,6 +73,7 @@ export function BillingView() {
 
   const [plans,        setPlans]        = useState<BillingPlan[]>([]);
   const [quota,        setQuota]        = useState<UsageQuotaDto | null>(null);
+  const [subscription, setSubscription] = useState<CurrentSubscription | null>(null);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [loadingQuota, setLoadingQuota] = useState(true);
   const [confirmPlan,  setConfirmPlan]  = useState<BillingPlan | null>(null);
@@ -85,16 +90,34 @@ export function BillingView() {
       .finally(() => setLoadingQuota(false));
   }, []);
 
+  const refreshSubscription = () => {
+    billingService.getCurrentSubscription()
+      .then(setSubscription)
+      .catch(() => setSubscription(null));
+  };
+  useEffect(refreshSubscription, []);
+
+  const hasActiveBase = !!subscription?.activeBase;
+
   function scrollToPlans() {
     plansRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function handleActivated(plan: BillingPlan) {
-    toast.success(`${plan.name} activated!`, {
-      description: `${plan.credits.toLocaleString()} credits added to your account.`,
-    });
+    const wasTopup = plan.planCategory === "TOPUP";
+    toast.success(
+      wasTopup
+        ? `${plan.name} added!`
+        : `${plan.name} activated!`,
+      {
+        description: wasTopup
+          ? `${plan.credits.toLocaleString()} extra credits added to your active plan.`
+          : `${plan.credits.toLocaleString()} credits added to your account.`,
+      },
+    );
     const fresh = await usageService.getQuota().catch(() => quota);
     setQuota(fresh);
+    refreshSubscription();
   }
 
   const loading = loadingPlans || loadingQuota;
@@ -206,6 +229,69 @@ export function BillingView() {
           </div>
         )}
 
+        {/* ── Subscription card (active + queued) ── */}
+        {subscription && (subscription.activeBase || subscription.queued.length > 0) && (
+          <Card className="rounded-2xl border border-border/70 shadow-sm">
+            <CardContent className="pt-5 pb-5 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h2 className="text-sm font-bold">Your Subscription</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Active and upcoming plans, in order.
+                  </p>
+                </div>
+                {subscription.totals.expiresAt && (
+                  <span className="text-xs text-muted-foreground">
+                    Active until <strong>{formatDate(subscription.totals.expiresAt)}</strong>
+                  </span>
+                )}
+              </div>
+
+              {subscription.activeBase && (
+                <div className="rounded-xl border border-primary/30 bg-primary/[0.03] p-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="text-sm font-semibold">
+                      <span className="text-primary">Active:</span> {subscription.activeBase.planName}
+                    </p>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {subscription.activeBase.remainingCredits.toLocaleString()} /{" "}
+                      {subscription.activeBase.totalCredits.toLocaleString()} credits left
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formatDate(subscription.activeBase.startDate)}
+                    {subscription.activeBase.endDate && ` → ${formatDate(subscription.activeBase.endDate)}`}
+                  </p>
+                </div>
+              )}
+
+              {subscription.activeTopups.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  +{" "}
+                  {subscription.activeTopups.length} active top-up{subscription.activeTopups.length > 1 ? "s" : ""} —{" "}
+                  {subscription.activeTopups.reduce((s, t) => s + t.remainingCredits, 0).toLocaleString()} extra credits
+                </div>
+              )}
+
+              {subscription.queued.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Queued plans
+                  </p>
+                  {subscription.queued.map((q) => (
+                    <div key={q.id} className="rounded-lg border border-border bg-muted/30 px-3 py-2 flex items-center justify-between text-xs">
+                      <span className="font-medium">{q.planName}</span>
+                      <span className="text-muted-foreground">
+                        Starts {formatDate(q.startDate)} • {q.totalCredits.toLocaleString()} credits
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* ── Choose Your Plan ── */}
         <div ref={plansRef} className="space-y-5">
           <div className="flex items-start justify-between flex-wrap gap-2">
@@ -309,7 +395,7 @@ export function BillingView() {
                               </span>
                             </div>
                             <p className="text-xs font-semibold text-foreground mt-2">
-                              {plan.credits.toLocaleString()} credits • {plan.validityDays} days validity
+                              {plan.credits.toLocaleString()} credits{plan.planCategory === "TOPUP" ? " • adds to existing plan" : plan.validityDays ? ` • ${plan.validityDays} days validity` : ""}
                               <span className="font-normal text-muted-foreground"> (including GST)</span>
                             </p>
                           </>
@@ -333,34 +419,60 @@ export function BillingView() {
                       </ul>
 
                       {/* CTA */}
-                      {isCurrent ? (
-                        <div className="flex items-center justify-center gap-2 rounded-xl border-2 border-primary/20 bg-primary/5 py-2.5 text-xs font-semibold text-primary">
-                          <Check size={13} />
-                          Current Plan
-                        </div>
-                      ) : isEnterprise ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full text-xs h-10 rounded-xl font-semibold"
-                          onClick={() => toast.info("Contact our sales team at sales@emailanswers.ai")}
-                        >
-                          Contact Sales
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          className={cn(
-                            "w-full text-xs h-10 rounded-xl font-semibold",
-                            isPopular
-                              ? "gradient-brand border-0 text-white hover:opacity-90 shadow-md shadow-primary/20"
-                              : "bg-primary text-white hover:bg-primary/90",
-                          )}
-                          onClick={() => setConfirmPlan(plan)}
-                        >
-                          {isPopular ? `Get ${plan.name}` : `Upgrade to ${plan.name}`}
-                        </Button>
-                      )}
+                      {(() => {
+                        const isTopup = plan.planCategory === "TOPUP";
+                        const blocked = isTopup && !hasActiveBase;
+
+                        if (isCurrent && !isTopup) {
+                          return (
+                            <div className="flex items-center justify-center gap-2 rounded-xl border-2 border-primary/20 bg-primary/5 py-2.5 text-xs font-semibold text-primary">
+                              <Check size={13} />
+                              Current Plan
+                            </div>
+                          );
+                        }
+                        if (isEnterprise) {
+                          return (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full text-xs h-10 rounded-xl font-semibold"
+                              onClick={() => toast.info("Contact our sales team at sales@emailanswers.ai")}
+                            >
+                              Contact Sales
+                            </Button>
+                          );
+                        }
+                        return (
+                          <div className="space-y-1.5">
+                            <Button
+                              size="sm"
+                              disabled={blocked}
+                              className={cn(
+                                "w-full text-xs h-10 rounded-xl font-semibold",
+                                blocked
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : isPopular
+                                    ? "gradient-brand border-0 text-white hover:opacity-90 shadow-md shadow-primary/20"
+                                    : "bg-primary text-white hover:bg-primary/90",
+                              )}
+                              onClick={() => !blocked && setConfirmPlan(plan)}
+                            >
+                              {isTopup ? `Add ${plan.name}` : isPopular ? `Get ${plan.name}` : `Upgrade to ${plan.name}`}
+                            </Button>
+                            {isTopup && (
+                              <p className={cn(
+                                "text-[10px] text-center",
+                                blocked ? "text-amber-600" : "text-muted-foreground",
+                              )}>
+                                {blocked
+                                  ? "Requires an active plan first."
+                                  : "Top-up credits expire with your current plan."}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 );

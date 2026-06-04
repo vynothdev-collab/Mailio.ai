@@ -1,14 +1,27 @@
 import {
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
+/**
+ * Audience that a plan is offered to. `BOTH` lets a single plan be shown to
+ * normal users and enterprise admins simultaneously.
+ *
+ * NOTE: the underlying DB column is still `plan_type` for backward compat.
+ */
 export enum BillingPlanType {
   USER = 'USER',
   ENTERPRISE = 'ENTERPRISE',
+  BOTH = 'BOTH',
+}
+
+export enum PlanCategory {
+  VALIDITY_BASED = 'VALIDITY_BASED',
+  TOPUP = 'TOPUP',
 }
 
 @Entity('billing_plans')
@@ -19,8 +32,17 @@ export class BillingPlan {
   @Column({ type: 'varchar', length: 100 })
   name: string;
 
+  /** Audience: USER | ENTERPRISE | BOTH. Column stays `plan_type` for compat. */
   @Column({ name: 'plan_type', type: 'enum', enum: BillingPlanType })
   planType: BillingPlanType;
+
+  @Column({
+    name: 'plan_category',
+    type: 'enum',
+    enum: PlanCategory,
+    default: PlanCategory.VALIDITY_BASED,
+  })
+  planCategory: PlanCategory = PlanCategory.VALIDITY_BASED;
 
   @Column({ type: 'int', default: 0 })
   price: number;
@@ -31,8 +53,12 @@ export class BillingPlan {
   @Column({ type: 'int' })
   credits: number;
 
-  @Column({ name: 'validity_days', type: 'int' })
-  validityDays: number;
+  /** Required for VALIDITY_BASED. NULL for TOPUP (inherits parent expiry). */
+  @Column({ name: 'validity_days', type: 'int', nullable: true })
+  validityDays: number | null;
+
+  @Column({ type: 'text', nullable: true })
+  description!: string | null;
 
   @Column({ type: 'simple-array', nullable: true })
   features: string[];
@@ -54,4 +80,7 @@ export class BillingPlan {
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
+
+  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deletedAt!: Date | null;
 }

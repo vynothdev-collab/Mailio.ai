@@ -8,8 +8,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { Enterprise } from '../enterprises/entities/enterprise.entity';
 import { User, UserRole } from '../users/entities/user.entity';
-import { BillingPlan } from '../billing-plans/entities/billing-plan.entity';
+import {
+  BillingPlan,
+  PlanCategory,
+} from '../billing-plans/entities/billing-plan.entity';
 import { CreditsService } from '../credits/credits.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 export interface UserCreditRow {
   id: string;
@@ -23,10 +27,10 @@ export interface UserCreditRow {
 
 export interface EnterpriseCreditSummary {
   totalPurchased: number;
-  enterprisePool: number;   // current live credit_balance on the enterprise
-  totalAllocated: number;   // sum of all enterprise-user creditLimits
-  totalUsed: number;        // sum of all enterprise-user creditsUsed
-  adminUsable: number;      // enterprisePool - totalAllocated
+  enterprisePool: number; // current live credit_balance on the enterprise
+  totalAllocated: number; // sum of all enterprise-user creditLimits
+  totalUsed: number; // sum of all enterprise-user creditsUsed
+  adminUsable: number; // enterprisePool - totalAllocated
   expiresAt: Date | null;
   daysRemaining: number | null;
   users: UserCreditRow[];
@@ -45,11 +49,14 @@ export class EnterpriseCreditsService {
     private readonly planRepo: Repository<BillingPlan>,
     private readonly dataSource: DataSource,
     private readonly creditsService: CreditsService,
+    private readonly subscriptions: SubscriptionsService,
   ) {}
 
   // ── Credit Summary ────────────────────────────────────────────────────────
 
-  async getCreditSummary(enterpriseId: string): Promise<EnterpriseCreditSummary> {
+  async getCreditSummary(
+    enterpriseId: string,
+  ): Promise<EnterpriseCreditSummary> {
     const enterprise = await this.enterpriseRepo.findOne({
       where: { id: enterpriseId, deletedAt: IsNull() },
     });
@@ -64,10 +71,7 @@ export class EnterpriseCreditsService {
       (s, u) => s + Number(u.creditLimit ?? 0),
       0,
     );
-    const totalUsed = users.reduce(
-      (s, u) => s + Number(u.creditsUsed ?? 0),
-      0,
-    );
+    const totalUsed = users.reduce((s, u) => s + Number(u.creditsUsed ?? 0), 0);
     const enterprisePool = Number(enterprise.creditBalance);
 
     const daysRemaining = enterprise.creditExpiresAt
@@ -123,7 +127,11 @@ export class EnterpriseCreditsService {
         where: { id: enterpriseId, deletedAt: IsNull() },
       }),
       this.userRepo.findOne({
-        where: { id: targetUserId, enterpriseId, role: UserRole.ENTERPRISE_USER },
+        where: {
+          id: targetUserId,
+          enterpriseId,
+          role: UserRole.ENTERPRISE_USER,
+        },
       }),
     ]);
 
@@ -138,7 +146,10 @@ export class EnterpriseCreditsService {
     }
 
     // Sum of allocations for OTHER enterprise users (exclude this user's current limit).
-    const otherAllocated = await this.sumOtherAllocations(enterpriseId, targetUserId);
+    const otherAllocated = await this.sumOtherAllocations(
+      enterpriseId,
+      targetUserId,
+    );
     const enterprisePool = Number(enterprise.creditBalance);
 
     const available = enterprisePool - otherAllocated;
@@ -149,7 +160,7 @@ export class EnterpriseCreditsService {
     }
 
     await this.userRepo.update(targetUserId, {
-      creditLimit: String(amount) as unknown as null,
+      creditLimit: String(amount),
     });
 
     this.logger.log(
@@ -160,10 +171,10 @@ export class EnterpriseCreditsService {
   // ── Plan Purchase + Renewal ───────────────────────────────────────────────
 
   /**
-   * Enterprise Admin purchases a plan.
-   * Returns needsReallocation=true when the new credit amount differs from the
-   * previous cycle and users already have allocations — the frontend must then
-   * show the re-allocation modal.
+   * Enterprise Admin purchases a plan. Delegates the heavy lifting to
+   * SubscriptionsService (which handles ACTIVE/QUEUED state and the live
+   * balance) while preserving the existing reallocation modal flow as a
+   * pre-purchase guard when stale user allocations would otherwise be lost.
    */
   async purchasePlan(
     enterprise: Enterprise,
@@ -181,28 +192,45 @@ export class EnterpriseCreditsService {
       used: number;
     }>;
   }> {
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + plan.validityDays);
+    void actorId;
+
+    // ── TOPUP — delegate, never triggers reallocation. ───────────────────────
+    if (plan.planCategory === PlanCategory.TOPUP) {
+      const sub = await this.subscriptions.purchaseTopupForEnterprise(
+        enterprise.id,
+        plan.id,
+      );
+      const fresh = await this.enterpriseRepo.findOne({
+        where: { id: enterprise.id },
+      });
+      return {
+        needsReallocation: false,
+        creditBalance: Number(fresh?.creditBalance ?? 0),
+        expiresAt: sub.endDate ?? new Date(),
+      };
+    }
+
+    // ── VALIDITY_BASED ───────────────────────────────────────────────────────
+    const now = new Date();
+    const hasActiveExpiry =
+      enterprise.creditExpiresAt !== null && enterprise.creditExpiresAt > now;
 
     const enterpriseUsers = await this.userRepo.find({
       where: { enterpriseId: enterprise.id, role: UserRole.ENTERPRISE_USER },
       order: { name: 'ASC' },
     });
 
-    const prevPurchased = Number(enterprise.totalPurchasedCredits ?? 0);
     const hasExistingAllocations = enterpriseUsers.some(
       (u) => u.creditLimit !== null,
     );
-    const sameAmount = prevPurchased > 0 && prevPurchased === plan.credits;
 
-    if (sameAmount && hasExistingAllocations) {
-      // Auto-renew: keep existing allocations, reset usage, extend expiry.
-      await this.applyRenewal(enterprise.id, plan.credits, expiresAt, enterpriseUsers, true);
-      return { needsReallocation: false, creditBalance: plan.credits, expiresAt };
-    }
-
-    if (hasExistingAllocations) {
-      // Different credit amount with existing allocations → need re-allocation.
+    // Legacy fallback: when the previous cycle expired but admin still has
+    // user allocations sitting on the table, show the reallocation modal so
+    // they can redistribute under the new pool before we activate it.
+    if (!hasActiveExpiry && hasExistingAllocations) {
+      const validityDays = plan.validityDays ?? 30;
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + validityDays);
       return {
         needsReallocation: true,
         creditBalance: plan.credits,
@@ -217,9 +245,19 @@ export class EnterpriseCreditsService {
       };
     }
 
-    // No existing allocations — just set the enterprise pool and expiry.
-    await this.applyRenewal(enterprise.id, plan.credits, expiresAt, [], false);
-    return { needsReallocation: false, creditBalance: plan.credits, expiresAt };
+    // Normal path: subscription service handles ACTIVE vs QUEUED placement.
+    const sub = await this.subscriptions.purchaseValidityPlanForEnterprise(
+      enterprise.id,
+      plan.id,
+    );
+    const fresh = await this.enterpriseRepo.findOne({
+      where: { id: enterprise.id },
+    });
+    return {
+      needsReallocation: false,
+      creditBalance: Number(fresh?.creditBalance ?? 0),
+      expiresAt: sub.endDate ?? new Date(),
+    };
   }
 
   /**
@@ -232,8 +270,11 @@ export class EnterpriseCreditsService {
     allocations: Array<{ userId: string; amount: number }>,
     actorId: string,
   ): Promise<{ creditBalance: number; expiresAt: Date }> {
+    void actorId;
     const [enterprise, plan] = await Promise.all([
-      this.enterpriseRepo.findOne({ where: { id: enterpriseId, deletedAt: IsNull() } }),
+      this.enterpriseRepo.findOne({
+        where: { id: enterpriseId, deletedAt: IsNull() },
+      }),
       this.planRepo.findOne({ where: { id: planId, isActive: true } }),
     ]);
     if (!enterprise) throw new NotFoundException('Enterprise not found.');
@@ -264,22 +305,45 @@ export class EnterpriseCreditsService {
       }
     }
 
+    const validityDays = plan.validityDays ?? 30;
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + plan.validityDays);
+    expiresAt.setDate(expiresAt.getDate() + validityDays);
 
     const enterpriseUsers = await this.userRepo.find({
       where: { enterpriseId, role: UserRole.ENTERPRISE_USER },
     });
 
-    await this.applyRenewal(enterpriseId, plan.credits, expiresAt, enterpriseUsers, false, allocations);
+    await this.applyRenewal(
+      enterpriseId,
+      plan.credits,
+      expiresAt,
+      enterpriseUsers,
+      false,
+      allocations,
+    );
+
+    // Mirror this purchase in the subscription system so expiry/queue logic
+    // sees the record alongside the legacy reallocation flow.
+    await this.subscriptions
+      .purchaseValidityPlanForEnterprise(enterpriseId, planId)
+      .catch((err) => {
+        this.logger.warn(
+          `confirmReallocation: subscription mirror failed for enterprise=${enterpriseId} plan=${planId}: ${(err as Error).message}`,
+        );
+      });
+
     return { creditBalance: plan.credits, expiresAt };
   }
 
   // ── Expiry Reset ──────────────────────────────────────────────────────────
 
   /**
-   * Called by the credit-expiry job. Resets all expired enterprise credit
-   * cycles: enterprise pool → 0, user limits → NULL, usage counters → 0.
+   * Legacy safety-net for accounts that pre-date the subscription system.
+   *
+   * Hard guard: SKIPS any enterprise that has ANY row in `subscriptions`.
+   * Those accounts are owned by SubscriptionsService.expireAndActivate*,
+   * which runs first in the cron tick. This prevents double-removal of
+   * credits or wiping an enterprise that has a QUEUED plan ready to activate.
    */
   async processExpiredCredits(): Promise<void> {
     const now = new Date();
@@ -289,6 +353,9 @@ export class EnterpriseCreditsService {
       .where('e.credit_expires_at IS NOT NULL')
       .andWhere('e.credit_expires_at <= :now', { now })
       .andWhere('e.deleted_at IS NULL')
+      .andWhere(
+        `NOT EXISTS (SELECT 1 FROM subscriptions s WHERE s.enterprise_id = e.id)`,
+      )
       .getMany();
 
     for (const enterprise of expired) {
@@ -328,11 +395,46 @@ export class EnterpriseCreditsService {
     }
 
     if (expired.length > 0) {
-      this.logger.log(`Credit expiry job: reset ${expired.length} enterprise(s).`);
+      this.logger.log(
+        `Credit expiry job: reset ${expired.length} enterprise(s).`,
+      );
     }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  /**
+   * Stacking an active plan: add to the enterprise pool, extend expiry,
+   * keep existing user allocations, reset usage counters.
+   */
+  private async applyStackedRenewal(
+    enterpriseId: string,
+    newBalance: number,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.dataSource.transaction(async (em) => {
+      await em.query(
+        `UPDATE enterprises
+           SET credit_balance          = $1,
+               total_purchased_credits = total_purchased_credits + $1,
+               credits_used            = 0,
+               credit_expires_at       = $2,
+               updated_at              = now()
+         WHERE id = $3`,
+        [newBalance, expiresAt, enterpriseId],
+      );
+
+      await em.query(
+        `UPDATE users
+           SET credits_used      = 0,
+               credit_expires_at = $1,
+               updated_at        = now()
+         WHERE enterprise_id = $2
+           AND role IN ('ENTERPRISE_USER', 'ENTERPRISE_ADMIN')`,
+        [expiresAt, enterpriseId],
+      );
+    });
+  }
 
   private async sumOtherAllocations(
     enterpriseId: string,
@@ -395,7 +497,9 @@ export class EnterpriseCreditsService {
                    updated_at        = now()
              WHERE id = $3`,
             [
-              newLimit !== undefined && newLimit !== null ? String(newLimit) : null,
+              newLimit !== undefined && newLimit !== null
+                ? String(newLimit)
+                : null,
               expiresAt,
               user.id,
             ],

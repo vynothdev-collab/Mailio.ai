@@ -26,6 +26,10 @@ export enum CreditTransactionReason {
   BULK_VERIFY_RESERVE = 'BULK_VERIFY_RESERVE',
   BULK_VERIFY_REFUND = 'BULK_VERIFY_REFUND',
   PAYMENT = 'PAYMENT',
+  PLAN_PURCHASE = 'PLAN_PURCHASE',
+  TOPUP_PURCHASE = 'TOPUP_PURCHASE',
+  PLAN_ACTIVATED = 'PLAN_ACTIVATED',
+  SUBSCRIPTION_EXPIRY = 'SUBSCRIPTION_EXPIRY',
 }
 
 @Entity('credit_transactions')
@@ -62,14 +66,27 @@ export class CreditTransaction {
   @Column({ name: 'balance_after', type: 'bigint' })
   balanceAfter!: string;
 
-  @Column({ name: 'reference_type', type: 'varchar', length: 50, nullable: true })
+  @Column({
+    name: 'reference_type',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
   referenceType!: string | null;
 
-  @Column({ name: 'reference_id', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'reference_id',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   referenceId!: string | null;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
   description!: string | null;
+
+  @Column({ name: 'subscription_id', type: 'uuid', nullable: true })
+  subscriptionId!: string | null;
 
   @Column({ name: 'created_by_admin_id', type: 'uuid', nullable: true })
   createdByAdminId!: string | null;

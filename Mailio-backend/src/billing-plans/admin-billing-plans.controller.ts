@@ -63,9 +63,15 @@ export class AdminBillingPlansController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a billing plan' })
+  @ApiOperation({ summary: 'Soft-delete a billing plan' })
   async delete(@Param('id', ParseUUIDPipe) id: string) {
     await this.service.delete(id);
     return { success: true };
+  }
+
+  @Patch(':id/restore')
+  @ApiOperation({ summary: 'Restore a soft-deleted billing plan' })
+  restore(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.restore(id);
   }
 }

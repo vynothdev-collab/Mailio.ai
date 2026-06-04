@@ -23,6 +23,7 @@ import {
   PurchasePlanDto,
 } from './dto/allocate-user-credits.dto';
 import { EnterpriseCreditsService } from './enterprise-credits.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 @ApiTags('enterprise-credits')
 @ApiBearerAuth()
@@ -31,6 +32,7 @@ import { EnterpriseCreditsService } from './enterprise-credits.service';
 export class EnterpriseCreditsController {
   constructor(
     private readonly service: EnterpriseCreditsService,
+    private readonly subscriptions: SubscriptionsService,
     @InjectRepository(Enterprise)
     private readonly enterpriseRepo: Repository<Enterprise>,
     @InjectRepository(BillingPlan)
@@ -70,10 +72,7 @@ export class EnterpriseCreditsController {
   @Post('purchase')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Purchase a billing plan (Enterprise Admin)' })
-  async purchase(
-    @CurrentUser() user: User,
-    @Body() dto: PurchasePlanDto,
-  ) {
+  async purchase(@CurrentUser() user: User, @Body() dto: PurchasePlanDto) {
     this.assertEnterpriseAdmin(user);
 
     const [enterprise, plan] = await Promise.all([
@@ -99,6 +98,29 @@ export class EnterpriseCreditsController {
       dto.planId,
       dto.allocations,
       user.id,
+    );
+  }
+
+  @Post('topup')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Purchase a top-up plan for the enterprise' })
+  async topup(@CurrentUser() user: User, @Body() dto: PurchasePlanDto) {
+    this.assertEnterpriseAdmin(user);
+    const sub = await this.subscriptions.purchaseTopupForEnterprise(
+      user.enterpriseId!,
+      dto.planId,
+    );
+    return { success: true, subscription: sub };
+  }
+
+  @Get('subscription')
+  @ApiOperation({
+    summary: 'Current active + queued subscription view (enterprise)',
+  })
+  async getSubscription(@CurrentUser() user: User) {
+    this.assertEnterpriseAdmin(user);
+    return this.subscriptions.getCurrentSubscriptionForEnterprise(
+      user.enterpriseId!,
     );
   }
 }

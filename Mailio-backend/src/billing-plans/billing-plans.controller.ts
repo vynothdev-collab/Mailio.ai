@@ -1,6 +1,8 @@
 import {
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
@@ -11,7 +13,8 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { BillingPlansService } from './billing-plans.service';
 
 @ApiTags('billing')
@@ -19,7 +22,10 @@ import { BillingPlansService } from './billing-plans.service';
 @UseGuards(JwtAuthGuard)
 @Controller('billing')
 export class BillingPlansController {
-  constructor(private readonly service: BillingPlansService) {}
+  constructor(
+    private readonly service: BillingPlansService,
+    private readonly subscriptions: SubscriptionsService,
+  ) {}
 
   @Get('plans')
   @ApiOperation({ summary: 'List active plans available for this user role' })
@@ -27,13 +33,73 @@ export class BillingPlansController {
     return this.service.getActivePlans(user.role);
   }
 
+  /**
+   * BACKWARD-COMPATIBLE: existing clients hit /activate.
+   * Routes to the subscription system (validity or topup based on plan category).
+   */
   @Post('plans/:planId/activate')
-  @ApiOperation({ summary: 'Activate a plan and allocate its credits to user' })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Activate (purchase) a plan — kept for backward compatibility',
+  })
   activatePlan(
     @CurrentUser() user: User,
     @Param('planId', ParseUUIDPipe) planId: string,
   ) {
     return this.service.activatePlan(user, planId);
+  }
+
+  /** New explicit endpoint for purchasing a validity-based plan. */
+  @Post('plans/:planId/purchase')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Purchase a validity-based plan (queued if active plan exists)',
+  })
+  async purchaseValidityPlan(
+    @CurrentUser() user: User,
+    @Param('planId', ParseUUIDPipe) planId: string,
+  ) {
+    if (user.role === UserRole.ENTERPRISE_ADMIN && user.enterpriseId) {
+      const sub = await this.subscriptions.purchaseValidityPlanForEnterprise(
+        user.enterpriseId,
+        planId,
+      );
+      return { success: true, subscription: sub };
+    }
+    const sub = await this.subscriptions.purchaseValidityPlanForUser(
+      user.id,
+      planId,
+    );
+    return { success: true, subscription: sub };
+  }
+
+  /** New explicit endpoint for purchasing a topup plan. */
+  @Post('plans/:planId/topup')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Purchase a top-up plan (requires active base plan)',
+  })
+  async purchaseTopup(
+    @CurrentUser() user: User,
+    @Param('planId', ParseUUIDPipe) planId: string,
+  ) {
+    if (user.role === UserRole.ENTERPRISE_ADMIN && user.enterpriseId) {
+      const sub = await this.subscriptions.purchaseTopupForEnterprise(
+        user.enterpriseId,
+        planId,
+      );
+      return { success: true, subscription: sub };
+    }
+    const sub = await this.subscriptions.purchaseTopupForUser(user.id, planId);
+    return { success: true, subscription: sub };
+  }
+
+  @Get('subscription')
+  @ApiOperation({
+    summary: 'Current active + queued subscription info for this user',
+  })
+  getSubscription(@CurrentUser() user: User) {
+    return this.service.getCurrentSubscription(user);
   }
 
   @Get('history')

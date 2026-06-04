@@ -8,8 +8,13 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { Enterprise } from '../enterprises/entities/enterprise.entity';
-import { ENTERPRISE_ROLES, User, UserRole } from '../users/entities/user.entity';
+import {
+  ENTERPRISE_ROLES,
+  User,
+  UserRole,
+} from '../users/entities/user.entity';
 import {
   CreditAccountType,
   CreditTransaction,
@@ -68,6 +73,7 @@ export class CreditsService {
     private readonly dataSource: DataSource,
     @InjectRepository(CreditTransaction)
     private readonly txRepo: Repository<CreditTransaction>,
+    private readonly subscriptions: SubscriptionsService,
   ) {}
 
   /** Resolves the credit account the user draws from, without locking. */
@@ -117,6 +123,27 @@ export class CreditsService {
     const account = await this.getEffectiveAccount(user);
     if (account.balance < required) {
       throw new InsufficientCreditsException(required, account.balance);
+    }
+
+    // Expiry guard — expired credits should not be usable. The expiry cron
+    // normally zeroes the balance, but this catches the gap before the next tick.
+    await this.assertNotExpired(account.type, account.id);
+  }
+
+  private async assertNotExpired(
+    accountType: CreditAccountType,
+    accountId: string,
+  ): Promise<void> {
+    const table =
+      accountType === CreditAccountType.ENTERPRISE ? 'enterprises' : 'users';
+    const rows: { credit_expires_at: Date | null }[] =
+      await this.dataSource.query(
+        `SELECT credit_expires_at FROM "${table}" WHERE id = $1`,
+        [accountId],
+      );
+    const expiresAt = rows[0]?.credit_expires_at;
+    if (expiresAt && new Date(expiresAt) <= new Date()) {
+      throw new InsufficientCreditsException(1, 0);
     }
   }
 
@@ -335,17 +362,13 @@ export class CreditsService {
     if (amount <= 0) {
       throw new BadRequestException('Allocation amount must be positive.');
     }
-    return this.mutateByAccount(
-      CreditAccountType.ENTERPRISE,
-      enterpriseId,
-      {
-        type: CreditTransactionType.ALLOCATION,
-        reason: CreditTransactionReason.ADMIN_ALLOCATION,
-        delta: amount,
-        description: description ?? `Admin allocation: +${amount}`,
-        createdByAdminId: adminId,
-      },
-    );
+    return this.mutateByAccount(CreditAccountType.ENTERPRISE, enterpriseId, {
+      type: CreditTransactionType.ALLOCATION,
+      reason: CreditTransactionReason.ADMIN_ALLOCATION,
+      delta: amount,
+      description: description ?? `Admin allocation: +${amount}`,
+      createdByAdminId: adminId,
+    });
   }
 
   // ---------- Internal: locked mutation ----------
@@ -372,7 +395,11 @@ export class CreditsService {
       }
 
       // Enforce per-user credit limit for ENTERPRISE_USER before touching the pool.
-      if (user.role === UserRole.ENTERPRISE_USER && user.creditLimit !== null && opts.delta < 0) {
+      if (
+        user.role === UserRole.ENTERPRISE_USER &&
+        user.creditLimit !== null &&
+        opts.delta < 0
+      ) {
         const limit = Number(user.creditLimit);
         const used = Number(user.creditsUsed ?? 0);
         const wouldUse = used + Math.abs(opts.delta);
@@ -453,6 +480,25 @@ export class CreditsService {
         createdByUserId: opts.createdByUserId ?? null,
       });
       await em.save(tx);
+
+      // ATOMIC: subscription counter update commits with the live balance.
+      // If this throws, the live-balance change is rolled back too, so we
+      // never end up with `users.credit_balance` and `subscriptions.remaining_credits`
+      // out of sync. Locks: user/enterprise row already held FOR UPDATE; we
+      // then acquire row locks on the affected subscription rows. Lock order
+      // is deterministic (account → subs) so no deadlocks.
+      if (
+        opts.delta < 0 &&
+        (opts.type === CreditTransactionType.DEDUCTION ||
+          opts.type === CreditTransactionType.RESERVATION)
+      ) {
+        await this.subscriptions.recordDeduction(
+          accountType,
+          accountId,
+          Math.abs(opts.delta),
+          em,
+        );
+      }
 
       return { balanceAfter };
     });

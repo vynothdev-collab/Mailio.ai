@@ -8,6 +8,7 @@ import { AdminAuthModule } from './admin-auth/admin-auth.module';
 import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
 import { AdminCreditsModule } from './admin-credits/admin-credits.module';
 import { BillingPlansModule } from './billing-plans/billing-plans.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { AdminEnterprisesModule } from './admin-enterprises/admin-enterprises.module';
 import { EnterpriseCreditsModule } from './enterprise-credits/enterprise-credits.module';
 import { AdminUsersModule } from './admin-users/admin-users.module';
@@ -99,6 +100,7 @@ import { VerifyModule } from './verify/verify.module';
     AdminUsersModule,
     AdminEnterprisesModule,
     AdminCreditsModule,
+    SubscriptionsModule,
     BillingPlansModule,
     EnterpriseCreditsModule,
   ],
