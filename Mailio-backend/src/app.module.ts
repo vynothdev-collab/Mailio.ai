@@ -6,6 +6,7 @@ import { AdminModule } from './admin/admin.module';
 import { AdminActivityLogsModule } from './admin-activity-logs/admin-activity-logs.module';
 import { AdminAuthModule } from './admin-auth/admin-auth.module';
 import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
+import { AdminReportsModule } from './admin-reports/admin-reports.module';
 import { AdminCreditsModule } from './admin-credits/admin-credits.module';
 import { BillingPlansModule } from './billing-plans/billing-plans.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
@@ -96,6 +97,7 @@ import { VerifyModule } from './verify/verify.module';
     AdminModule,
     AdminAuthModule,
     AdminDashboardModule,
+    AdminReportsModule,
     AdminActivityLogsModule,
     AdminUsersModule,
     AdminEnterprisesModule,
