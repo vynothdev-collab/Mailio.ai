@@ -90,6 +90,19 @@ export interface AdminTicketDetail {
   } | null;
   enterprise: { id: string; name: string; creditBalance: string } | null;
   messages: TicketMessage[];
+  attachments: TicketAttachment[];
+}
+
+export interface TicketAttachment {
+  id:           string;
+  fileName:     string;
+  originalName: string;
+  mimeType:     string;
+  fileType:     "image" | "video";
+  sizeBytes:    number;
+  viewUrl:      string;
+  downloadUrl:  string;
+  createdAt:    string;
 }
 
 export interface TicketStats {
@@ -152,4 +165,9 @@ export const adminTicketsService = {
 
   remove: (id: string) =>
     apiService.delete<{ success: boolean }>(`/admin/tickets/${id}`),
+
+  removeAttachment: (ticketId: string, attachmentId: string) =>
+    apiService.delete<{ success: boolean }>(
+      `/admin/tickets/${ticketId}/attachments/${attachmentId}`,
+    ),
 };

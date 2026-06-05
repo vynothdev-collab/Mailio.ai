@@ -123,4 +123,36 @@ export class S3StorageService implements OnModuleDestroy {
       { expiresIn: SIGNED_URL_EXPIRY_SECONDS },
     );
   }
+
+  /**
+   * Short-lived presigned URL that forces the browser to download the file
+   * with the supplied original filename via `Content-Disposition: attachment`.
+   *
+   * The filename is emitted twice for maximum browser compatibility:
+   *  - `filename="…"` — ASCII fallback with quotes/CR/LF/backslash stripped.
+   *  - `filename*=UTF-8''…` — RFC 5987 percent-encoded form for spaces,
+   *    quotes, and any non-ASCII characters. Modern browsers prefer this one.
+   */
+  async getSignedDownloadUrl(key: string, filename: string): Promise<string> {
+    if (!this.bucket || !key) return '';
+    const safe = filename || 'download';
+    // Fallback: strip everything that would break the header parser, then
+    // replace anything outside printable ASCII with `_`.
+    const ascii =
+      safe
+        .replace(/[\r\n"\\]/g, '')
+        .replace(/[^\x20-\x7E]/g, '_')
+        .slice(0, 200) || 'download';
+    // RFC 5987: percent-encode so spaces, accents, emoji etc. survive.
+    const encoded = encodeURIComponent(safe);
+    return getSignedUrl(
+      this.client,
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ResponseContentDisposition: `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`,
+      }),
+      { expiresIn: SIGNED_URL_EXPIRY_SECONDS },
+    );
+  }
 }

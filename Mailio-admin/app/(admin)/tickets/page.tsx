@@ -22,6 +22,7 @@ import {
   type TicketStatus,
   type TicketType,
 } from "@/services/tickets.service";
+import { TicketAttachments } from "./TicketAttachments";
 
 // ─── Display maps ────────────────────────────────────────────────────────────
 
@@ -467,6 +468,7 @@ export default function TicketsPage() {
               sending={sending}
               onSend={sendReply}
               onClose={() => setSelectedId(null)}
+              onReload={syncAfterMutation}
               onChangeStatus={changeStatus}
               onChangePriority={changePriority}
               onDelete={deleteTicket}
@@ -782,7 +784,7 @@ function Drawer({ children, onClose }: { children: React.ReactNode; onClose: () 
 }
 
 function TicketDetailView({
-  detail, reply, setReply, sending, onSend, onClose,
+  detail, reply, setReply, sending, onSend, onClose, onReload,
   onChangeStatus, onChangePriority, onDelete,
 }: {
   detail: AdminTicketDetail;
@@ -791,6 +793,7 @@ function TicketDetailView({
   sending: boolean;
   onSend: () => void;
   onClose: () => void;
+  onReload: () => void | Promise<void>;
   onChangeStatus: (s: TicketStatus) => void;
   onChangePriority: (p: TicketPriority) => void;
   onDelete: () => void;
@@ -906,6 +909,12 @@ function TicketDetailView({
             </div>
             <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">{detail.ticket.content}</p>
           </section>
+
+          <TicketAttachments
+            ticketId={detail.ticket.id}
+            attachments={detail.attachments ?? []}
+            onReload={onReload}
+          />
 
           {/* Activity timeline */}
           <section>

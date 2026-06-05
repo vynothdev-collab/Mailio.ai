@@ -132,4 +132,14 @@ export class AdminSupportTicketsController {
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.softDelete(id);
   }
+
+  @Delete(':ticketId/attachments/:attachmentId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Soft-delete an attachment + remove the S3 object' })
+  removeAttachment(
+    @Param('ticketId', ParseUUIDPipe) ticketId: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+  ) {
+    return this.service.deleteAttachmentForAdmin(ticketId, attachmentId);
+  }
 }

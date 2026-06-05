@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, IsNull, Repository } from 'typeorm';
+import { S3StorageService } from '../common/storage/s3-storage.service';
 import { User, UserRole } from '../users/entities/user.entity';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { ReplyTicketDto } from './dto/reply-ticket.dto';
@@ -18,9 +19,67 @@ import {
   TicketType,
 } from './entities/ticket.entity';
 import {
+  AttachmentFileType,
+  AttachmentUploaderType,
+  TicketAttachment,
+} from './entities/ticket-attachment.entity';
+import {
   TicketMessage,
   TicketMessageSenderRole,
 } from './entities/ticket-message.entity';
+
+// ─── Attachment policy ──────────────────────────────────────────────────────
+
+const ALLOWED_IMAGE_MIMES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+]);
+const ALLOWED_VIDEO_MIMES = new Set([
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+]);
+
+const MAX_TOTAL_BYTES = 5 * 1024 * 1024; // 5 MB combined per ticket request
+const MAX_FILES_PER_REQUEST = 5;
+
+const UPLOADER_BY_USER_ROLE: Record<UserRole, AttachmentUploaderType | null> = {
+  [UserRole.USER]: 'user',
+  [UserRole.ENTERPRISE_USER]: 'enterprise_user',
+  [UserRole.ENTERPRISE_ADMIN]: 'enterprise_admin',
+  [UserRole.SUPER_ADMIN]: 'super_admin',
+};
+
+function attachmentFileType(mime: string): AttachmentFileType | null {
+  if (ALLOWED_IMAGE_MIMES.has(mime)) return 'image';
+  if (ALLOWED_VIDEO_MIMES.has(mime)) return 'video';
+  return null;
+}
+
+function sanitiseFileName(name: string): string {
+  // Drop any path segments and strip characters that aren't safe in S3 keys.
+  const base = name.replace(/\\/g, '/').split('/').pop() ?? 'file';
+  return (
+    base
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .replace(/_+/g, '_')
+      .slice(0, 100) || 'file'
+  );
+}
+
+export interface AttachmentDto {
+  id: string;
+  fileName: string;
+  originalName: string;
+  mimeType: string;
+  fileType: AttachmentFileType;
+  sizeBytes: number;
+  viewUrl: string;
+  downloadUrl: string;
+  createdAt: string;
+}
 
 /** Map ticket type → default priority. Super-admin may override later. */
 const PRIORITY_BY_TYPE: Record<TicketType, TicketPriority> = {
@@ -56,17 +115,28 @@ export class SupportTicketsService {
     private readonly ticketRepo: Repository<Ticket>,
     @InjectRepository(TicketMessage)
     private readonly msgRepo: Repository<TicketMessage>,
+    @InjectRepository(TicketAttachment)
+    private readonly attachmentRepo: Repository<TicketAttachment>,
+    private readonly storage: S3StorageService,
   ) {}
 
   // ─── Creation ───────────────────────────────────────────────────────────────
 
-  async createTicket(user: User, dto: CreateTicketDto): Promise<Ticket> {
+  async createTicket(
+    user: User,
+    dto: CreateTicketDto,
+    files: Express.Multer.File[] = [],
+  ): Promise<Ticket> {
     const creatorRole = CREATOR_ROLE_BY_USER[user.role];
     if (!creatorRole) {
       throw new ForbiddenException(
         'Super admins cannot raise support tickets.',
       );
     }
+
+    // Validate the attachment batch up front so we never persist a ticket
+    // with files that the storage layer will later reject.
+    this.assertAttachmentsValid(files);
 
     // Snapshot enterprise name once so it survives enterprise deletion.
     const enterpriseName = user.enterpriseId
@@ -124,7 +194,200 @@ export class SupportTicketsService {
         `Ticket ${saved.ticketNumber} created by ${user.role}=${user.id} type=${dto.type} priority=${saved.priority}`,
       );
       return saved;
+    }).then(async (saved) => {
+      // Upload attachments outside the DB transaction. S3 is slow I/O — we
+      // don't want to hold a row lock open for it.
+      //
+      // STRICT: if the user supplied attachments and any upload or DB save
+      // fails, the entire ticket creation must fail. We soft-delete the
+      // freshly-created ticket so it never appears in the user's list and
+      // any rows already inserted for it are filtered out by deletedAt IS NULL.
+      if (files.length > 0) {
+        try {
+          await this.persistAttachments(saved.id, files, user);
+        } catch (err) {
+          await this.rollbackTicket(saved.id);
+          throw err;
+        }
+      }
+      return saved;
     });
+  }
+
+  /**
+   * Best-effort cleanup of a half-created ticket: soft-delete the ticket row,
+   * the first thread message, and any attachment rows already persisted.
+   * S3 objects for those attachments are removed by `persistAttachments`
+   * itself before this is called.
+   */
+  private async rollbackTicket(ticketId: string): Promise<void> {
+    try {
+      await Promise.all([
+        this.attachmentRepo.softDelete({ ticketId }),
+        this.msgRepo.softDelete({ ticketId }),
+        this.ticketRepo.softDelete({ id: ticketId }),
+      ]);
+    } catch (err) {
+      this.logger.warn(
+        `rollbackTicket: failed for ${ticketId}: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  // ─── Attachments ────────────────────────────────────────────────────────────
+
+  private assertAttachmentsValid(files: Express.Multer.File[]): void {
+    if (!files || files.length === 0) return;
+    if (files.length > MAX_FILES_PER_REQUEST) {
+      throw new BadRequestException(
+        `You can attach at most ${MAX_FILES_PER_REQUEST} files per ticket.`,
+      );
+    }
+    let total = 0;
+    for (const f of files) {
+      if (!attachmentFileType(f.mimetype)) {
+        throw new BadRequestException(
+          `File type not allowed: ${f.originalname} (${f.mimetype}). Allowed: JPG, PNG, WEBP, MP4, WEBM, MOV.`,
+        );
+      }
+      total += f.size;
+    }
+    if (total > MAX_TOTAL_BYTES) {
+      throw new BadRequestException(
+        `Combined attachment size must be 5 MB or less (got ${(total / 1024 / 1024).toFixed(2)} MB).`,
+      );
+    }
+  }
+
+  /**
+   * Upload each file to S3 + insert one row per attachment. On any failure
+   * inside the loop, best-effort delete every S3 object we already wrote so
+   * we don't leak storage; the ticket itself remains.
+   */
+  private async persistAttachments(
+    ticketId: string,
+    files: Express.Multer.File[],
+    uploader: User,
+  ): Promise<void> {
+    const uploaderType =
+      UPLOADER_BY_USER_ROLE[uploader.role] ?? 'user';
+    const uploadedKeys: string[] = [];
+
+    try {
+      for (const file of files) {
+        const fileType = attachmentFileType(file.mimetype);
+        if (!fileType) continue; // already validated, defensive
+        const safeName = sanitiseFileName(file.originalname);
+        const key = `tickets/${ticketId}/attachments/${Date.now()}-${safeName}`;
+
+        const uploaded = await this.storage.uploadFile({
+          key,
+          buffer: file.buffer,
+          mimeType: file.mimetype,
+        });
+        uploadedKeys.push(uploaded.key);
+
+        await this.attachmentRepo.save(
+          this.attachmentRepo.create({
+            ticketId,
+            uploadedById: uploader.id,
+            uploadedByType: uploaderType,
+            fileName: safeName,
+            originalName: file.originalname,
+            mimeType: file.mimetype,
+            fileType,
+            sizeBytes: String(file.size),
+            s3Key: uploaded.key,
+            s3Url: this.storage.isPublicRead() ? uploaded.url : null,
+          }),
+        );
+      }
+    } catch (err) {
+      const msg = (err as Error).message;
+      this.logger.error(
+        `Attachment persist failed for ticket ${ticketId}: ${msg}. Rolling back ${uploadedKeys.length} S3 object(s).`,
+        (err as Error).stack,
+      );
+      await Promise.allSettled(
+        uploadedKeys.map((k) => this.storage.deleteFile(k)),
+      );
+      // Preserve the actual cause so the caller can act on it (storage
+      // misconfiguration, AWS denial, network error, etc.) instead of a
+      // generic message that hides every real problem.
+      throw err instanceof BadRequestException
+        ? err
+        : new BadRequestException(
+            `Attachment upload failed: ${msg || 'unknown error'}`,
+          );
+    }
+  }
+
+  /** Load live (non-deleted) attachments for a ticket. */
+  private async listAttachmentsForTicket(
+    ticketId: string,
+  ): Promise<TicketAttachment[]> {
+    return this.attachmentRepo.find({
+      where: { ticketId, deletedAt: IsNull() },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  /** Materialise attachment entities into DTOs with signed URLs. */
+  async mapAttachmentsToDto(
+    attachments: TicketAttachment[],
+  ): Promise<AttachmentDto[]> {
+    return Promise.all(
+      attachments.map(async (a) => ({
+        id: a.id,
+        fileName: a.fileName,
+        originalName: a.originalName,
+        mimeType: a.mimeType,
+        fileType: a.fileType,
+        sizeBytes: Number(a.sizeBytes),
+        viewUrl: this.storage.isPublicRead()
+          ? a.s3Url ?? this.storage.publicUrl(a.s3Key)
+          : await this.storage.getSignedViewUrl(a.s3Key),
+        downloadUrl: await this.storage.getSignedDownloadUrl(
+          a.s3Key,
+          a.originalName,
+        ),
+        createdAt: a.createdAt.toISOString(),
+      })),
+    );
+  }
+
+  async deleteAttachmentForUser(
+    user: User,
+    ticketId: string,
+    attachmentId: string,
+  ): Promise<{ success: true }> {
+    // Reuse the existing access check so enterprise admins follow the same rules.
+    await this.getTicketForUser(user, ticketId);
+    const attachment = await this.attachmentRepo.findOne({
+      where: { id: attachmentId, ticketId, deletedAt: IsNull() },
+    });
+    if (!attachment) throw new NotFoundException('Attachment not found.');
+    if (attachment.uploadedById && attachment.uploadedById !== user.id) {
+      throw new ForbiddenException(
+        'Only the original uploader can delete this attachment.',
+      );
+    }
+    await this.attachmentRepo.softDelete(attachment.id);
+    void this.storage.deleteFile(attachment.s3Key);
+    return { success: true };
+  }
+
+  async deleteAttachmentForAdmin(
+    ticketId: string,
+    attachmentId: string,
+  ): Promise<{ success: true }> {
+    const attachment = await this.attachmentRepo.findOne({
+      where: { id: attachmentId, ticketId, deletedAt: IsNull() },
+    });
+    if (!attachment) throw new NotFoundException('Attachment not found.');
+    await this.attachmentRepo.softDelete(attachment.id);
+    void this.storage.deleteFile(attachment.s3Key);
+    return { success: true };
   }
 
   // ─── User-side queries ──────────────────────────────────────────────────────
@@ -198,11 +461,15 @@ export class SupportTicketsService {
       }
     }
 
-    const messages = await this.msgRepo.find({
-      where: { ticketId: ticket.id, deletedAt: IsNull() },
-      order: { createdAt: 'ASC' },
-    });
-    return { ticket, messages };
+    const [messages, attachments] = await Promise.all([
+      this.msgRepo.find({
+        where: { ticketId: ticket.id, deletedAt: IsNull() },
+        order: { createdAt: 'ASC' },
+      }),
+      this.listAttachmentsForTicket(ticket.id),
+    ]);
+    const attachmentDtos = await this.mapAttachmentsToDto(attachments);
+    return { ticket, messages, attachments: attachmentDtos };
   }
 
   async replyAsUser(user: User, ticketId: string, dto: ReplyTicketDto) {
@@ -434,7 +701,7 @@ export class SupportTicketsService {
     // Creator lookup may return [] if the user has been deleted — in that
     // case we synthesize a creator object from the snapshot columns so the
     // admin still sees who originally raised the ticket.
-    const [creator, enterprise, messages] = await Promise.all([
+    const [creator, enterprise, messages, attachments] = await Promise.all([
       ticket.createdByUserId
         ? this.dataSource.query<UserSlim[]>(
             `SELECT id, name, email, plan, role, enterprise_id AS "enterpriseId", created_at AS "createdAt"
@@ -452,6 +719,7 @@ export class SupportTicketsService {
         where: { ticketId: ticket.id, deletedAt: IsNull() },
         order: { createdAt: 'ASC' },
       }),
+      this.listAttachmentsForTicket(ticket.id),
     ]);
 
     const creatorOut: UserSlim | null = creator[0] ?? {
@@ -494,6 +762,8 @@ export class SupportTicketsService {
     const senderMap = new Map<string, SenderSlim>();
     [...userSenders, ...adminSenders].forEach((s) => senderMap.set(s.id, s));
 
+    const attachmentDtos = await this.mapAttachmentsToDto(attachments);
+
     return {
       ticket,
       creator: creatorOut,
@@ -503,6 +773,7 @@ export class SupportTicketsService {
         senderName: senderMap.get(m.senderId)?.name ?? 'Unknown',
         senderEmail: senderMap.get(m.senderId)?.email ?? null,
       })),
+      attachments: attachmentDtos,
     };
   }
 

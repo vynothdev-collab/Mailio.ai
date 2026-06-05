@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useCallback, memo } from "react";
+import { useEffect, useState, useCallback, memo } from "react";
 import { ChevronLeft, ChevronRight, X, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/src/lib/utils";
 import { NAV_ITEMS } from "@/src/features/dashboard/constants";
 import type { NavItem } from "@/src/features/dashboard/types";
-import { useRole } from "@/src/hooks/useRole";
+import { roleFlagsFor, useRole } from "@/src/hooks/useRole";
 import { SIDEBAR_ICONS } from "./SidebarIcons";
 
 /**
@@ -94,7 +94,12 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const pathname  = usePathname();
   const [collapsed, setCollapsed] = useState<boolean>(readCollapsed);
   const roleFlags = useRole();
-  const navItems = filterNavItemsForRole(NAV_ITEMS, roleFlags);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const navItems = filterNavItemsForRole(
+    NAV_ITEMS,
+    mounted ? roleFlags : roleFlagsFor(null),
+  );
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((v) => {

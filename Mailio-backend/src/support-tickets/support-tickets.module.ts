@@ -2,12 +2,13 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdminSupportTicketsController } from './admin-support-tickets.controller';
 import { Ticket } from './entities/ticket.entity';
+import { TicketAttachment } from './entities/ticket-attachment.entity';
 import { TicketMessage } from './entities/ticket-message.entity';
 import { SupportTicketsController } from './support-tickets.controller';
 import { SupportTicketsService } from './support-tickets.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Ticket, TicketMessage])],
+  imports: [TypeOrmModule.forFeature([Ticket, TicketMessage, TicketAttachment])],
   controllers: [SupportTicketsController, AdminSupportTicketsController],
   providers: [SupportTicketsService],
 })

@@ -45,9 +45,22 @@ export interface TicketMessage {
   createdAt:  string;
 }
 
+export interface TicketAttachment {
+  id:           string;
+  fileName:     string;
+  originalName: string;
+  mimeType:     string;
+  fileType:     "image" | "video";
+  sizeBytes:    number;
+  viewUrl:      string;
+  downloadUrl:  string;
+  createdAt:    string;
+}
+
 export interface TicketWithThread {
   ticket: Ticket;
   messages: TicketMessage[];
+  attachments: TicketAttachment[];
 }
 
 export interface CreateTicketPayload {
@@ -55,6 +68,7 @@ export interface CreateTicketPayload {
   subject: string;
   type:    TicketType;
   content: string;
+  attachments?: File[];
 }
 
 export interface MyTicketsQuery {
@@ -73,9 +87,21 @@ export interface PaginatedTickets {
 }
 
 export const ticketsService = {
-  create: async (payload: CreateTicketPayload): Promise<Ticket> => {
-    const { data } = await api.post<Ticket>("/tickets", payload);
+  create: async (payload: CreateTicketPayload): Promise<TicketWithThread> => {
+    const form = new FormData();
+    form.append("title", payload.title);
+    form.append("subject", payload.subject);
+    form.append("type", payload.type);
+    form.append("content", payload.content);
+    (payload.attachments ?? []).forEach((f) => form.append("attachments", f));
+    const { data } = await api.post<TicketWithThread>("/tickets", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     return data;
+  },
+
+  deleteAttachment: async (ticketId: string, attachmentId: string): Promise<void> => {
+    await api.delete(`/tickets/${ticketId}/attachments/${attachmentId}`);
   },
 
   listMine: async (params: MyTicketsQuery = {}): Promise<PaginatedTickets> => {

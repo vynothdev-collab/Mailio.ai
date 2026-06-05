@@ -11,10 +11,13 @@ import { toast } from "sonner";
 import {
   ticketsService,
   type Ticket,
+  type TicketAttachment as TicketAttachmentDto,
   type TicketStatus,
   type TicketType,
   type TicketWithThread,
 } from "@/src/services/ticketsService";
+import { TicketAttachmentUpload } from "./TicketAttachmentUpload";
+import { TicketAttachmentsList } from "./TicketAttachmentsList";
 
 // ─── Display maps ────────────────────────────────────────────────────────────
 
@@ -113,6 +116,7 @@ export function SubmitTicketSection() {
   const [subject, setSubject] = useState("");
   const [type,    setType]    = useState<TicketType | "">("");
   const [message, setMessage] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [saving,  setSaving]  = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -160,6 +164,15 @@ export function SubmitTicketSection() {
     () => fetchList(page),
     [fetchList, page],
   );
+
+  // Re-fetch the open ticket — used to refresh expired signed attachment URLs.
+  const reloadDetail = useCallback(async () => {
+    if (!selectedId) return;
+    try {
+      const d = await ticketsService.detail(selectedId);
+      setDetail(d);
+    } catch {/* ignore */}
+  }, [selectedId]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -224,13 +237,20 @@ export function SubmitTicketSection() {
         subject: subject.trim(),
         type,
         content: message.trim(),
+        attachments,
       });
-      toast.success(`Ticket ${created.ticketNumber} submitted!`);
-      setTitle(""); setSubject(""); setType(""); setMessage("");
+      toast.success(`Ticket ${created.ticket.ticketNumber} submitted!`);
+      setTitle(""); setSubject(""); setType(""); setMessage(""); setAttachments([]);
       await refreshList();
-      openDetail(created.id);
+      openDetail(created.ticket.id);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to create ticket.";
+      // The api wrapper rejects with `{ status, message }`, not an Error
+      // instance — pull the server-side message directly so the user can
+      // see what actually failed (storage misconfig, MIME rejection, etc.).
+      const apiMsg = (e as { message?: string } | null)?.message;
+      const msg =
+        apiMsg ||
+        (e instanceof Error ? e.message : "Failed to create ticket.");
       setFormError(msg);
       toast.error(msg);
     } finally {
@@ -244,8 +264,10 @@ export function SubmitTicketSection() {
     return (
       <NewTicketForm
         title={title} subject={subject} type={type} message={message}
+        attachments={attachments}
         saving={saving} formError={formError}
         onTitle={setTitle} onSubject={setSubject} onType={setType} onMessage={setMessage}
+        onAttachments={setAttachments}
         onSubmit={handleSubmit}
         onCancel={() => { setView(selectedId ? "detail" : "list"); setFormError(null); }}
       />
@@ -261,6 +283,7 @@ export function SubmitTicketSection() {
         setReply={setReply}
         sending={sending}
         onSend={sendReply}
+        onReload={reloadDetail}
         onBack={() => { setView("list"); setSelectedId(null); }}
         onNew={() => { setView("new"); setFormError(null); }}
       />
@@ -555,7 +578,7 @@ function TicketCard({ ticket: t, onClick }: { ticket: Ticket; onClick: () => voi
 // ─── Ticket detail ──────────────────────────────────────────────────────────
 
 function TicketDetail({
-  loading, detail, reply, setReply, sending, onSend, onBack, onNew,
+  loading, detail, reply, setReply, sending, onSend, onReload, onBack, onNew,
 }: {
   loading: boolean;
   detail: TicketWithThread | null;
@@ -563,6 +586,7 @@ function TicketDetail({
   setReply: (s: string) => void;
   sending: boolean;
   onSend: () => void;
+  onReload: () => Promise<void>;
   onBack: () => void;
   onNew: () => void;
 }) {
@@ -633,6 +657,11 @@ function TicketDetail({
             {ticket.content}
           </p>
         </section>
+
+        <TicketAttachmentsList
+          attachments={detail.attachments ?? []}
+          onRefresh={() => void onReload()}
+        />
 
         {/* Activity timeline */}
         <section className="px-4 sm:px-6 py-4 border-b border-[#DCE6F3]/70">
@@ -742,19 +771,21 @@ function TicketDetail({
 // ─── New ticket form ────────────────────────────────────────────────────────
 
 function NewTicketForm({
-  title, subject, type, message, saving, formError,
-  onTitle, onSubject, onType, onMessage, onSubmit, onCancel,
+  title, subject, type, message, attachments, saving, formError,
+  onTitle, onSubject, onType, onMessage, onAttachments, onSubmit, onCancel,
 }: {
   title: string;
   subject: string;
   type: TicketType | "";
   message: string;
+  attachments: File[];
   saving: boolean;
   formError: string | null;
   onTitle: (s: string) => void;
   onSubject: (s: string) => void;
   onType: (t: TicketType | "") => void;
   onMessage: (s: string) => void;
+  onAttachments: (files: File[]) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }) {
@@ -846,6 +877,8 @@ function NewTicketForm({
           />
           <p className="text-[10px] text-muted-foreground text-right">{message.length}/5000</p>
         </div>
+
+        <TicketAttachmentUpload files={attachments} onChange={onAttachments} disabled={saving} />
 
         {formError && (
           <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
