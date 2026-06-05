@@ -45,6 +45,11 @@ export class AdminCreditsService {
         'Cannot allocate credits to an inactive user.',
       );
     }
+    if (user.role !== 'USER') {
+      throw new BadRequestException(
+        'Single-user credit allocation only applies to standalone users. Enterprise members get credits via their enterprise pool.',
+      );
+    }
 
     const { balanceAfter } = await this.credits.allocateToUser(
       userId,

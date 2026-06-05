@@ -147,9 +147,16 @@ export class AdminEnterprisesService {
       .orderBy('e.createdAt', 'DESC');
 
     if (opts.search) {
-      qb.andWhere('(e.name ILIKE :s OR e.domain ILIKE :s)', {
-        s: `%${opts.search}%`,
-      });
+      // Also match if an ENTERPRISE_ADMIN of the enterprise has email matching the search.
+      qb.andWhere(
+        `(e.name ILIKE :s OR e.domain ILIKE :s OR EXISTS (
+            SELECT 1 FROM users adm
+            WHERE adm.enterprise_id = e.id
+              AND adm.role = 'ENTERPRISE_ADMIN'
+              AND adm.email ILIKE :s
+          ))`,
+        { s: `%${opts.search}%` },
+      );
     }
     if (opts.isActive === 'true' || opts.isActive === 'false') {
       qb.andWhere('e.isActive = :a', { a: opts.isActive === 'true' });

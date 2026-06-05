@@ -10,6 +10,8 @@ interface Props {
   children: ReactNode;
   footer?: ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
+  /** Set true when the body has absolute-positioned popups (e.g. comboboxes) that should not be clipped. */
+  bodyOverflowVisible?: boolean;
 }
 
 const SIZE = {
@@ -26,6 +28,7 @@ export default function Modal({
   children,
   footer,
   size = "md",
+  bodyOverflowVisible = false,
 }: Props) {
   useEffect(() => {
     if (!open) return;
@@ -55,7 +58,7 @@ export default function Modal({
             </button>
           </div>
         )}
-        <div className="flex-1 overflow-y-auto p-6">{children}</div>
+        <div className={`flex-1 p-6 ${bodyOverflowVisible ? "overflow-visible" : "overflow-y-auto"}`}>{children}</div>
         {footer && (
           <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
             {footer}
