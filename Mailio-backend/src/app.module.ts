@@ -22,6 +22,8 @@ import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import mailConfig from './config/mail.config';
 import redisConfig from './config/redis.config';
+import storageConfig from './config/storage.config';
+import { StorageModule } from './common/storage/storage.module';
 import { CreditsModule } from './credits/credits.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { EnterpriseScopeModule } from './enterprise-scope/enterprise-scope.module';
@@ -47,7 +49,7 @@ import { VerifyModule } from './verify/verify.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, jwtConfig, redisConfig, mailConfig],
+      load: [databaseConfig, jwtConfig, redisConfig, mailConfig, storageConfig],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -75,6 +77,7 @@ import { VerifyModule } from './verify/verify.module';
         },
       }),
     }),
+    StorageModule,
     AuthModule,
     EnterprisesModule,
     EnterpriseScopeModule,

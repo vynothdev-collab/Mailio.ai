@@ -9,10 +9,7 @@ import { useAuth } from "@/src/hooks/useAuth";
 import { userService } from "@/src/services/userService";
 import type { UserProfile } from "@/src/types/user";
 import type { ApiError } from "@/src/types/auth";
-
-function initials(name: string): string {
-  return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-}
+import { ProfileImageUpload } from "./ProfileImageUpload";
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -53,16 +50,14 @@ function ProfileForm({ user, onSaved, onLogout }: {
 
   return (
     <div className="space-y-5">
-      {/* Avatar row */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-xl bg-[#F4F8FF] px-4 py-4">
-        <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-full bg-[#0B47CF] text-white text-base sm:text-lg font-bold select-none shadow-sm">
-          {initials(user.name)}
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm sm:text-base font-semibold text-[#111827] truncate">{user.name}</p>
-          <p className="text-xs sm:text-sm text-muted-foreground truncate">{user.email}</p>
-        </div>
-      </div>
+      {/* Avatar + image upload */}
+      <ProfileImageUpload
+        name={user.name}
+        email={user.email}
+        profileImageViewUrl={user.profileImageViewUrl}
+        hasImage={user.profileImageKey !== null}
+        onUpdated={onSaved}
+      />
 
       {/* Fields */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">

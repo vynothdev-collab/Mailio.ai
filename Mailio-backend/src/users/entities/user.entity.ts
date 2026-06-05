@@ -95,6 +95,12 @@ export class User {
   @Column({ name: 'avatar_url', type: 'varchar', length: 512, nullable: true })
   avatarUrl: string | null;
 
+  @Column({ name: 'profile_image_url', type: 'text', nullable: true })
+  profileImageUrl: string | null;
+
+  @Column({ name: 'profile_image_key', type: 'text', nullable: true })
+  profileImageKey: string | null;
+
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 

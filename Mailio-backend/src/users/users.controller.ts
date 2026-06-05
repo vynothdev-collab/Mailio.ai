@@ -1,12 +1,30 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Post,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { memoryStorage } from 'multer';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { S3StorageService } from '../common/storage/s3-storage.service';
 import { EnterprisesService } from '../enterprises/enterprises.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -21,6 +39,7 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly enterprisesService: EnterprisesService,
+    private readonly storage: S3StorageService,
   ) {}
 
   @Get('me')
@@ -56,6 +75,15 @@ export class UsersController {
       }
     }
 
+    // Private bucket: turn the stored key into a short-lived signed GET URL.
+    // If the bucket is configured public-read, the stored URL is already
+    // returnable — only sign when needed.
+    const profileImageViewUrl = user.profileImageKey
+      ? this.storage.isPublicRead()
+        ? user.profileImageUrl
+        : await this.storage.getSignedViewUrl(user.profileImageKey)
+      : null;
+
     return {
       ...profile,
       creditBalance: Number(profile.creditBalance ?? 0),
@@ -63,6 +91,7 @@ export class UsersController {
       hasPassword: passwordHash !== null,
       enterprise,
       effectiveCreditBalance,
+      profileImageViewUrl,
     };
   }
 
@@ -93,6 +122,56 @@ export class UsersController {
     @Body() dto: ChangePasswordDto,
   ) {
     return this.usersService.changePassword(user, dto);
+  }
+
+  @Post('profile-image')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Upload or replace the current user profile image' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        image: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: memoryStorage(),
+      limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB hard cap.
+      fileFilter: (_req, file, cb) => {
+        const allowed = [
+          'image/jpeg',
+          'image/jpg',
+          'image/png',
+          'image/webp',
+        ];
+        if (!allowed.includes(file.mimetype)) {
+          return cb(
+            new BadRequestException(
+              'Only JPG, JPEG, PNG, or WEBP images are allowed.',
+            ),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async uploadProfileImage(
+    @CurrentUser() user: User,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('No image file uploaded.');
+    return this.usersService.setProfileImage(user.id, file);
+  }
+
+  @Delete('profile-image')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remove the current user profile image' })
+  async deleteProfileImage(@CurrentUser() user: User) {
+    return this.usersService.removeProfileImage(user.id);
   }
 
   @Get('me/stats')
