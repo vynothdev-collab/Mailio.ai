@@ -16,6 +16,7 @@ export type TicketSenderRole =
 export interface Ticket {
   id:               string;
   ticketNumber:     string;
+  title:            string;
   subject:          string;
   type:             TicketType;
   content:          string;
@@ -50,6 +51,7 @@ export interface TicketWithThread {
 }
 
 export interface CreateTicketPayload {
+  title:   string;
   subject: string;
   type:    TicketType;
   content: string;

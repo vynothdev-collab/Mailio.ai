@@ -58,6 +58,9 @@ export class Ticket {
   @Column({ name: 'ticket_number', type: 'varchar', length: 32, unique: true })
   ticketNumber!: string;
 
+  @Column({ type: 'varchar', length: 120 })
+  title!: string;
+
   @Column({ type: 'varchar', length: 150 })
   subject!: string;
 

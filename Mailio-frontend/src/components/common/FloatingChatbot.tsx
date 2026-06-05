@@ -1,11 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Send, X } from "lucide-react";
+
+const BUTTON_SIZE = 48;       // sm:h-12 w-12
+const EDGE_MARGIN = 12;
+const PANEL_WIDTH = 360;
+const PANEL_HEIGHT = 440;     // approx
+const GREETING_GAP = 12;
+const STORAGE_KEY = "floating-chatbot:pos";
+const DRAG_THRESHOLD = 5;     // px — distinguishes click from drag
+
+interface Pos { x: number; y: number; }
+
+function clampToViewport(p: Pos): Pos {
+  if (typeof window === "undefined") return p;
+  const maxX = window.innerWidth  - BUTTON_SIZE - EDGE_MARGIN;
+  const maxY = window.innerHeight - BUTTON_SIZE - EDGE_MARGIN;
+  return {
+    x: Math.min(Math.max(EDGE_MARGIN, p.x), maxX),
+    y: Math.min(Math.max(EDGE_MARGIN, p.y), maxY),
+  };
+}
+
+function defaultPos(): Pos {
+  if (typeof window === "undefined") return { x: 0, y: 0 };
+  return {
+    x: window.innerWidth  - BUTTON_SIZE - 20,
+    y: window.innerHeight - BUTTON_SIZE - 20,
+  };
+}
 
 export function FloatingChatbot() {
   const [open, setOpen] = useState(false);
   const [showGreeting, setShowGreeting] = useState(false);
+  const [pos, setPos] = useState<Pos | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const dragOffsetRef = useRef<Pos>({ x: 0, y: 0 });
+  const dragStartRef = useRef<Pos>({ x: 0, y: 0 });
+  const movedRef = useRef(false);
+
+  // Initial position — restore from storage or default to bottom-right.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as Pos;
+        setPos(clampToViewport(saved));
+        return;
+      }
+    } catch {/* ignore */}
+    setPos(defaultPos());
+  }, []);
+
+  // Re-clamp on window resize so the button never floats off-screen.
+  useEffect(() => {
+    const onResize = () => setPos((p) => (p ? clampToViewport(p) : p));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -20,23 +73,108 @@ export function FloatingChatbot() {
     return () => window.clearTimeout(t);
   }, [open]);
 
+  // ── Drag handling ─────────────────────────────────────────────────────────
+  const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!pos) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragOffsetRef.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
+    dragStartRef.current  = { x: e.clientX, y: e.clientY };
+    movedRef.current = false;
+    setDragging(true);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragging) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    if (!movedRef.current && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
+      movedRef.current = true;
+      setShowGreeting(false);
+    }
+    if (movedRef.current) {
+      setPos(clampToViewport({
+        x: e.clientX - dragOffsetRef.current.x,
+        y: e.clientY - dragOffsetRef.current.y,
+      }));
+    }
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const wasDrag = movedRef.current;
+    setDragging(false);
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {/* ignore */}
+    if (wasDrag && pos) {
+      try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(pos)); } catch {/* ignore */}
+    } else {
+      // Treat as click — toggle the panel.
+      setOpen((v) => !v);
+      setShowGreeting(false);
+    }
+  };
+
+  // ── Computed adjacent positions ───────────────────────────────────────────
+  const greetingPos = useCallback((): React.CSSProperties => {
+    if (!pos) return { display: "none" };
+    const vw = window.innerWidth;
+    // Default: greeting to the LEFT of the button; if too close to left edge, show on RIGHT.
+    const placeRight = pos.x < 240;
+    const top = pos.y + BUTTON_SIZE / 2;
+    return placeRight
+      ? { left: pos.x + BUTTON_SIZE + GREETING_GAP, top, transform: "translateY(-50%)" }
+      : { left: Math.max(EDGE_MARGIN, pos.x - GREETING_GAP),  top, transform: "translate(-100%, -50%)", maxWidth: vw - 2 * EDGE_MARGIN };
+  }, [pos]);
+
+  const panelPos = useCallback((): React.CSSProperties => {
+    if (!pos) return { display: "none" };
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    // Vertical: prefer ABOVE; if not enough space, place BELOW.
+    const spaceAbove = pos.y;
+    const placeBelow = spaceAbove < PANEL_HEIGHT + GREETING_GAP;
+    const top = placeBelow
+      ? pos.y + BUTTON_SIZE + GREETING_GAP
+      : Math.max(EDGE_MARGIN, pos.y - PANEL_HEIGHT - GREETING_GAP);
+    // Horizontal: anchor right edge to button's right edge when possible, then clamp.
+    const desiredLeft = pos.x + BUTTON_SIZE - PANEL_WIDTH;
+    const left = Math.min(
+      Math.max(EDGE_MARGIN, desiredLeft),
+      vw - PANEL_WIDTH - EDGE_MARGIN,
+    );
+    return { left, top, maxHeight: vh - 2 * EDGE_MARGIN };
+  }, [pos]);
+
+  if (!pos) return null;
+
   return (
     <>
-      {showGreeting && !open && (
-        <div className="fixed bottom-7 right-[72px] z-[60] flex animate-in fade-in slide-in-from-right-2 items-center gap-1.5 rounded-full bg-[#0F5BFF] px-3.5 py-2 text-xs font-medium text-white shadow-lg shadow-black/10 ring-1 ring-[#DCE6F3] sm:bottom-8 sm:right-[76px]">
-          <span>Need a hand? I'm here!</span>
+      {showGreeting && !open && !dragging && (
+        <div
+          style={greetingPos()}
+          className="fixed z-[60] flex animate-in fade-in items-center gap-1.5 rounded-full bg-[#0F5BFF] px-3.5 py-2 text-xs font-medium text-white shadow-lg shadow-black/10 ring-1 ring-[#DCE6F3] whitespace-nowrap pointer-events-none"
+        >
+          <span>Need a hand? I&apos;m here!</span>
         </div>
       )}
 
       <button
         type="button"
         aria-label={open ? "Close chatbot" : "Open chatbot"}
-        onClick={() => { setOpen((v) => !v); setShowGreeting(false); }}
-        className="group fixed bottom-5 right-5 z-[60] flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#2356F6] to-[#0F5BFF] text-white shadow-lg shadow-[#2356F6]/30 transition-all duration-200 hover:scale-110 hover:shadow-xl hover:shadow-[#2356F6]/40 active:scale-95 sm:h-12 sm:w-12"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        style={{
+          left: pos.x,
+          top:  pos.y,
+          width:  BUTTON_SIZE,
+          height: BUTTON_SIZE,
+          cursor: dragging ? "grabbing" : "grab",
+          touchAction: "none",
+        }}
+        className="group fixed z-[60] flex items-center justify-center rounded-full bg-gradient-to-br from-[#2356F6] to-[#0F5BFF] text-white shadow-lg shadow-[#2356F6]/30 transition-transform duration-100 hover:scale-105 active:scale-95 select-none"
       >
         {open
           ? <X size={18} />
-          : <img src="/chatbot-icon.svg" alt="" aria-hidden className="h-7 w-7 transition-transform duration-200 group-hover:rotate-6" />}
+          : <img src="/chatbot-icon.svg" alt="" aria-hidden draggable={false} className="h-7 w-7 pointer-events-none transition-transform duration-200 group-hover:rotate-6" />}
       </button>
 
       {open && (
@@ -44,7 +182,8 @@ export function FloatingChatbot() {
           role="dialog"
           aria-modal="false"
           aria-label="Leave a message"
-          className="fixed bottom-20 right-5 z-[60] w-[calc(100vw-2.5rem)] max-w-sm overflow-hidden rounded-2xl border border-[#DCE6F3] bg-white shadow-xl sm:w-[360px]"
+          style={{ ...panelPos(), width: PANEL_WIDTH }}
+          className="fixed z-[60] overflow-y-auto rounded-2xl border border-[#DCE6F3] bg-white shadow-xl"
         >
           <div className="relative bg-gradient-to-br from-[#2356F6] to-[#0F5BFF] px-5 pt-5 pb-5 text-white">
             <button

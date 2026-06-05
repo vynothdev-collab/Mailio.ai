@@ -21,6 +21,7 @@ export type AdminTicketSort =
 export interface AdminTicketRow {
   id:                 string;
   ticketNumber:       string;
+  title:              string;
   subject:            string;
   type:               TicketType;
   status:             TicketStatus;
@@ -62,6 +63,7 @@ export interface AdminTicketDetail {
   ticket: {
     id:                  string;
     ticketNumber:        string;
+    title:               string;
     subject:             string;
     type:                TicketType;
     content:             string;

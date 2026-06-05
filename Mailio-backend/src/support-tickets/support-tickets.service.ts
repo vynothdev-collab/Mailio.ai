@@ -80,6 +80,7 @@ export class SupportTicketsService {
       const now = new Date();
       const ticket = em.create(Ticket, {
         ticketNumber: number,
+        title: dto.title.trim(),
         subject: dto.subject.trim(),
         type: dto.type,
         content: dto.content,
@@ -146,7 +147,7 @@ export class SupportTicketsService {
       qb.andWhere('t.type = :type', { type: filters.type });
     }
     if (filters.search) {
-      qb.andWhere(`(t.ticket_number ILIKE :q OR t.subject ILIKE :q)`, {
+      qb.andWhere(`(t.ticket_number ILIKE :q OR t.title ILIKE :q OR t.subject ILIKE :q)`, {
         q: `%${filters.search}%`,
       });
     }
@@ -253,6 +254,7 @@ export class SupportTicketsService {
       .select([
         't.id                          AS id',
         't.ticket_number               AS "ticketNumber"',
+        't.title                       AS title',
         't.subject                     AS subject',
         't.type                        AS type',
         't.status                      AS status',
@@ -358,7 +360,7 @@ export class SupportTicketsService {
     if (filters.to) qb.andWhere('t.created_at <= :to', { to: filters.to });
     if (filters.search) {
       qb.andWhere(
-        `(t.ticket_number ILIKE :q OR t.subject ILIKE :q OR u.name ILIKE :q OR u.email ILIKE :q OR t.created_by_name ILIKE :q OR t.created_by_email ILIKE :q)`,
+        `(t.ticket_number ILIKE :q OR t.title ILIKE :q OR t.subject ILIKE :q OR u.name ILIKE :q OR u.email ILIKE :q OR t.created_by_name ILIKE :q OR t.created_by_email ILIKE :q)`,
         { q: `%${filters.search}%` },
       );
     }
@@ -666,6 +668,7 @@ export class SupportTicketsService {
     return {
       id: r.id,
       ticketNumber: r.ticketNumber,
+      title: r.title,
       subject: r.subject,
       type: r.type,
       status: r.status,
@@ -746,6 +749,7 @@ interface AdminTicketRow {
 
   id: string;
   ticketNumber: string;
+  title: string;
   subject: string;
   type: TicketType;
   status: TicketStatus;

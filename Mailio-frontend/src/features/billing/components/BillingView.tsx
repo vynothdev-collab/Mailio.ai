@@ -40,10 +40,8 @@ function getCurrencySymbol(currency: string) {
 }
 
 function isCurrentPlan(plan: BillingPlan, quota: UsageQuotaDto | null) {
-  if (!quota) return false;
-  // Prefer exact ID match (set on activation); fall back to name comparison
-  if (quota.currentPlanId) return plan.id === quota.currentPlanId;
-  return plan.name.toLowerCase() === (quota.plan ?? "").toLowerCase();
+  if (!quota?.currentPlanId) return false;
+  return plan.id === quota.currentPlanId;
 }
 
 // ── Skeletons ──────────────────────────────────────────────────────────────
@@ -78,16 +76,22 @@ export function BillingView() {
   const [loadingQuota, setLoadingQuota] = useState(true);
   const [confirmPlan,  setConfirmPlan]  = useState<BillingPlan | null>(null);
 
+  const didInitRef = useRef(false);
   useEffect(() => {
+    if (didInitRef.current) return;
+    didInitRef.current = true;
+
     billingService.getPlans()
       .then(setPlans).catch(() => setPlans([]))
       .finally(() => setLoadingPlans(false));
-  }, []);
 
-  useEffect(() => {
     usageService.getQuota()
       .then(setQuota).catch(() => setQuota(null))
       .finally(() => setLoadingQuota(false));
+
+    billingService.getCurrentSubscription()
+      .then(setSubscription)
+      .catch(() => setSubscription(null));
   }, []);
 
   const refreshSubscription = () => {
@@ -95,7 +99,6 @@ export function BillingView() {
       .then(setSubscription)
       .catch(() => setSubscription(null));
   };
-  useEffect(refreshSubscription, []);
 
   const hasActiveBase = !!subscription?.activeBase;
 

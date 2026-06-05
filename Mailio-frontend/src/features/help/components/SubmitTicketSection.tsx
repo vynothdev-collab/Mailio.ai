@@ -11,7 +11,6 @@ import { toast } from "sonner";
 import {
   ticketsService,
   type Ticket,
-  type TicketPriority,
   type TicketStatus,
   type TicketType,
   type TicketWithThread,
@@ -37,22 +36,15 @@ const STATUS_LABEL: Record<TicketStatus, string> = {
   CLOSED:            "Closed",
 };
 
-const PRIORITY_PILL: Record<TicketPriority, string> = {
-  LOW:    "bg-slate-100 text-slate-600",
-  MEDIUM: "bg-blue-50 text-blue-700",
-  HIGH:   "bg-orange-50 text-orange-700",
-  URGENT: "bg-red-50 text-red-700",
-};
-
-const TYPE_OPTIONS: { value: TicketType; label: string; autoPriority: TicketPriority }[] = [
-  { value: "BILLING",            label: "Billing Issue",       autoPriority: "HIGH"   },
-  { value: "CREDITS",            label: "Credit Issue",        autoPriority: "HIGH"   },
-  { value: "PAYMENT",            label: "Payment Issue",       autoPriority: "HIGH"   },
-  { value: "TECHNICAL_ISSUE",    label: "Technical Issue",     autoPriority: "MEDIUM" },
-  { value: "ENTERPRISE_SUPPORT", label: "Enterprise Support",  autoPriority: "MEDIUM" },
-  { value: "ACCOUNT",            label: "Account Issue",       autoPriority: "MEDIUM" },
-  { value: "FEATURE_REQUEST",    label: "Feature Request",     autoPriority: "LOW"    },
-  { value: "GENERAL",            label: "General",             autoPriority: "LOW"    },
+const TYPE_OPTIONS: { value: TicketType; label: string }[] = [
+  { value: "BILLING",            label: "Billing Issue"      },
+  { value: "CREDITS",            label: "Credit Issue"       },
+  { value: "PAYMENT",            label: "Payment Issue"      },
+  { value: "TECHNICAL_ISSUE",    label: "Technical Issue"    },
+  { value: "ENTERPRISE_SUPPORT", label: "Enterprise Support" },
+  { value: "ACCOUNT",            label: "Account Issue"      },
+  { value: "FEATURE_REQUEST",    label: "Feature Request"    },
+  { value: "GENERAL",            label: "General"            },
 ];
 
 const TYPE_LABEL: Record<TicketType, string> = Object.fromEntries(
@@ -117,6 +109,7 @@ export function SubmitTicketSection() {
   const [sending, setSending] = useState(false);
 
   // New-ticket form
+  const [title,   setTitle]   = useState("");
   const [subject, setSubject] = useState("");
   const [type,    setType]    = useState<TicketType | "">("");
   const [message, setMessage] = useState("");
@@ -220,18 +213,20 @@ export function SubmitTicketSection() {
 
   async function handleSubmit() {
     setFormError(null);
-    if (!subject.trim())          { setFormError("Subject is required.");        return; }
-    if (!type)                    { setFormError("Please pick a ticket type."); return; }
+    if (title.trim().length < 3)    { setFormError("Title is required (at least 3 characters)."); return; }
+    if (!subject.trim())            { setFormError("Subject is required.");        return; }
+    if (!type)                      { setFormError("Please pick a ticket type."); return; }
     if (message.trim().length < 10) { setFormError("Please describe your issue (at least 10 characters)."); return; }
     setSaving(true);
     try {
       const created = await ticketsService.create({
+        title: title.trim(),
         subject: subject.trim(),
         type,
         content: message.trim(),
       });
       toast.success(`Ticket ${created.ticketNumber} submitted!`);
-      setSubject(""); setType(""); setMessage("");
+      setTitle(""); setSubject(""); setType(""); setMessage("");
       await refreshList();
       openDetail(created.id);
     } catch (e) {
@@ -248,9 +243,9 @@ export function SubmitTicketSection() {
   if (view === "new") {
     return (
       <NewTicketForm
-        subject={subject} type={type} message={message}
+        title={title} subject={subject} type={type} message={message}
         saving={saving} formError={formError}
-        onSubject={setSubject} onType={setType} onMessage={setMessage}
+        onTitle={setTitle} onSubject={setSubject} onType={setType} onMessage={setMessage}
         onSubmit={handleSubmit}
         onCancel={() => { setView(selectedId ? "detail" : "list"); setFormError(null); }}
       />
@@ -304,7 +299,7 @@ export function SubmitTicketSection() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by ticket # or subject…"
+                placeholder="Search by ticket #, title, or subject…"
                 className="w-full h-10 pl-9 pr-3 rounded-lg border border-[#DCE6F3] bg-[#F4F8FF]/60 text-sm text-[#111827] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#0B47CF]/20"
               />
             </div>
@@ -505,9 +500,6 @@ function TicketCard({ ticket: t, onClick }: { ticket: Ticket; onClick: () => voi
           unread ? "bg-blue-50/60 hover:bg-blue-50/80" : "hover:bg-[#F4F8FF]"
         }`}
       >
-        {/* Priority left bar */}
-        <span className={`absolute left-0 top-0 bottom-0 w-1 ${PRIORITY_BAR[t.priority]}`} />
-
         <div className="px-4 sm:px-5 py-3.5">
           {/* Top row — meta + last activity */}
           <div className="flex items-center justify-between gap-3 mb-1.5">
@@ -527,10 +519,11 @@ function TicketCard({ ticket: t, onClick }: { ticket: Ticket; onClick: () => voi
             </div>
           </div>
 
-          {/* Subject */}
+          {/* Title + Subject */}
           <p className={`text-sm ${unread ? "font-bold" : "font-semibold"} text-[#111827] truncate`}>
-            {t.subject}
+            {t.title}
           </p>
+          <p className="text-[11px] text-muted-foreground truncate">{t.subject}</p>
 
           {/* Preview */}
           <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
@@ -542,9 +535,6 @@ function TicketCard({ ticket: t, onClick }: { ticket: Ticket; onClick: () => voi
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_PILL[t.status]}`}>
                 {STATUS_LABEL[t.status]}
-              </span>
-              <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PRIORITY_PILL[t.priority]}`}>
-                {t.priority}
               </span>
             </div>
             {t.lastMessageByRole && (
@@ -561,14 +551,6 @@ function TicketCard({ ticket: t, onClick }: { ticket: Ticket; onClick: () => voi
     </li>
   );
 }
-
-// Priority colour bar (matches admin page).
-const PRIORITY_BAR: Record<TicketPriority, string> = {
-  LOW:    "bg-slate-300",
-  MEDIUM: "bg-blue-500",
-  HIGH:   "bg-orange-500",
-  URGENT: "bg-red-600",
-};
 
 // ─── Ticket detail ──────────────────────────────────────────────────────────
 
@@ -626,14 +608,12 @@ function TicketDetail({
             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_PILL[ticket.status]}`}>
               {STATUS_LABEL[ticket.status]}
             </span>
-            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PRIORITY_PILL[ticket.priority]}`}>
-              {ticket.priority}
-            </span>
             <span className="text-[10px] text-muted-foreground">{TYPE_LABEL[ticket.type]}</span>
           </div>
           <h2 className="text-lg sm:text-xl font-bold text-[#111827] leading-snug">
-            {ticket.subject}
+            {ticket.title}
           </h2>
+          <p className="mt-1 text-sm text-muted-foreground">{ticket.subject}</p>
           <div className="mt-1.5 text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
             <span>Created {fmtDateTime(ticket.createdAt)}</span>
             <span>·</span>
@@ -762,22 +742,22 @@ function TicketDetail({
 // ─── New ticket form ────────────────────────────────────────────────────────
 
 function NewTicketForm({
-  subject, type, message, saving, formError,
-  onSubject, onType, onMessage, onSubmit, onCancel,
+  title, subject, type, message, saving, formError,
+  onTitle, onSubject, onType, onMessage, onSubmit, onCancel,
 }: {
+  title: string;
   subject: string;
   type: TicketType | "";
   message: string;
   saving: boolean;
   formError: string | null;
+  onTitle: (s: string) => void;
   onSubject: (s: string) => void;
   onType: (t: TicketType | "") => void;
   onMessage: (s: string) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }) {
-  const selectedTypeMeta = type ? TYPE_OPTIONS.find((o) => o.value === type) : null;
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -797,6 +777,20 @@ function NewTicketForm({
       </div>
 
       <div className="rounded-2xl border border-[#DCE6F3] bg-white p-4 sm:p-6 space-y-5">
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-[#111827]">
+            Title <span className="text-red-500">*</span>
+          </label>
+          <input
+            value={title}
+            onChange={(e) => onTitle(e.target.value)}
+            placeholder="Short headline (e.g. Missing credits)"
+            maxLength={120}
+            className="w-full h-10 rounded-xl border border-[#DCE6F3] bg-[#F4F8FF]/60 px-3 text-sm text-[#111827] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#0B47CF]/20"
+          />
+          <p className="text-[10px] text-muted-foreground text-right">{title.length}/120</p>
+        </div>
+
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-[#111827]">
             Subject <span className="text-red-500">*</span>
@@ -829,24 +823,13 @@ function NewTicketForm({
                       : "border-[#DCE6F3] bg-white hover:bg-[#F4F8FF]"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className={`text-xs font-semibold ${selected ? "text-[#0B47CF]" : "text-[#111827]"}`}>
-                      {o.label}
-                    </div>
-                    <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PRIORITY_PILL[o.autoPriority]}`}>
-                      {o.autoPriority}
-                    </span>
+                  <div className={`text-xs font-semibold ${selected ? "text-[#0B47CF]" : "text-[#111827]"}`}>
+                    {o.label}
                   </div>
                 </button>
               );
             })}
           </div>
-          {selectedTypeMeta && (
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Tickets of this type are automatically marked{" "}
-              <span className="font-semibold text-[#111827]">{selectedTypeMeta.autoPriority}</span> priority.
-            </p>
-          )}
         </div>
 
         <div className="space-y-1.5">
@@ -881,7 +864,7 @@ function NewTicketForm({
           <button
             onClick={onSubmit}
             type="button"
-            disabled={!subject.trim() || !message.trim() || !type || saving}
+            disabled={!title.trim() || !subject.trim() || !message.trim() || !type || saving}
             className="h-9 px-5 flex items-center gap-2 rounded-xl bg-[#0B47CF] text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
           >
             {saving ? <><Loader2 size={12} className="animate-spin" /> Submitting…</> : "Submit Ticket"}

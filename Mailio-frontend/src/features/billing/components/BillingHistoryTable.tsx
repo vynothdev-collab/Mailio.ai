@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/src/lib/utils";
@@ -37,7 +37,11 @@ export function BillingHistoryTable() {
   const [loading, setLoading] = useState(true);
   const limit = 10;
 
+  const lastPageRef = useRef<number | null>(null);
   useEffect(() => {
+    if (lastPageRef.current === page) return;
+    lastPageRef.current = page;
+
     setLoading(true);
     billingService.getHistory(page, limit)
       .then((res) => { setRows(res.data); setTotal(res.total); })

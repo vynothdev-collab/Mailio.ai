@@ -317,7 +317,7 @@ export default function TicketsPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by ticket #, subject, requester name or email…"
+              placeholder="Search by ticket #, title, subject, requester name or email…"
               className="w-full h-10 pl-9 pr-3 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30"
             />
           </div>
@@ -391,7 +391,7 @@ export default function TicketsPage() {
                 <thead>
                   <tr className="bg-gray-50/60 border-b border-gray-100">
                     <Th>Ticket</Th>
-                    <Th>Subject</Th>
+                    <Th>Title / Subject</Th>
                     <Th>Requester</Th>
                     <Th>Type</Th>
                     <Th>Priority</Th>
@@ -647,9 +647,12 @@ function TicketTableRow({
           {unread && (
             <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
           )}
-          <p className={`text-sm ${unread ? "font-bold text-text-primary" : "font-semibold text-text-primary"} truncate max-w-[320px]`}>
-            {t.subject}
-          </p>
+          <div className="min-w-0">
+            <p className={`text-sm ${unread ? "font-bold text-text-primary" : "font-semibold text-text-primary"} truncate max-w-[320px]`}>
+              {t.title}
+            </p>
+            <p className="text-[11px] text-text-muted truncate max-w-[320px]">{t.subject}</p>
+          </div>
         </div>
       </td>
       <td className="px-3 sm:px-4 py-3 align-top">
@@ -714,7 +717,8 @@ function TicketCard({ ticket: t, onClick }: { ticket: AdminTicketRow; onClick: (
               <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-bold">NEW</span>
             )}
           </div>
-          <p className={`text-sm ${unread ? "font-bold" : "font-semibold"} text-text-primary truncate`}>{t.subject}</p>
+          <p className={`text-sm ${unread ? "font-bold" : "font-semibold"} text-text-primary truncate`}>{t.title}</p>
+          <p className="text-[11px] text-text-muted truncate">{t.subject}</p>
           <div className="text-[11px] text-text-muted mt-0.5 truncate">
             {t.requesterDisplayName} · {t.requesterEmail}
           </div>
@@ -813,8 +817,9 @@ function TicketDetailView({
             <span className="text-[11px] text-text-muted">{TYPE_LABEL[detail.ticket.type]}</span>
           </div>
           <h2 className="mt-1 text-base sm:text-lg font-bold text-text-primary leading-snug">
-            {detail.ticket.subject}
+            {detail.ticket.title}
           </h2>
+          <p className="mt-1 text-sm text-text-secondary">{detail.ticket.subject}</p>
           <div className="mt-1 text-[11px] text-text-muted flex items-center gap-1.5 flex-wrap">
             <span>Created {fmtDateTime(detail.ticket.createdAt)}</span>
             <span>·</span>
@@ -854,26 +859,6 @@ function TicketDetailView({
 
         <div className="flex-1 min-w-0" />
 
-        <QuickStatusButton
-          label="Mark In Progress"
-          active={detail.ticket.status === "IN_PROGRESS"}
-          onClick={() => onChangeStatus("IN_PROGRESS")}
-        />
-        <QuickStatusButton
-          label="Waiting User"
-          active={detail.ticket.status === "WAITING_FOR_USER"}
-          onClick={() => onChangeStatus("WAITING_FOR_USER")}
-        />
-        <QuickStatusButton
-          label="Resolve"
-          active={detail.ticket.status === "RESOLVED"}
-          onClick={() => onChangeStatus("RESOLVED")}
-        />
-        <QuickStatusButton
-          label="Close"
-          active={detail.ticket.status === "CLOSED"}
-          onClick={() => onChangeStatus("CLOSED")}
-        />
         <button
           type="button"
           onClick={onDelete}
@@ -977,13 +962,13 @@ function TicketDetailView({
         </div>
       ) : (
         <div className="shrink-0 border-t border-gray-100 p-3 sm:p-4 bg-white space-y-2">
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex gap-1.5 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:thin]">
             {QUICK_REPLIES.map((q) => (
               <button
                 key={q}
                 type="button"
                 onClick={() => setReply(q)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-gray-200 bg-gray-50 text-[11px] text-text-secondary hover:bg-white"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-gray-200 bg-gray-50 text-[11px] text-text-secondary hover:bg-white shrink-0"
               >
                 <MessageSquareReply className="w-3 h-3" />
                 {q.length > 36 ? q.slice(0, 36) + "…" : q}
@@ -1020,24 +1005,6 @@ function FieldPill({ label, children }: { label: string; children: React.ReactNo
       <span className="text-text-muted">{label}:</span>
       {children}
     </label>
-  );
-}
-
-function QuickStatusButton({
-  label, active, onClick,
-}: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex items-center justify-center h-8 px-3 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
-        active
-          ? "bg-primary-600 text-white"
-          : "bg-white border border-gray-200 text-text-secondary hover:bg-gray-50"
-      }`}
-    >
-      {label}
-    </button>
   );
 }
 

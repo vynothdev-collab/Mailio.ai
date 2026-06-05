@@ -22,11 +22,6 @@ export class UsageService {
     private readonly enterpriseRepo: Repository<Enterprise>,
   ) {}
 
-  /**
-   * Returns credit-based quota for the user's effective account.
-   * - Enterprise members (USER + ADMIN) draw from the shared enterprise balance.
-   * - Normal USER draws from personal balance.
-   */
   async getQuota(user: User) {
     const isEnterprise =
       user.role === UserRole.ENTERPRISE_USER ||
@@ -38,13 +33,11 @@ export class UsageService {
 
     if (isEnterprise && user.enterpriseId) {
       if (user.role === UserRole.ENTERPRISE_USER && user.creditLimit !== null) {
-        // Enterprise users see their own allocated slice: creditLimit is their cap.
         const limit = Number(user.creditLimit);
         creditsUsed = Number(user.creditsUsed ?? 0);
         creditBalance = Math.max(0, limit - creditsUsed);
         accountLabel = 'Enterprise';
       } else {
-        // Enterprise admins see the full shared pool.
         const enterprise = await this.enterpriseRepo.findOne({
           where: { id: user.enterpriseId },
         });
@@ -76,7 +69,6 @@ export class UsageService {
       periodStart: periodStart.toISOString(),
       periodEnd: periodEnd.toISOString(),
       resetDate: periodEnd.toISOString(),
-      // legacy fields kept for backwards compat
       used: creditsUsed,
       limit: totalEver || creditBalance,
       remaining: creditBalance,
@@ -84,13 +76,9 @@ export class UsageService {
   }
 
   async getBreakdown(userIds: string[], period: UsagePeriod) {
-    // Breakdown tiles always show the CURRENT BILLING PERIOD (start of this
-    // calendar month), regardless of the period param. The period param is kept
-    // for the chart only.
     const now = new Date();
     const billingStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Single verify count this billing period
     const singleCount = await this.emailsRepo.count({
       where: {
         userId: In(userIds),
@@ -99,7 +87,6 @@ export class UsageService {
       },
     });
 
-    // Bulk jobs this billing period
     const bulkResult = await this.listsRepo
       .createQueryBuilder('l')
       .select('COUNT(l.id)', 'jobs')
@@ -151,7 +138,6 @@ export class UsageService {
     const fetchSingles = type !== 'bulk';
     const fetchBulks = type !== 'single';
 
-    // Only show entries from the current billing period (start of current month)
     const now = new Date();
     const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
 

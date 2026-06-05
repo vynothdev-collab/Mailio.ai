@@ -1,18 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle, Bot, Ticket, HelpCircle } from "lucide-react";
+import { MessageCircle, Ticket, HelpCircle } from "lucide-react";
 import { PageHeader }          from "@/src/components/layout/PageHeader";
 import { LiveChatSection }     from "./LiveChatSection";
-import { AIChatbotSection }    from "./AIChatbotSection";
 import { SubmitTicketSection } from "./SubmitTicketSection";
 import { FAQsSection }         from "./FAQsSection";
 
-type Tab = "live-chat" | "ai-chatbot" | "submit-ticket" | "faqs";
+type Tab = "live-chat" | "submit-ticket" | "faqs";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "live-chat",     label: "Live Chat",       icon: MessageCircle },
-  { id: "ai-chatbot",    label: "AI Chatbot",      icon: Bot           },
   { id: "submit-ticket", label: "Submit a Ticket", icon: Ticket        },
   { id: "faqs",          label: "FAQs",            icon: HelpCircle    },
 ];
@@ -53,7 +51,6 @@ export function HelpView() {
       {/* Tab content — full width */}
       <div className="pt-4 sm:pt-5">
         {active === "live-chat"     && <LiveChatSection />}
-        {active === "ai-chatbot"    && <AIChatbotSection />}
         {active === "submit-ticket" && <SubmitTicketSection />}
         {active === "faqs"          && <FAQsSection />}
       </div>

@@ -3,6 +3,11 @@ import { IsEnum, IsString, Length } from 'class-validator';
 import { TicketType } from '../entities/ticket.entity';
 
 export class CreateTicketDto {
+  @ApiProperty({ example: 'Missing credits' })
+  @IsString()
+  @Length(3, 120)
+  title!: string;
+
   @ApiProperty({ example: 'Credits not added after payment' })
   @IsString()
   @Length(3, 150)
