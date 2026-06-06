@@ -443,6 +443,85 @@ export class SubscriptionsService {
     }
   }
 
+  /**
+   * Add credits back to subscription counters when a bulk refund is issued.
+   * Mirrors the deduction order in reverse so refunds land on the same
+   * subscription rows that were debited. Logs a warning (not a throw) if
+   * the refund exceeds recorded usage — that would mean the caller refunded
+   * more than was ever deducted.
+   */
+  async recordRefund(
+    accountType: CreditAccountType,
+    accountId: string,
+    amount: number,
+    em?: EntityManager,
+  ): Promise<void> {
+    if (amount <= 0) return;
+    if (em) {
+      await this.recordRefundInTx(em, accountType, accountId, amount);
+      return;
+    }
+    await this.dataSource.transaction(async (innerEm) => {
+      await this.recordRefundInTx(innerEm, accountType, accountId, amount);
+    });
+  }
+
+  private async recordRefundInTx(
+    em: EntityManager,
+    accountType: CreditAccountType,
+    accountId: string,
+    amount: number,
+  ): Promise<void> {
+    const subAccountType =
+      accountType === CreditAccountType.USER
+        ? SubscriptionAccountType.USER
+        : SubscriptionAccountType.ENTERPRISE;
+
+    // Refund in reverse deduction order: latest-expiry first, validity-based
+    // before topup, newest first. This mirrors how credits were drained.
+    const candidates = await em
+      .createQueryBuilder(Subscription, 's')
+      .where(
+        accountType === CreditAccountType.USER
+          ? 's.user_id = :id AND s.account_type = :t'
+          : 's.enterprise_id = :id AND s.account_type = :t',
+        { id: accountId, t: subAccountType },
+      )
+      .andWhere('s.status = :st', { st: SubscriptionStatus.ACTIVE })
+      .andWhere('s.used_credits > 0')
+      .orderBy('s.end_date', 'DESC', 'NULLS FIRST')
+      .addOrderBy(
+        `(CASE WHEN s.plan_category = '${PlanCategory.TOPUP}' THEN 1 ELSE 0 END)`,
+        'ASC',
+      )
+      .addOrderBy('s.created_at', 'DESC')
+      .setLock('pessimistic_write')
+      .getMany();
+
+    let remaining = amount;
+    for (const sub of candidates) {
+      if (remaining <= 0) break;
+      const used = Number(sub.usedCredits);
+      const canRefund = Math.min(remaining, used);
+      if (canRefund <= 0) continue;
+      await em.query(
+        `UPDATE subscriptions
+           SET used_credits      = used_credits - $1,
+               remaining_credits = remaining_credits + $1,
+               updated_at        = now()
+         WHERE id = $2`,
+        [canRefund, sub.id],
+      );
+      remaining -= canRefund;
+    }
+
+    if (remaining > 0) {
+      this.logger.warn(
+        `recordRefund: ${remaining} of ${amount} credits could not be refunded for ${accountType}=${accountId} — no deducted subscription found`,
+      );
+    }
+  }
+
   // ─── Expiry + queued activation (run by cron) ────────────────────────────
 
   /**
@@ -501,9 +580,21 @@ export class SubscriptionsService {
     // For every account that lost an ACTIVE base plan, try to activate the next queued one.
     for (const key of touchedAccounts) {
       try {
+        const [t, id] = key.split(':');
+        const isUser = t === 'U';
         const queued = await this.subRepo
           .createQueryBuilder('s')
-          .where(this.accountKeyToWhere(key))
+          .where(
+            isUser
+              ? 's.user_id = :id AND s.account_type = :at'
+              : 's.enterprise_id = :id AND s.account_type = :at',
+            {
+              id,
+              at: isUser
+                ? SubscriptionAccountType.USER
+                : SubscriptionAccountType.ENTERPRISE,
+            },
+          )
           .andWhere('s.status = :st', { st: SubscriptionStatus.QUEUED })
           .andWhere('s.plan_category = :c', { c: PlanCategory.VALIDITY_BASED })
           .orderBy('s.start_date', 'ASC')
@@ -737,24 +828,16 @@ export class SubscriptionsService {
         );
       }
     } else {
-      if (target.type === SubscriptionAccountType.ENTERPRISE) {
-        await em.query(
-          `UPDATE enterprises
-             SET credit_balance          = GREATEST(0, credit_balance + $1),
-                 total_purchased_credits = total_purchased_credits + GREATEST(0, $1),
-                 updated_at              = now()
-           WHERE id = $2`,
-          [delta, id],
-        );
-      } else {
-        await em.query(
-          `UPDATE "${table}"
-             SET credit_balance = GREATEST(0, credit_balance + $1),
-                 updated_at     = now()
-           WHERE id = $2`,
-          [delta, id],
-        );
-      }
+      // No expiry extension — this is a topup or queued-plan activation path.
+      // Do NOT bump total_purchased_credits for topups (they add to the pool
+      // but are not standalone plan purchases; the base plan already counted them).
+      await em.query(
+        `UPDATE "${table}"
+           SET credit_balance = GREATEST(0, credit_balance + $1),
+               updated_at     = now()
+         WHERE id = $2`,
+        [delta, id],
+      );
     }
   }
 
@@ -877,13 +960,6 @@ export class SubscriptionsService {
     return sub.accountType === SubscriptionAccountType.USER
       ? `U:${sub.userId}`
       : `E:${sub.enterpriseId}`;
-  }
-
-  private accountKeyToWhere(key: string): string {
-    const [t, id] = key.split(':');
-    return t === 'U'
-      ? `s.user_id = '${id}' AND s.account_type = '${SubscriptionAccountType.USER}'`
-      : `s.enterprise_id = '${id}' AND s.account_type = '${SubscriptionAccountType.ENTERPRISE}'`;
   }
 
   private addDays(date: Date, days: number): Date {

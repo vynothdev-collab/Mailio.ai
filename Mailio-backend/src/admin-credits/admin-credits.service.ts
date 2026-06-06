@@ -9,6 +9,7 @@ import { CreditsService } from '../credits/credits.service';
 import {
   CreditAccountType,
   CreditTransaction,
+  CreditTransactionType,
 } from '../credits/entities/credit-transaction.entity';
 import { Enterprise } from '../enterprises/entities/enterprise.entity';
 import { User } from '../users/entities/user.entity';
@@ -138,29 +139,48 @@ export class AdminCreditsService {
   }
 
   async getSummary() {
-    const [userAgg, enterpriseAgg] = await Promise.all([
-      this.usersRepo
-        .createQueryBuilder('u')
-        .select('COALESCE(SUM(u.creditBalance), 0)', 'balance')
-        .addSelect('COALESCE(SUM(u.creditsUsed), 0)', 'used')
-        .where('u.isActive = true')
-        .getRawOne<{ balance: string; used: string }>(),
-      this.enterprisesRepo
-        .createQueryBuilder('e')
-        .select('COALESCE(SUM(e.creditBalance), 0)', 'balance')
-        .addSelect('COALESCE(SUM(e.creditsUsed), 0)', 'used')
-        .where('e.isActive = true AND e.deletedAt IS NULL')
-        .getRawOne<{ balance: string; used: string }>(),
-    ]);
+    const debitTypes = [
+      CreditTransactionType.DEDUCTION,
+      CreditTransactionType.RESERVATION,
+    ];
+
+    const [userBalance, enterpriseBalance, userLifetime, enterpriseLifetime] =
+      await Promise.all([
+        this.usersRepo
+          .createQueryBuilder('u')
+          .select('COALESCE(SUM(u.creditBalance), 0)', 'balance')
+          .where('u.isActive = true')
+          .getRawOne<{ balance: string }>(),
+        this.enterprisesRepo
+          .createQueryBuilder('e')
+          .select('COALESCE(SUM(e.creditBalance), 0)', 'balance')
+          .where('e.isActive = true AND e.deletedAt IS NULL')
+          .getRawOne<{ balance: string }>(),
+        // Sum debits from immutable ledger — unaffected by plan renewals.
+        this.txRepo
+          .createQueryBuilder('t')
+          .select('COALESCE(SUM(-t.delta), 0)', 'used')
+          .where('t.accountType = :type', { type: CreditAccountType.USER })
+          .andWhere('t.type IN (:...types)', { types: debitTypes })
+          .getRawOne<{ used: string }>(),
+        this.txRepo
+          .createQueryBuilder('t')
+          .select('COALESCE(SUM(-t.delta), 0)', 'used')
+          .where('t.accountType = :type', {
+            type: CreditAccountType.ENTERPRISE,
+          })
+          .andWhere('t.type IN (:...types)', { types: debitTypes })
+          .getRawOne<{ used: string }>(),
+      ]);
 
     return {
       users: {
-        outstandingBalance: Number(userAgg?.balance ?? 0),
-        lifetimeUsed: Number(userAgg?.used ?? 0),
+        outstandingBalance: Number(userBalance?.balance ?? 0),
+        lifetimeUsed: Number(userLifetime?.used ?? 0),
       },
       enterprises: {
-        outstandingBalance: Number(enterpriseAgg?.balance ?? 0),
-        lifetimeUsed: Number(enterpriseAgg?.used ?? 0),
+        outstandingBalance: Number(enterpriseBalance?.balance ?? 0),
+        lifetimeUsed: Number(enterpriseLifetime?.used ?? 0),
       },
     };
   }

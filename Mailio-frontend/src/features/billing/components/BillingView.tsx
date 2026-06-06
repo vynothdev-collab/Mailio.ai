@@ -39,10 +39,6 @@ function getCurrencySymbol(currency: string) {
   }
 }
 
-function isCurrentPlan(plan: BillingPlan, quota: UsageQuotaDto | null) {
-  if (!quota?.currentPlanId) return false;
-  return plan.id === quota.currentPlanId;
-}
 
 // ── Skeletons ──────────────────────────────────────────────────────────────
 
@@ -319,7 +315,7 @@ export function BillingView() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {plans.map((plan) => {
-                const isCurrent    = isCurrentPlan(plan, quota);
+                const isCurrent    = subscription?.activeBase?.planId === plan.id;
                 const isEnterprise = plan.planType === "ENTERPRISE";
                 const isPopular    = plan.isPopular;
 

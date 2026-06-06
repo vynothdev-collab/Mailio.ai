@@ -65,6 +65,7 @@ export class EnterpriseCreditsService {
     const users = await this.userRepo.find({
       where: { enterpriseId, role: UserRole.ENTERPRISE_USER },
       order: { name: 'ASC' },
+      take: 500,
     });
 
     const totalAllocated = users.reduce(
@@ -161,6 +162,7 @@ export class EnterpriseCreditsService {
 
     await this.userRepo.update(targetUserId, {
       creditLimit: String(amount),
+      creditExpiresAt: enterprise.creditExpiresAt ?? undefined,
     });
 
     this.logger.log(
@@ -258,6 +260,12 @@ export class EnterpriseCreditsService {
   /**
    * Confirm re-allocation after admin fills the modal.
    * Validates total allocations ≤ plan credits, then applies.
+   *
+   * Order of operations:
+   *   1. Validate inputs (allocations, user constraints).
+   *   2. purchaseValidityPlanForEnterprise → creates subscription row,
+   *      credits the enterprise balance, sets credit_expires_at, writes ledger.
+   *   3. Apply user credit-limit updates (does NOT touch enterprise balance).
    */
   async confirmReallocation(
     enterpriseId: string,
@@ -300,34 +308,51 @@ export class EnterpriseCreditsService {
       }
     }
 
+    // Step 1: Apply user credit-limit allocations BEFORE creating the subscription.
+    //   • If this fails the admin retries — no credits have been issued yet, safe.
+    //   • If it succeeds and the subscription creation below fails, limits are set
+    //     but the enterprise has no new credits (harmless — retry will work because
+    //     there is still no ACTIVE subscription to cause a queue collision).
     const validityDays = plan.validityDays ?? 30;
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + validityDays);
+    const tentativeExpiry = new Date();
+    tentativeExpiry.setDate(tentativeExpiry.getDate() + validityDays);
 
     const enterpriseUsers = await this.userRepo.find({
       where: { enterpriseId, role: UserRole.ENTERPRISE_USER },
     });
-
-    await this.applyRenewal(
+    await this.applyUserAllocations(
       enterpriseId,
-      plan.credits,
-      expiresAt,
+      tentativeExpiry,
       enterpriseUsers,
-      false,
       allocations,
     );
 
-    // Mirror this purchase in the subscription system so expiry/queue logic
-    // sees the record alongside the legacy reallocation flow.
-    await this.subscriptions
-      .purchaseValidityPlanForEnterprise(enterpriseId, planId)
-      .catch((err) => {
-        this.logger.warn(
-          `confirmReallocation: subscription mirror failed for enterprise=${enterpriseId} plan=${planId}: ${(err as Error).message}`,
-        );
-      });
+    // Step 2: Create the subscription — credits the enterprise balance atomically,
+    //   sets credit_expires_at, and writes the ledger entry.
+    const sub = await this.subscriptions.purchaseValidityPlanForEnterprise(
+      enterpriseId,
+      planId,
+    );
 
-    return { creditBalance: plan.credits, expiresAt };
+    // Sync user expiry to the exact date computed by the subscription service
+    // (may differ by a few milliseconds from tentativeExpiry).
+    if (sub.endDate && sub.endDate.getTime() !== tentativeExpiry.getTime()) {
+      await this.dataSource.query(
+        `UPDATE users
+           SET credit_expires_at = $1, updated_at = now()
+         WHERE enterprise_id = $2
+           AND role IN ('ENTERPRISE_USER', 'ENTERPRISE_ADMIN')`,
+        [sub.endDate, enterpriseId],
+      );
+    }
+
+    const fresh = await this.enterpriseRepo.findOne({
+      where: { id: enterpriseId },
+    });
+    return {
+      creditBalance: Number(fresh?.creditBalance ?? plan.credits),
+      expiresAt: sub.endDate ?? tentativeExpiry,
+    };
   }
 
   // ── Expiry Reset ──────────────────────────────────────────────────────────
@@ -445,6 +470,48 @@ export class EnterpriseCreditsService {
       [enterpriseId, excludeUserId],
     );
     return Number(row[0]?.total ?? 0);
+  }
+
+  /**
+   * Update per-user credit limits and reset usage after a reallocation.
+   * Does NOT touch the enterprise credit_balance (subscription service owns that).
+   */
+  private async applyUserAllocations(
+    enterpriseId: string,
+    expiresAt: Date,
+    enterpriseUsers: User[],
+    allocations: Array<{ userId: string; amount: number }>,
+  ): Promise<void> {
+    const allocMap = new Map(allocations.map((a) => [a.userId, a.amount]));
+    await this.dataSource.transaction(async (em) => {
+      for (const user of enterpriseUsers) {
+        const newLimit = allocMap.has(user.id) ? allocMap.get(user.id) : null;
+        await em.query(
+          `UPDATE users
+             SET credit_limit      = $1,
+                 credits_used      = 0,
+                 credit_expires_at = $2,
+                 updated_at        = now()
+           WHERE id = $3`,
+          [
+            newLimit !== undefined && newLimit !== null
+              ? String(newLimit)
+              : null,
+            expiresAt,
+            user.id,
+          ],
+        );
+      }
+      // Also reset ENTERPRISE_ADMIN expiry.
+      await em.query(
+        `UPDATE users
+           SET credit_expires_at = $1,
+               credits_used      = 0,
+               updated_at        = now()
+         WHERE enterprise_id = $2 AND role = 'ENTERPRISE_ADMIN'`,
+        [expiresAt, enterpriseId],
+      );
+    });
   }
 
   private async applyRenewal(

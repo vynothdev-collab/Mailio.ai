@@ -498,6 +498,16 @@ export class CreditsService {
           Math.abs(opts.delta),
           em,
         );
+      } else if (
+        opts.delta > 0 &&
+        opts.type === CreditTransactionType.REFUND
+      ) {
+        await this.subscriptions.recordRefund(
+          accountType,
+          accountId,
+          opts.delta,
+          em,
+        );
       }
 
       return { balanceAfter };
