@@ -2,12 +2,24 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { In, IsNull, Repository } from 'typeorm';
+import {
+  BillingPlan,
+  BillingPlanType,
+  PlanCategory,
+} from '../billing-plans/entities/billing-plan.entity';
+import {
+  SubscriptionsService,
+} from '../subscriptions/subscriptions.service';
+import { SubscriptionStatus } from '../subscriptions/entities/subscription.entity';
 import { AuthProvider, User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { SignupDto } from './dto/signup.dto';
@@ -21,6 +33,8 @@ const RESET_RATE_WINDOW_MINUTES = 15;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -28,6 +42,9 @@ export class AuthService {
     private readonly googleVerifier: GoogleTokenVerifierService,
     private readonly linkedinAuth: LinkedinAuthService,
     private readonly emailOtpService: EmailOtpService,
+    private readonly subscriptions: SubscriptionsService,
+    @InjectRepository(BillingPlan)
+    private readonly planRepo: Repository<BillingPlan>,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User | null> {
@@ -86,6 +103,7 @@ export class AuthService {
     }
     await this.emailOtpService.verify(email, otp);
     await this.usersService.markEmailVerified(user.id);
+    this.tryAssignDefaultPlan(user.id);
     return { success: true, message: 'Email verified successfully.' };
   }
 
@@ -170,6 +188,7 @@ export class AuthService {
     if (!user.isActive) {
       throw new UnauthorizedException('Account is disabled');
     }
+    this.tryAssignDefaultPlan(user.id);
     return this.issueSession(user, remember);
   }
 
@@ -184,7 +203,36 @@ export class AuthService {
     if (!user.isActive) {
       throw new UnauthorizedException('Account is disabled');
     }
+    this.tryAssignDefaultPlan(user.id);
     return this.issueSession(user, remember);
+  }
+
+  /**
+   * Fire-and-forget: assign the default PRO plan to a new user if they have no
+   * active subscription yet. Errors are logged but never surfaced to the caller.
+   */
+  private tryAssignDefaultPlan(userId: string): void {
+    (async () => {
+      try {
+        const existing = await this.subscriptions.getCurrentSubscriptionForUser(userId);
+        if (existing.activeBase || existing.queued.length > 0) return;
+
+        const plan = await this.planRepo.findOne({
+          where: {
+            planType: In([BillingPlanType.USER, BillingPlanType.BOTH]),
+            planCategory: PlanCategory.VALIDITY_BASED,
+            isActive: true,
+            deletedAt: IsNull(),
+          },
+          order: { sortOrder: 'ASC', price: 'ASC' },
+        });
+        if (!plan) return;
+
+        await this.subscriptions.purchaseValidityPlanForUser(userId, plan.id);
+      } catch (err) {
+        this.logger.warn(`tryAssignDefaultPlan(${userId}): ${(err as Error).message}`);
+      }
+    })();
   }
 
   async refreshAccessToken(token: string) {

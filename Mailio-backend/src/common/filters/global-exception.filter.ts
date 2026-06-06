@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { MulterError } from 'multer';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -16,6 +17,24 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+
+    if (exception instanceof MulterError) {
+      const msg =
+        exception.code === 'LIMIT_FILE_SIZE'
+          ? 'File too large. Maximum size is 5 MB per file.'
+          : exception.code === 'LIMIT_FILE_COUNT'
+            ? 'Too many files. Maximum is 5 files per request.'
+            : exception.code === 'LIMIT_UNEXPECTED_FILE'
+              ? 'Unexpected file field in the request.'
+              : exception.message;
+      response.status(HttpStatus.BAD_REQUEST).json({
+        statusCode: HttpStatus.BAD_REQUEST,
+        timestamp: new Date().toISOString(),
+        path: request.url,
+        message: msg,
+      });
+      return;
+    }
 
     const status =
       exception instanceof HttpException

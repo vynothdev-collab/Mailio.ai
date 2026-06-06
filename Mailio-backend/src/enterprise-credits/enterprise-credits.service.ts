@@ -220,14 +220,9 @@ export class EnterpriseCreditsService {
       order: { name: 'ASC' },
     });
 
-    const hasExistingAllocations = enterpriseUsers.some(
-      (u) => u.creditLimit !== null,
-    );
-
-    // Legacy fallback: when the previous cycle expired but admin still has
-    // user allocations sitting on the table, show the reallocation modal so
-    // they can redistribute under the new pool before we activate it.
-    if (!hasActiveExpiry && hasExistingAllocations) {
+    // When there's no active plan and enterprise users exist, always show the
+    // allocation modal so the admin can distribute credits before activating.
+    if (!hasActiveExpiry && enterpriseUsers.length > 0) {
       const validityDays = plan.validityDays ?? 30;
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + validityDays);

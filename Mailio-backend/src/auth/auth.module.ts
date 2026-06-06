@@ -6,6 +6,8 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MailModule } from '../mail/mail.module';
 import { UsersModule } from '../users/users.module';
+import { BillingPlan } from '../billing-plans/entities/billing-plan.entity';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { EmailOtp } from './entities/email-otp.entity';
@@ -23,7 +25,8 @@ import { LocalStrategy } from './strategies/local.strategy';
     PassportModule,
     HttpModule,
     MailModule,
-    TypeOrmModule.forFeature([EmailOtp, IntegrationApiKey]),
+    SubscriptionsModule,
+    TypeOrmModule.forFeature([EmailOtp, IntegrationApiKey, BillingPlan]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
