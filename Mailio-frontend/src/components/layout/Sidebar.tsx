@@ -11,16 +11,7 @@ import type { NavItem } from "@/src/features/dashboard/types";
 import { SIDEBAR_ICONS } from "./SidebarIcons";
 
 function EmailanswersLogo({ collapsed }: { collapsed: boolean }) {
-  if (collapsed) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src="/brand-icon.svg" alt="emailanswers.ai" className="h-8 w-auto" draggable={false} />
-    );
-  }
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src="/brand-logo.svg" alt="emailanswers.ai" className="h-10 w-auto" draggable={false} />
-  );
+  return null;
 }
 
 

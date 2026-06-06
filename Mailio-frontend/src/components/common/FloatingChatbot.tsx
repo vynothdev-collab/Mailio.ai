@@ -55,9 +55,6 @@ export function FloatingChatbot() {
             >
               <X size={15} />
             </button>
-            <div className="flex items-center justify-center gap-2">
-              <img src="/auth-brand.svg" alt="emailanswers.ai" className="h-7 w-auto" />
-            </div>
             <h2 className="mt-3 text-center text-lg font-bold tracking-tight">
               AI support is rolling out soon <br/> Leave us a message!
             </h2>

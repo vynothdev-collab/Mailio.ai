@@ -160,7 +160,6 @@ export function PageHeader({
         {mobileMenu && (
           <div className="mr-auto flex items-center gap-2 lg:hidden">
             <MobileMenuButton onClick={mobileMenu.openMobile} />
-            <BrandMark className="h-8 w-auto" />
           </div>
         )}
         {onRefresh && (

@@ -1,5 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
 
 function MobileBrandPanel() {
   return (
@@ -7,16 +6,6 @@ function MobileBrandPanel() {
       <div className="pointer-events-none absolute -top-24 -left-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-20 -right-16 h-56 w-56 rounded-full bg-white/5 blur-3xl" />
 
-      <Link href="/" className="relative w-fit" aria-label="emailanswers.ai home">
-        <Image
-          src="/auth-brand.svg"
-          alt="emailanswers.ai"
-          width={220}
-          height={45}
-          className="h-auto w-[180px] sm:w-[220px]"
-          priority
-        />
-      </Link>
 
       <div className="relative mt-5">
         <h1 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
@@ -38,16 +27,6 @@ function BrandPanel() {
       <div className="pointer-events-none absolute -top-40 -left-40 h-[28rem] w-[28rem] rounded-full bg-white/10 blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 right-0 h-[24rem] w-[24rem] rounded-full bg-white/5 blur-3xl" />
 
-      <Link href="/" className="relative w-fit" aria-label="emailanswers.ai home">
-        <Image
-          src="/auth-brand.svg"
-          alt="emailanswers.ai"
-          width={320}
-          height={65}
-          className="h-auto w-[320px]"
-          priority
-        />
-      </Link>
 
       <div className="relative mt-12 max-w-md">
         <h1 className="text-4xl font-bold leading-tight tracking-tight">

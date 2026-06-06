@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/src/components/shared/ComingSoon";
+import { UsageView } from "@/src/features/usage/components/UsageView";
 
 export const metadata: Metadata = {
   title: "Usage · emailanswers.ai",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function UsagePage() {
-  return <ComingSoon description="We're building something amazing." />;
+  return <UsageView />;
 }

@@ -13,6 +13,7 @@ import type { ResultRecord, ResultsFilters } from "../types";
 import { ResultsStatsRow } from "./ResultsStatsRow";
 import { ResultsFiltersBar } from "./ResultsFiltersBar";
 import { ResultsTable } from "./ResultsTable";
+import { PageHeader } from "@/src/components/layout/PageHeader";
 
 const DEFAULT_FILTERS: ResultsFilters = {
   query:    "",
@@ -37,12 +38,18 @@ function toRecord(row: ResultsRow): ResultRecord {
 }
 
 export function ResultsView() {
-  const [filters,  setFilters]  = useState<ResultsFilters>(DEFAULT_FILTERS);
-  const [response, setResponse] = useState<ResultsResponse | null>(null);
-  const [loading,  setLoading]  = useState(true);
+  const [filters,    setFilters]    = useState<ResultsFilters>(DEFAULT_FILTERS);
+  const [response,   setResponse]   = useState<ResultsResponse | null>(null);
+  const [loading,    setLoading]    = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const patch = (p: Partial<ResultsFilters>) =>
     setFilters((prev) => ({ ...prev, ...p }));
+
+  const handleRefresh = () => {
+    setFilters(DEFAULT_FILTERS);
+    setRefreshKey((k) => k + 1);
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -66,7 +73,7 @@ export function ResultsView() {
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [filters.page, filters.pageSize, filters.type, filters.status, filters.query]);
+  }, [filters.page, filters.pageSize, filters.type, filters.status, filters.query, refreshKey]);
 
   const records = response?.data.map(toRecord) ?? [];
   const total   = response?.total ?? 0;
@@ -74,6 +81,12 @@ export function ResultsView() {
 
   return (
     <div className="space-y-4">
+      <PageHeader
+        title="Results"
+        subtitle="View all single and bulk email verification results."
+        onRefresh={handleRefresh}
+        refreshing={loading}
+      />
       <ResultsStatsRow stats={stats} loading={loading && !response} />
 
       <Card>

@@ -19,11 +19,6 @@ export function ComingSoon({
       />
 
       <div className="relative flex w-full max-w-xl flex-col items-center text-center">
-        <img
-          src="/brand-logo.svg"
-          alt="emailanswers.ai"
-          className="mb-6 h-16 w-auto sm:h-20 md:h-24"
-        />
         <h1 className="text-4xl font-extrabold tracking-tight text-[#2356F6] sm:text-6xl md:text-7xl">
           Coming Soon
         </h1>

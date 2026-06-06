@@ -14,14 +14,18 @@ import { PlanQuotaCard } from "./PlanQuotaCard";
 import { UsageBreakdownTiles } from "./UsageBreakdownTiles";
 import { UsageChart } from "./UsageChart";
 import { UsageLogTable } from "./UsageLogTable";
+import { PageHeader } from "@/src/components/layout/PageHeader";
 
 const CHART_PERIOD: UsagePeriod = "30d";
 
 export function UsageView() {
-  const [quota,     setQuota]     = useState<UsageQuotaDto | null>(null);
-  const [breakdown, setBreakdown] = useState<UsageBreakdownDto | null>(null);
-  const [chart,     setChart]     = useState<UsageChartPoint[]>([]);
-  const [loading,   setLoading]   = useState(true);
+  const [quota,      setQuota]      = useState<UsageQuotaDto | null>(null);
+  const [breakdown,  setBreakdown]  = useState<UsageBreakdownDto | null>(null);
+  const [chart,      setChart]      = useState<UsageChartPoint[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleRefresh = () => setRefreshKey((k) => k + 1);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -45,10 +49,16 @@ export function UsageView() {
       }
     })();
     return () => controller.abort();
-  }, []);
+  }, [refreshKey]);
 
   return (
     <div className="space-y-4">
+      <PageHeader
+        title="Usage"
+        subtitle="Monitor your email verification usage, quota, and credit consumption."
+        onRefresh={handleRefresh}
+        refreshing={loading}
+      />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-1">
           <PlanQuotaCard quota={quota} loading={loading} />

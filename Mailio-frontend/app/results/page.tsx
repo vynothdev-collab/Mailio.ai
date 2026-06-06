@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { ComingSoon } from "@/src/components/shared/ComingSoon";
+import { Loader2 } from "lucide-react";
 import { ResultsPageClient } from "./ResultsPageClient";
 
 export const metadata: Metadata = {
@@ -10,7 +10,13 @@ export const metadata: Metadata = {
 
 export default function ResultsPage() {
   return (
-    <Suspense fallback={<ComingSoon description="Loading results…" />}>
+    <Suspense
+      fallback={
+        <div className="flex flex-1 items-center justify-center py-24">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
       <ResultsPageClient />
     </Suspense>
   );
