@@ -53,12 +53,7 @@ export interface ActivatePlanResult {
   creditBalance: number;
 }
 
-export type CreditTxType =
-  | "ALLOCATION"
-  | "RESERVATION"
-  | "DEDUCTION"
-  | "REFUND"
-  | "ADJUSTMENT";
+export type CreditTxType = "ALLOCATION" | "RESERVATION" | "DEDUCTION" | "REFUND" | "ADJUSTMENT";
 
 export interface CreditHistoryEntry {
   id: string;
@@ -88,12 +83,16 @@ export const billingService = {
     return data;
   },
 
-  purchaseValidityPlan: async (planId: string): Promise<{ success: boolean; subscription: SubscriptionView }> => {
+  purchaseValidityPlan: async (
+    planId: string
+  ): Promise<{ success: boolean; subscription: SubscriptionView }> => {
     const { data } = await api.post(`/billing/plans/${planId}/purchase`);
     return data;
   },
 
-  purchaseTopup: async (planId: string): Promise<{ success: boolean; subscription: SubscriptionView }> => {
+  purchaseTopup: async (
+    planId: string
+  ): Promise<{ success: boolean; subscription: SubscriptionView }> => {
     const { data } = await api.post(`/billing/plans/${planId}/topup`);
     return data;
   },
@@ -104,7 +103,9 @@ export const billingService = {
   },
 
   getHistory: async (page = 1, limit = 20): Promise<PaginatedHistory> => {
-    const { data } = await api.get<PaginatedHistory>(`/billing/history?page=${page}&limit=${limit}`);
+    const { data } = await api.get<PaginatedHistory>(
+      `/billing/history?page=${page}&limit=${limit}`
+    );
     return data;
   },
 };

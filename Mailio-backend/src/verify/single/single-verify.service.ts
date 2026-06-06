@@ -40,7 +40,6 @@ export class SingleVerifyService {
   ) {}
 
   async verifySingle(address: string, user: User) {
-    // Pre-flight: refuse before calling the (paid) provider.
     await this.credits.ensureSufficient(user, 1);
 
     const startMs = Date.now();
@@ -68,10 +67,6 @@ export class SingleVerifyService {
       }),
     );
 
-    // Deduct 1 credit once we have a persisted result. We accept any
-    // VerificationResult here — VALID/INVALID/CATCHALL/UNKNOWN all represent
-    // a billable provider call. Only a thrown exception above (network /
-    // provider failure) avoids the charge.
     const { balanceAfter } = await this.credits.deductForSingleVerify(
       user,
       email.id,

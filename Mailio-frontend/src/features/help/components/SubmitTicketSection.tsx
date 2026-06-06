@@ -1,11 +1,21 @@
 "use client";
 
-/* eslint-disable react-hooks/set-state-in-effect -- intentional fetch-on-mount pattern */
-
 import { useCallback, useEffect, useState } from "react";
 import {
-  Plus, Search, ArrowLeft, Loader2, Send, X, FileText, Inbox,
-  AlertCircle, Building2, Filter, Clock, ChevronLeft, ChevronRight,
+  Plus,
+  Search,
+  ArrowLeft,
+  Loader2,
+  Send,
+  X,
+  FileText,
+  Inbox,
+  AlertCircle,
+  Building2,
+  Filter,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -19,49 +29,47 @@ import {
 import { TicketAttachmentInput } from "./TicketAttachmentInput";
 import { TicketAttachmentsList } from "./TicketAttachmentsList";
 
-// ─── Display maps ────────────────────────────────────────────────────────────
-
 const STATUS_PILL: Record<TicketStatus, string> = {
-  OPEN:              "bg-blue-50 text-blue-700 border border-blue-200",
-  IN_PROGRESS:       "bg-indigo-50 text-indigo-700 border border-indigo-200",
-  WAITING_FOR_USER:  "bg-purple-50 text-purple-700 border border-purple-200",
+  OPEN: "bg-blue-50 text-blue-700 border border-blue-200",
+  IN_PROGRESS: "bg-indigo-50 text-indigo-700 border border-indigo-200",
+  WAITING_FOR_USER: "bg-purple-50 text-purple-700 border border-purple-200",
   WAITING_FOR_ADMIN: "bg-amber-50 text-amber-700 border border-amber-200",
-  RESOLVED:          "bg-emerald-50 text-emerald-700 border border-emerald-200",
-  CLOSED:            "bg-slate-100 text-slate-600 border border-slate-200",
+  RESOLVED: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  CLOSED: "bg-slate-100 text-slate-600 border border-slate-200",
 };
 
 const STATUS_LABEL: Record<TicketStatus, string> = {
-  OPEN:              "Open",
-  IN_PROGRESS:       "In Progress",
-  WAITING_FOR_USER:  "Awaiting You",
+  OPEN: "Open",
+  IN_PROGRESS: "In Progress",
+  WAITING_FOR_USER: "Awaiting You",
   WAITING_FOR_ADMIN: "With Support",
-  RESOLVED:          "Resolved",
-  CLOSED:            "Closed",
+  RESOLVED: "Resolved",
+  CLOSED: "Closed",
 };
 
 const TYPE_OPTIONS: { value: TicketType; label: string }[] = [
-  { value: "BILLING",            label: "Billing Issue"      },
-  { value: "CREDITS",            label: "Credit Issue"       },
-  { value: "PAYMENT",            label: "Payment Issue"      },
-  { value: "TECHNICAL_ISSUE",    label: "Technical Issue"    },
+  { value: "BILLING", label: "Billing Issue" },
+  { value: "CREDITS", label: "Credit Issue" },
+  { value: "PAYMENT", label: "Payment Issue" },
+  { value: "TECHNICAL_ISSUE", label: "Technical Issue" },
   { value: "ENTERPRISE_SUPPORT", label: "Enterprise Support" },
-  { value: "ACCOUNT",            label: "Account Issue"      },
-  { value: "FEATURE_REQUEST",    label: "Feature Request"    },
-  { value: "GENERAL",            label: "General"            },
+  { value: "ACCOUNT", label: "Account Issue" },
+  { value: "FEATURE_REQUEST", label: "Feature Request" },
+  { value: "GENERAL", label: "General" },
 ];
 
 const TYPE_LABEL: Record<TicketType, string> = Object.fromEntries(
-  TYPE_OPTIONS.map((o) => [o.value, o.label]),
+  TYPE_OPTIONS.map((o) => [o.value, o.label])
 ) as Record<TicketType, string>;
 
 const STATUS_FILTER_OPTIONS: { value: TicketStatus | ""; label: string }[] = [
-  { value: "",                  label: "All statuses" },
-  { value: "OPEN",              label: "Open" },
+  { value: "", label: "All statuses" },
+  { value: "OPEN", label: "Open" },
   { value: "WAITING_FOR_ADMIN", label: "With Support" },
-  { value: "WAITING_FOR_USER",  label: "Awaiting You" },
-  { value: "IN_PROGRESS",       label: "In Progress" },
-  { value: "RESOLVED",          label: "Resolved" },
-  { value: "CLOSED",            label: "Closed" },
+  { value: "WAITING_FOR_USER", label: "Awaiting You" },
+  { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "RESOLVED", label: "Resolved" },
+  { value: "CLOSED", label: "Closed" },
 ];
 
 const TYPE_FILTER_OPTIONS: { value: TicketType | ""; label: string }[] = [
@@ -72,20 +80,22 @@ const TYPE_FILTER_OPTIONS: { value: TicketType | ""; label: string }[] = [
 function fmtRel(iso: string | null) {
   if (!iso) return "—";
   const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 60_000)         return "just now";
-  if (diff < 3_600_000)      return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000)     return `${Math.floor(diff / 3_600_000)}h ago`;
+  if (diff < 60_000) return "just now";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
   if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)}d ago`;
   return new Date(iso).toLocaleDateString();
 }
 
 function fmtDateTime(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
-    month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
-
-// ─── Component ───────────────────────────────────────────────────────────────
 
 type View = "list" | "detail" | "new";
 
@@ -94,114 +104,109 @@ const PAGE_SIZE = 10;
 export function SubmitTicketSection() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const [view, setView] = useState<View>("list");
 
-  const [search,       setSearch]       = useState("");
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "">("");
-  const [typeFilter,   setTypeFilter]   = useState<TicketType | "">("");
-  const [filtersOpen,  setFiltersOpen]  = useState(false);
-  const [page,         setPage]         = useState(1);
+  const [typeFilter, setTypeFilter] = useState<TicketType | "">("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
-  const [selectedId,    setSelectedId]    = useState<string | null>(null);
-  const [detail,        setDetail]        = useState<TicketWithThread | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<TicketWithThread | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  const [reply, setReply]     = useState("");
+  const [reply, setReply] = useState("");
   const [replyAttachments, setReplyAttachments] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
 
-  // New-ticket form
-  const [title,   setTitle]   = useState("");
+  const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
-  const [type,    setType]    = useState<TicketType | "">("");
+  const [type, setType] = useState<TicketType | "">("");
   const [message, setMessage] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [saving,  setSaving]  = useState(false);
+  const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Server-side total used for pagination math + footer.
   const [total, setTotal] = useState(0);
-  // Debounce search to avoid hammering the API on every keystroke.
+
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 250);
     return () => clearTimeout(t);
   }, [search]);
 
-  // Reset to page 1 whenever filters / search change.
-  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, typeFilter]);
-
-  // ── Data ────────────────────────────────────────────────────────────────────
-  const fetchList = useCallback(async (p: number) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await ticketsService.listMine({
-        status: statusFilter || undefined,
-        type:   typeFilter   || undefined,
-        search: debouncedSearch || undefined,
-        page:   p,
-        limit:  PAGE_SIZE,
-      });
-      setTickets(res.data);
-      setTotal(res.total);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to load tickets.";
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    setPage(1);
   }, [debouncedSearch, statusFilter, typeFilter]);
 
-  // Refresh whenever the page or any filter changes.
-  useEffect(() => { void fetchList(page); }, [fetchList, page]);
-
-  // Lightweight wrapper for callers that just want to re-fetch the current page
-  // (e.g. after creating a new ticket or sending a reply).
-  const refreshList = useCallback(
-    () => fetchList(page),
-    [fetchList, page],
+  const fetchList = useCallback(
+    async (p: number) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await ticketsService.listMine({
+          status: statusFilter || undefined,
+          type: typeFilter || undefined,
+          search: debouncedSearch || undefined,
+          page: p,
+          limit: PAGE_SIZE,
+        });
+        setTickets(res.data);
+        setTotal(res.total);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Failed to load tickets.";
+        setError(msg);
+        toast.error(msg);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [debouncedSearch, statusFilter, typeFilter]
   );
 
-  // Re-fetch the open ticket — used to refresh expired signed attachment URLs.
+  useEffect(() => {
+    void fetchList(page);
+  }, [fetchList, page]);
+
+  const refreshList = useCallback(() => fetchList(page), [fetchList, page]);
+
   const reloadDetail = useCallback(async () => {
     if (!selectedId) return;
     try {
       const d = await ticketsService.detail(selectedId);
       setDetail(d);
-    } catch {/* ignore */}
+    } catch {}
   }, [selectedId]);
 
   useEffect(() => {
     if (!selectedId) return;
     setLoadingDetail(true);
-    ticketsService.detail(selectedId)
+    ticketsService
+      .detail(selectedId)
       .then((d) => {
         setDetail(d);
-        // Refresh list to clear unread badge (backend resets userUnreadCount on open).
+
         void refreshList();
       })
       .catch(() => setDetail(null))
       .finally(() => setLoadingDetail(false));
   }, [selectedId, refreshList]);
 
-  // Clear detail when no ticket is selected (e.g. after Back).
   useEffect(() => {
     if (!selectedId) setDetail(null);
   }, [selectedId]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  // Clamp page if total shrinks below current page (e.g. user filters down).
+
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
-  // The server already paged + filtered the result, so render `tickets` directly.
+
   const paged = tickets;
 
-  // ── Actions ─────────────────────────────────────────────────────────────────
   function openDetail(id: string) {
     setSelectedId(id);
     setView("detail");
@@ -229,10 +234,22 @@ export function SubmitTicketSection() {
 
   async function handleSubmit() {
     setFormError(null);
-    if (title.trim().length < 3)    { setFormError("Title is required (at least 3 characters)."); return; }
-    if (!subject.trim())            { setFormError("Subject is required.");        return; }
-    if (!type)                      { setFormError("Please pick a ticket type."); return; }
-    if (message.trim().length < 10) { setFormError("Please describe your issue (at least 10 characters)."); return; }
+    if (title.trim().length < 3) {
+      setFormError("Title is required (at least 3 characters).");
+      return;
+    }
+    if (!subject.trim()) {
+      setFormError("Subject is required.");
+      return;
+    }
+    if (!type) {
+      setFormError("Please pick a ticket type.");
+      return;
+    }
+    if (message.trim().length < 10) {
+      setFormError("Please describe your issue (at least 10 characters).");
+      return;
+    }
     setSaving(true);
     try {
       const created = await ticketsService.create({
@@ -243,17 +260,16 @@ export function SubmitTicketSection() {
         attachments,
       });
       toast.success(`Ticket ${created.ticket.ticketNumber} submitted!`);
-      setTitle(""); setSubject(""); setType(""); setMessage(""); setAttachments([]);
+      setTitle("");
+      setSubject("");
+      setType("");
+      setMessage("");
+      setAttachments([]);
       await refreshList();
       openDetail(created.ticket.id);
     } catch (e) {
-      // The api wrapper rejects with `{ status, message }`, not an Error
-      // instance — pull the server-side message directly so the user can
-      // see what actually failed (storage misconfig, MIME rejection, etc.).
       const apiMsg = (e as { message?: string } | null)?.message;
-      const msg =
-        apiMsg ||
-        (e instanceof Error ? e.message : "Failed to create ticket.");
+      const msg = apiMsg || (e instanceof Error ? e.message : "Failed to create ticket.");
       setFormError(msg);
       toast.error(msg);
     } finally {
@@ -261,18 +277,26 @@ export function SubmitTicketSection() {
     }
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────────
-
   if (view === "new") {
     return (
       <NewTicketForm
-        title={title} subject={subject} type={type} message={message}
+        title={title}
+        subject={subject}
+        type={type}
+        message={message}
         attachments={attachments}
-        saving={saving} formError={formError}
-        onTitle={setTitle} onSubject={setSubject} onType={setType} onMessage={setMessage}
+        saving={saving}
+        formError={formError}
+        onTitle={setTitle}
+        onSubject={setSubject}
+        onType={setType}
+        onMessage={setMessage}
         onAttachments={setAttachments}
         onSubmit={handleSubmit}
-        onCancel={() => { setView(selectedId ? "detail" : "list"); setFormError(null); }}
+        onCancel={() => {
+          setView(selectedId ? "detail" : "list");
+          setFormError(null);
+        }}
       />
     );
   }
@@ -289,8 +313,14 @@ export function SubmitTicketSection() {
         sending={sending}
         onSend={sendReply}
         onReload={reloadDetail}
-        onBack={() => { setView("list"); setSelectedId(null); }}
-        onNew={() => { setView("new"); setFormError(null); }}
+        onBack={() => {
+          setView("list");
+          setSelectedId(null);
+        }}
+        onNew={() => {
+          setView("new");
+          setFormError(null);
+        }}
       />
     );
   }
@@ -298,10 +328,9 @@ export function SubmitTicketSection() {
   const activeFilterCount = (statusFilter ? 1 : 0) + (typeFilter ? 1 : 0);
   const hasAnyFilter = !!search || activeFilterCount > 0;
 
-  // List view
   return (
     <div className="space-y-4">
-      {/* Header */}
+      {}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <h2 className="text-lg sm:text-xl font-bold text-[#111827]">Support Tickets</h2>
@@ -310,20 +339,26 @@ export function SubmitTicketSection() {
           </p>
         </div>
         <button
-          onClick={() => { setView("new"); setFormError(null); }}
+          onClick={() => {
+            setView("new");
+            setFormError(null);
+          }}
           className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B47CF] px-3.5 py-2 text-xs font-semibold text-white hover:opacity-90 transition-opacity shrink-0"
         >
           <Plus size={14} /> New Ticket
         </button>
       </div>
 
-      {/* Single card wrapping toolbar + list */}
+      {}
       <div className="rounded-2xl border border-[#DCE6F3] bg-white overflow-hidden">
-        {/* Toolbar */}
+        {}
         <div className="border-b border-[#DCE6F3]/70 px-3 sm:px-4 py-3 space-y-2.5">
           <div className="flex items-center gap-2">
             <div className="relative flex-1 min-w-0">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -350,7 +385,11 @@ export function SubmitTicketSection() {
             {hasAnyFilter && (
               <button
                 type="button"
-                onClick={() => { setSearch(""); setStatusFilter(""); setTypeFilter(""); }}
+                onClick={() => {
+                  setSearch("");
+                  setStatusFilter("");
+                  setTypeFilter("");
+                }}
                 className="hidden sm:inline-block h-10 px-2 text-xs font-medium text-muted-foreground hover:text-[#111827]"
               >
                 Clear
@@ -360,52 +399,64 @@ export function SubmitTicketSection() {
 
           {filtersOpen && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as TicketStatus | "")}
-            className="h-9 rounded-md border border-[#DCE6F3] bg-white px-2 text-xs text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#0B47CF]/30"
-          >
-            {STATUS_FILTER_OPTIONS.map((o) => (
-              <option key={o.value || "all"} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as TicketType | "")}
-            className="h-9 rounded-md border border-[#DCE6F3] bg-white px-2 text-xs text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#0B47CF]/30"
-          >
-            {TYPE_FILTER_OPTIONS.map((o) => (
-              <option key={o.value || "all"} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as TicketStatus | "")}
+                className="h-9 rounded-md border border-[#DCE6F3] bg-white px-2 text-xs text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#0B47CF]/30"
+              >
+                {STATUS_FILTER_OPTIONS.map((o) => (
+                  <option key={o.value || "all"} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as TicketType | "")}
+                className="h-9 rounded-md border border-[#DCE6F3] bg-white px-2 text-xs text-[#111827] focus:outline-none focus:ring-2 focus:ring-[#0B47CF]/30"
+              >
+                {TYPE_FILTER_OPTIONS.map((o) => (
+                  <option key={o.value || "all"} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
         </div>
 
-        {/* List */}
+        {}
         <div>
           {loading ? (
             <SkeletonList />
           ) : error ? (
             <div className="py-12 text-center px-4">
               <p className="text-xs text-red-600 mb-2">{error}</p>
-              <button onClick={() => void refreshList()} className="text-xs font-semibold text-[#0B47CF] hover:underline">
+              <button
+                onClick={() => void refreshList()}
+                className="text-xs font-semibold text-[#0B47CF] hover:underline"
+              >
                 Retry
               </button>
             </div>
           ) : paged.length === 0 ? (
             <EmptyList
               searched={hasAnyFilter}
-              onCreate={() => { setView("new"); setFormError(null); }}
+              onCreate={() => {
+                setView("new");
+                setFormError(null);
+              }}
             />
           ) : (
             <ul className="divide-y divide-[#DCE6F3]/60">
-              {paged.map((t) => <TicketCard key={t.id} ticket={t} onClick={() => openDetail(t.id)} />)}
+              {paged.map((t) => (
+                <TicketCard key={t.id} ticket={t} onClick={() => openDetail(t.id)} />
+              ))}
             </ul>
           )}
         </div>
 
-        {/* Footer + pagination */}
+        {}
         {!loading && !error && total > 0 && (
           <div className="border-t border-[#DCE6F3]/70 px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap">
             <span className="text-[11px] text-muted-foreground">
@@ -432,7 +483,9 @@ export function SubmitTicketSection() {
                   }, [])
                   .map((p, i) =>
                     p === "…" ? (
-                      <span key={`e${i}`} className="px-1 text-[11px] text-muted-foreground">…</span>
+                      <span key={`e${i}`} className="px-1 text-[11px] text-muted-foreground">
+                        …
+                      </span>
                     ) : (
                       <button
                         key={p}
@@ -446,7 +499,7 @@ export function SubmitTicketSection() {
                       >
                         {p}
                       </button>
-                    ),
+                    )
                   )}
                 <button
                   type="button"
@@ -469,8 +522,6 @@ export function SubmitTicketSection() {
     </div>
   );
 }
-
-// ─── Subcomponents ───────────────────────────────────────────────────────────
 
 function SkeletonList() {
   return (
@@ -529,7 +580,7 @@ function TicketCard({ ticket: t, onClick }: { ticket: Ticket; onClick: () => voi
         }`}
       >
         <div className="px-4 sm:px-5 py-3.5">
-          {/* Top row — meta + last activity */}
+          {}
           <div className="flex items-center justify-between gap-3 mb-1.5">
             <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
               <span className="font-mono text-[10px] text-muted-foreground">#{t.ticketNumber}</span>
@@ -547,28 +598,32 @@ function TicketCard({ ticket: t, onClick }: { ticket: Ticket; onClick: () => voi
             </div>
           </div>
 
-          {/* Title + Subject */}
-          <p className={`text-sm ${unread ? "font-bold" : "font-semibold"} text-[#111827] truncate`}>
+          {}
+          <p
+            className={`text-sm ${unread ? "font-bold" : "font-semibold"} text-[#111827] truncate`}
+          >
             {t.title}
           </p>
           <p className="text-[11px] text-muted-foreground truncate">{t.subject}</p>
 
-          {/* Preview */}
-          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
-            {t.content}
-          </p>
+          {}
+          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{t.content}</p>
 
-          {/* Bottom row — status / priority / last reply by */}
+          {}
           <div className="mt-2.5 flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_PILL[t.status]}`}>
+              <span
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_PILL[t.status]}`}
+              >
                 {STATUS_LABEL[t.status]}
               </span>
             </div>
             {t.lastMessageByRole && (
               <span className="text-[10px] text-muted-foreground">
                 Last reply by{" "}
-                <span className={`font-semibold ${lastReplyByMe ? "text-[#111827]" : "text-[#0B47CF]"}`}>
+                <span
+                  className={`font-semibold ${lastReplyByMe ? "text-[#111827]" : "text-[#0B47CF]"}`}
+                >
                   {lastReplyByMe ? "You" : "Support"}
                 </span>
               </span>
@@ -580,11 +635,18 @@ function TicketCard({ ticket: t, onClick }: { ticket: Ticket; onClick: () => voi
   );
 }
 
-// ─── Ticket detail ──────────────────────────────────────────────────────────
-
 function TicketDetail({
-  loading, detail, reply, setReply, replyAttachments, setReplyAttachments,
-  sending, onSend, onReload, onBack, onNew,
+  loading,
+  detail,
+  reply,
+  setReply,
+  replyAttachments,
+  setReplyAttachments,
+  sending,
+  onSend,
+  onReload,
+  onBack,
+  onNew,
 }: {
   loading: boolean;
   detail: TicketWithThread | null;
@@ -610,19 +672,21 @@ function TicketDetail({
       <div className="rounded-2xl border border-[#DCE6F3] bg-white p-12 text-center text-sm text-muted-foreground">
         Ticket not available.
         <div className="mt-3">
-          <button onClick={onBack} className="text-xs text-[#0B47CF] underline">Back to list</button>
+          <button onClick={onBack} className="text-xs text-[#0B47CF] underline">
+            Back to list
+          </button>
         </div>
       </div>
     );
   }
 
   const ticket = detail.ticket;
-  const thread = detail.messages.slice(1); // skip first (mirrors content)
+  const thread = detail.messages.slice(1);
   const isClosed = ticket.status === "CLOSED" || ticket.status === "RESOLVED";
 
   return (
     <div className="space-y-3">
-      {/* Back link */}
+      {}
       <button
         type="button"
         onClick={onBack}
@@ -631,13 +695,15 @@ function TicketDetail({
         <ArrowLeft size={13} /> Back to tickets
       </button>
 
-      {/* One unified card with internal dividers */}
+      {}
       <div className="rounded-2xl border border-[#DCE6F3] bg-white overflow-hidden">
-        {/* Header */}
+        {}
         <header className="px-4 sm:px-6 py-4 border-b border-[#DCE6F3]/70">
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span className="font-mono text-xs text-muted-foreground">#{ticket.ticketNumber}</span>
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_PILL[ticket.status]}`}>
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_PILL[ticket.status]}`}
+            >
               {STATUS_LABEL[ticket.status]}
             </span>
             <span className="text-[10px] text-muted-foreground">{TYPE_LABEL[ticket.type]}</span>
@@ -653,7 +719,7 @@ function TicketDetail({
           </div>
         </header>
 
-        {/* Original issue */}
+        {}
         <section className="px-4 sm:px-6 py-4 border-b border-[#DCE6F3]/70">
           <div className="flex items-center gap-2 mb-2">
             <FileText size={12} className="text-muted-foreground" />
@@ -671,7 +737,7 @@ function TicketDetail({
           onRefresh={() => void onReload()}
         />
 
-        {/* Activity timeline */}
+        {}
         <section className="px-4 sm:px-6 py-4 border-b border-[#DCE6F3]/70">
           <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -698,27 +764,38 @@ function TicketDetail({
           ) : (
             <ol className="relative ml-1.5 border-l-2 border-[#DCE6F3] space-y-3 pl-5">
               {thread.map((m) => {
-                const isUser = m.senderRole === "USER" || m.senderRole === "ENTERPRISE_USER" || m.senderRole === "ENTERPRISE_ADMIN";
+                const isUser =
+                  m.senderRole === "USER" ||
+                  m.senderRole === "ENTERPRISE_USER" ||
+                  m.senderRole === "ENTERPRISE_ADMIN";
                 return (
                   <li key={m.id} className="relative">
-                    <span className={`absolute -left-[1.50rem] top-1.5 w-3 h-3 rounded-full border-2 ${
-                      isUser ? "bg-slate-400 border-slate-200" : "bg-[#0B47CF] border-[#DCE6F3]"
-                    }`} />
+                    <span
+                      className={`absolute -left-[1.50rem] top-1.5 w-3 h-3 rounded-full border-2 ${
+                        isUser ? "bg-slate-400 border-slate-200" : "bg-[#0B47CF] border-[#DCE6F3]"
+                      }`}
+                    />
                     <div className="rounded-xl border border-[#DCE6F3] bg-white p-3.5">
                       <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-semibold text-[#111827]">
                             {isUser ? "You" : "Support"}
                           </p>
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                            isUser ? "bg-slate-100 text-slate-600" : "bg-[#EEF3FB] text-[#0B47CF]"
-                          }`}>
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                              isUser ? "bg-slate-100 text-slate-600" : "bg-[#EEF3FB] text-[#0B47CF]"
+                            }`}
+                          >
                             {isUser ? "You" : "Support Team"}
                           </span>
                         </div>
-                        <span className="text-[10px] text-muted-foreground">{fmtDateTime(m.createdAt)}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {fmtDateTime(m.createdAt)}
+                        </span>
                       </div>
-                      <p className="text-sm text-[#111827]/85 leading-relaxed whitespace-pre-wrap">{m.message}</p>
+                      <p className="text-sm text-[#111827]/85 leading-relaxed whitespace-pre-wrap">
+                        {m.message}
+                      </p>
                     </div>
                   </li>
                 );
@@ -727,12 +804,15 @@ function TicketDetail({
           )}
         </section>
 
-        {/* Reply box */}
+        {}
         {isClosed ? (
           <div className="px-4 sm:px-6 py-4 bg-[#F4F8FF]/40 flex items-center justify-between gap-3 flex-wrap">
             <p className="text-xs text-muted-foreground">
-              This ticket is <span className="font-semibold text-[#111827]">{STATUS_LABEL[ticket.status].toLowerCase()}</span>.
-              Need to follow up?
+              This ticket is{" "}
+              <span className="font-semibold text-[#111827]">
+                {STATUS_LABEL[ticket.status].toLowerCase()}
+              </span>
+              . Need to follow up?
             </p>
             <button
               type="button"
@@ -763,7 +843,8 @@ function TicketDetail({
             </TicketAttachmentInput>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <p className="text-[11px] text-muted-foreground">
-                For instant help, use <strong className="text-[#0B47CF]">Live Chat</strong>. For tracked issues, continue using this ticket.
+                For instant help, use <strong className="text-[#0B47CF]">Live Chat</strong>. For
+                tracked issues, continue using this ticket.
               </p>
               <button
                 type="button"
@@ -782,11 +863,21 @@ function TicketDetail({
   );
 }
 
-// ─── New ticket form ────────────────────────────────────────────────────────
-
 function NewTicketForm({
-  title, subject, type, message, attachments, saving, formError,
-  onTitle, onSubject, onType, onMessage, onAttachments, onSubmit, onCancel,
+  title,
+  subject,
+  type,
+  message,
+  attachments,
+  saving,
+  formError,
+  onTitle,
+  onSubject,
+  onType,
+  onMessage,
+  onAttachments,
+  onSubmit,
+  onCancel,
 }: {
   title: string;
   subject: string;
@@ -868,7 +959,9 @@ function NewTicketForm({
                       : "border-[#DCE6F3] bg-white hover:bg-[#F4F8FF]"
                   }`}
                 >
-                  <div className={`text-xs font-semibold ${selected ? "text-[#0B47CF]" : "text-[#111827]"}`}>
+                  <div
+                    className={`text-xs font-semibold ${selected ? "text-[#0B47CF]" : "text-[#111827]"}`}
+                  >
                     {o.label}
                   </div>
                 </button>
@@ -919,7 +1012,13 @@ function NewTicketForm({
             disabled={!title.trim() || !subject.trim() || !message.trim() || !type || saving}
             className="h-9 px-5 flex items-center gap-2 rounded-xl bg-[#0B47CF] text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
           >
-            {saving ? <><Loader2 size={12} className="animate-spin" /> Submitting…</> : "Submit Ticket"}
+            {saving ? (
+              <>
+                <Loader2 size={12} className="animate-spin" /> Submitting…
+              </>
+            ) : (
+              "Submit Ticket"
+            )}
           </button>
         </div>
       </div>
@@ -927,4 +1026,5 @@ function NewTicketForm({
   );
 }
 
-void Inbox; void Building2;
+void Inbox;
+void Building2;

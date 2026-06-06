@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type KeyboardEvent,
+} from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -47,7 +54,8 @@ export function VerifyEmailForm() {
     if (!email) return;
 
     let cancelled = false;
-    authService.getOtpStatus(email)
+    authService
+      .getOtpStatus(email)
       .then(({ remainingSeconds }) => {
         if (cancelled) return;
         if (remainingSeconds > 0) startTimer(remainingSeconds);
@@ -187,12 +195,16 @@ export function VerifyEmailForm() {
 
       <form onSubmit={onSubmit} noValidate className="space-y-4 sm:space-y-5">
         <div className="space-y-2">
-          <label className="text-xs font-medium text-foreground sm:text-sm">Verification code</label>
+          <label className="text-xs font-medium text-foreground sm:text-sm">
+            Verification code
+          </label>
           <div className="flex justify-between gap-1.5 sm:gap-3">
             {digits.map((d, i) => (
               <input
                 key={i}
-                ref={(el) => { inputsRef.current[i] = el; }}
+                ref={(el) => {
+                  inputsRef.current[i] = el;
+                }}
                 type="text"
                 inputMode="numeric"
                 autoComplete={i === 0 ? "one-time-code" : "off"}
@@ -232,7 +244,9 @@ export function VerifyEmailForm() {
           className="h-11 w-full rounded-lg bg-[#162D3A] text-sm text-white hover:bg-[#0e1f29] disabled:opacity-60 sm:h-12 sm:text-base"
         >
           {submitting ? (
-            <><Loader2 size={16} className="animate-spin" /> Verifying…</>
+            <>
+              <Loader2 size={16} className="animate-spin" /> Verifying…
+            </>
           ) : (
             "Verify email"
           )}

@@ -17,7 +17,9 @@ export class AddUserAuthProvider1736000000004 implements MigrationInterface {
         ADD COLUMN IF NOT EXISTS "avatar_url"  varchar(512)
     `);
 
-    await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "password_hash" DROP NOT NULL`);
+    await queryRunner.query(
+      `ALTER TABLE "users" ALTER COLUMN "password_hash" DROP NOT NULL`,
+    );
 
     await queryRunner.query(
       `CREATE UNIQUE INDEX IF NOT EXISTS "uq_users_provider_provider_id"
@@ -27,8 +29,12 @@ export class AddUserAuthProvider1736000000004 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "uq_users_provider_provider_id"`);
-    await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "password_hash" SET NOT NULL`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "uq_users_provider_provider_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "users" ALTER COLUMN "password_hash" SET NOT NULL`,
+    );
     await queryRunner.query(`
       ALTER TABLE "users"
         DROP COLUMN IF EXISTS "avatar_url",

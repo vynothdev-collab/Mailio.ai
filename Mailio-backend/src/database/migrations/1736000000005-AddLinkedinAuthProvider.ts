@@ -11,8 +11,5 @@ export class AddLinkedinAuthProvider1736000000005 implements MigrationInterface 
     `);
   }
 
-  public async down(): Promise<void> {
-    // PostgreSQL does not support removing enum values. Reverting requires
-    // recreating the type — left manual for safety.
-  }
+  public async down(): Promise<void> {}
 }

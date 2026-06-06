@@ -1,16 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Adds RBAC + Enterprise + Credit ledger.
- *
- * Purely additive — existing users default to role=USER with credit_balance=0
- * and no enterprise affiliation, so the current normal-user flow is unchanged.
- */
 export class AddRbacAndCredits1780000000000 implements MigrationInterface {
   name = 'AddRbacAndCredits1780000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // ---- enums ----
     await queryRunner.query(
       `CREATE TYPE "public"."users_role_enum" AS ENUM('USER','ENTERPRISE_USER','ENTERPRISE_ADMIN','SUPER_ADMIN')`,
     );
@@ -24,7 +17,6 @@ export class AddRbacAndCredits1780000000000 implements MigrationInterface {
       `CREATE TYPE "public"."credit_tx_reason_enum" AS ENUM('ADMIN_ALLOCATION','ADMIN_ADJUSTMENT','SINGLE_VERIFY','BULK_VERIFY_RESERVE','BULK_VERIFY_REFUND','PAYMENT')`,
     );
 
-    // ---- enterprises ----
     await queryRunner.query(`
       CREATE TABLE "enterprises" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -44,7 +36,6 @@ export class AddRbacAndCredits1780000000000 implements MigrationInterface {
       `CREATE INDEX "idx_enterprises_active" ON "enterprises" ("is_active")`,
     );
 
-    // ---- users columns ----
     await queryRunner.query(
       `ALTER TABLE "users" ADD "role" "public"."users_role_enum" NOT NULL DEFAULT 'USER'`,
     );
@@ -72,7 +63,6 @@ export class AddRbacAndCredits1780000000000 implements MigrationInterface {
       `CREATE INDEX "idx_users_enterprise" ON "users" ("enterprise_id") WHERE "enterprise_id" IS NOT NULL`,
     );
 
-    // ---- credit_transactions (immutable ledger) ----
     await queryRunner.query(`
       CREATE TABLE "credit_transactions" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -106,8 +96,6 @@ export class AddRbacAndCredits1780000000000 implements MigrationInterface {
       `CREATE INDEX "idx_credit_tx_reference" ON "credit_transactions" ("reference_type","reference_id")`,
     );
 
-    // ---- email_lists: track credit reservation against bulk jobs ----
-    // Used to reconcile refunds on partial failure / cancellation.
     await queryRunner.query(
       `ALTER TABLE "email_lists" ADD "credits_reserved" bigint NOT NULL DEFAULT 0`,
     );
@@ -142,9 +130,7 @@ export class AddRbacAndCredits1780000000000 implements MigrationInterface {
       `ALTER TABLE "users" DROP CONSTRAINT "fk_users_enterprise"`,
     );
     await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "credits_used"`);
-    await queryRunner.query(
-      `ALTER TABLE "users" DROP COLUMN "credit_balance"`,
-    );
+    await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "credit_balance"`);
     await queryRunner.query(
       `ALTER TABLE "users" DROP COLUMN "created_by_user_id"`,
     );

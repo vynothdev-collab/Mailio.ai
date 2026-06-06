@@ -4,7 +4,6 @@ export class CreateDlqJobsTable1736000000003 implements MigrationInterface {
   name = 'CreateDlqJobsTable1736000000003';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    
     await queryRunner.query(`
       DO $$ BEGIN
         CREATE TYPE "dlq_status" AS ENUM ('PENDING', 'RETRIED', 'DISCARDED');

@@ -7,31 +7,34 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Table, TableBody, TableCell, TableHead,
-  TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { ConfirmDeleteDialog } from "@/src/components/ConfirmDeleteDialog";
 import { useVerificationHistory } from "@/src/context/VerificationContext";
 import { cn } from "@/src/lib/utils";
-import {
-  verificationService,
-  type SingleRecentItem,
-} from "@/src/services/verificationService";
+import { verificationService, type SingleRecentItem } from "@/src/services/verificationService";
 import type { ApiError } from "@/src/types/auth";
 import { EMAIL_STATUS_CONFIG, CATCHALL_CONFIG } from "../constants";
 import type { EmailStatus, RecentVerification, CatchallLevel } from "../types";
 
 const STATUS_FALLBACK: EmailStatus = "unknown";
 const CATCHALL_FALLBACK: CatchallLevel = "medium";
-const PAGE_SIZE        = 10;
+const PAGE_SIZE = 10;
 
 function StatusBadge({ status }: { status: EmailStatus }) {
   const cfg = EMAIL_STATUS_CONFIG[status] ?? EMAIL_STATUS_CONFIG[STATUS_FALLBACK];
   return (
-    <span className={cn(
-      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
-      cfg.className,
-    )}>
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+        cfg.className
+      )}
+    >
       {cfg.label}
     </span>
   );
@@ -51,7 +54,12 @@ function formatDate(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? iso
-    : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    : d.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 }
 
 function fromApi(item: SingleRecentItem): RecentVerification {
@@ -69,15 +77,19 @@ function fromApi(item: SingleRecentItem): RecentVerification {
 interface Props {
   refreshKey?: number;
   optimistic?: RecentVerification[];
-  onDeleted?:  () => void;
+  onDeleted?: () => void;
 }
 
-export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = [], onDeleted }: Props) {
-  const [page,    setPage]    = useState(1);
-  const [rows,    setRows]    = useState<RecentVerification[]>([]);
-  const [total,   setTotal]   = useState(0);
+export function RecentSingleVerificationsTable({
+  refreshKey = 0,
+  optimistic = [],
+  onDeleted,
+}: Props) {
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState<RecentVerification[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const { remove: removeFromHistory } = useVerificationHistory();
   const [pendingDelete, setPendingDelete] = useState<RecentVerification | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -100,7 +112,9 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
     }
   };
 
-  useEffect(() => { setPage(1); }, [refreshKey]);
+  useEffect(() => {
+    setPage(1);
+  }, [refreshKey]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -117,7 +131,9 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
         const apiErr = err as ApiError;
         setError(apiErr?.message ?? "Failed to load recent verifications.");
       })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
     return () => controller.abort();
   }, [page, refreshKey]);
 
@@ -134,10 +150,10 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
   }, [optimistic, rows, page]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const start      = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const end        = Math.min(page * PAGE_SIZE, total);
-  const canPrev    = page > 1 && !loading;
-  const canNext    = page < totalPages && !loading;
+  const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const end = Math.min(page * PAGE_SIZE, total);
+  const canPrev = page > 1 && !loading;
+  const canNext = page < totalPages && !loading;
 
   return (
     <Card className="overflow-hidden gap-0 py-0">
@@ -179,12 +195,16 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
             {loading && merged.length === 0 ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={5} className="px-5"><Skeleton className="h-6 w-full" /></TableCell>
+                  <TableCell colSpan={5} className="px-5">
+                    <Skeleton className="h-6 w-full" />
+                  </TableCell>
                 </TableRow>
               ))
             ) : error && merged.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-6 text-center text-sm text-destructive">{error}</TableCell>
+                <TableCell colSpan={5} className="py-6 text-center text-sm text-destructive">
+                  {error}
+                </TableCell>
               </TableRow>
             ) : merged.length === 0 ? (
               <TableRow>
@@ -198,9 +218,15 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
                   key={r.id}
                   className="border-b border-[#DCE6F3]/60 last:border-0 transition-colors hover:bg-[#F4F8FF]/60"
                 >
-                  <TableCell className="px-5 py-3 text-sm font-medium text-[#111827]">{r.email}</TableCell>
-                  <TableCell className="py-3"><StatusBadge status={r.status} /></TableCell>
-                  <TableCell className="py-3"><CatchallCell catchall={r.catchall} /></TableCell>
+                  <TableCell className="px-5 py-3 text-sm font-medium text-[#111827]">
+                    {r.email}
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <StatusBadge status={r.status} />
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <CatchallCell catchall={r.catchall} />
+                  </TableCell>
                   <TableCell className="px-5 py-3 text-right text-sm text-muted-foreground tabular-nums whitespace-nowrap">
                     {formatDate(r.verifiedAt)}
                   </TableCell>
@@ -225,7 +251,9 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
 
       <ConfirmDeleteDialog
         open={pendingDelete !== null}
-        onOpenChange={(open) => { if (!open && !deleting) setPendingDelete(null); }}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setPendingDelete(null);
+        }}
         title="Delete verification?"
         itemLabel={pendingDelete?.email}
         pending={deleting}
@@ -234,10 +262,17 @@ export function RecentSingleVerificationsTable({ refreshKey = 0, optimistic = []
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#DCE6F3] px-5 py-3">
         <p className="text-sm text-muted-foreground tabular-nums">
-          {total === 0
-            ? "No records"
-            : <>Showing <span className="font-semibold text-[#111827]">{start}-{end}</span> of <span className="font-semibold text-[#111827]">{total}</span></>
-          }
+          {total === 0 ? (
+            "No records"
+          ) : (
+            <>
+              Showing{" "}
+              <span className="font-semibold text-[#111827]">
+                {start}-{end}
+              </span>{" "}
+              of <span className="font-semibold text-[#111827]">{total}</span>
+            </>
+          )}
         </p>
         <div className="flex items-center gap-2">
           <Button

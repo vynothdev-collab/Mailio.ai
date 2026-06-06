@@ -25,7 +25,7 @@ interface KeyState {
   weight: number;
   rlMax: number;
   rlWindowMs: number;
-  cooldownUntil: number; 
+  cooldownUntil: number;
 }
 
 @Injectable()
@@ -63,7 +63,6 @@ export class KeyPoolService {
       for (let i = 0; i < w; i++) candidates.push(k);
     }
     if (candidates.length === 0) {
-      
       const soonest = all
         .filter(
           (k) => k.status === ApiKeyStatus.ACTIVE && k.cooldownUntil > now,

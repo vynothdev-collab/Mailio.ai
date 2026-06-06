@@ -76,9 +76,7 @@ export function SignupForm() {
               minLength: { value: 2, message: "Name must be at least 2 characters." },
             })}
           />
-          {errors.fullName && (
-            <p className="text-xs text-destructive">{errors.fullName.message}</p>
-          )}
+          {errors.fullName && <p className="text-xs text-destructive">{errors.fullName.message}</p>}
         </div>
 
         <div className="space-y-1.5">
@@ -97,13 +95,14 @@ export function SignupForm() {
               pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email." },
             })}
           />
-          {errors.email && (
-            <p className="text-xs text-destructive">{errors.email.message}</p>
-          )}
+          {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="signup-password" className="text-xs font-medium text-foreground sm:text-sm">
+          <label
+            htmlFor="signup-password"
+            className="text-xs font-medium text-foreground sm:text-sm"
+          >
             Password
           </label>
           <div className="relative">
@@ -128,13 +127,14 @@ export function SignupForm() {
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-          {errors.password && (
-            <p className="text-xs text-destructive">{errors.password.message}</p>
-          )}
+          {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="signup-confirm" className="text-xs font-medium text-foreground sm:text-sm">
+          <label
+            htmlFor="signup-confirm"
+            className="text-xs font-medium text-foreground sm:text-sm"
+          >
             Confirm Password
           </label>
           <div className="relative">
@@ -170,7 +170,9 @@ export function SignupForm() {
           className="h-11 w-full rounded-lg bg-[#162D3A] text-sm text-white hover:bg-[#0e1f29] sm:h-12 sm:text-base"
         >
           {submitState === "loading" ? (
-            <><Loader2 size={16} className="animate-spin" /> Creating account…</>
+            <>
+              <Loader2 size={16} className="animate-spin" /> Creating account…
+            </>
           ) : (
             "Sign up"
           )}

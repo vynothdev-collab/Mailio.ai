@@ -8,7 +8,9 @@ import { SupportTicketsController } from './support-tickets.controller';
 import { SupportTicketsService } from './support-tickets.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Ticket, TicketMessage, TicketAttachment])],
+  imports: [
+    TypeOrmModule.forFeature([Ticket, TicketMessage, TicketAttachment]),
+  ],
   controllers: [SupportTicketsController, AdminSupportTicketsController],
   providers: [SupportTicketsService],
 })

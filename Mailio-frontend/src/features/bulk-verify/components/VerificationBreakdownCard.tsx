@@ -7,7 +7,7 @@ import type { BulkBreakdownDto } from "@/src/types/bulk";
 
 interface Props {
   breakdown: BulkBreakdownDto | null;
-  loading:   boolean;
+  loading: boolean;
 }
 
 function Header() {
@@ -59,10 +59,10 @@ export function VerificationBreakdownCard({ breakdown, loading }: Props) {
   }
 
   const chartData = breakdown.data.map((d) => ({
-    name:       d.name,
-    value:      d.value,
+    name: d.name,
+    value: d.value,
     percentage: `${d.percentage.toFixed(1)}%`,
-    color:      d.color,
+    color: d.color,
   }));
 
   return (

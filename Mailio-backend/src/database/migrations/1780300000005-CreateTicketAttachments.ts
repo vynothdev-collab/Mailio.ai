@@ -1,10 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Per-ticket attachment metadata. Binary lives in S3 — this row only points
- * to the object via s3_key. Deletion is soft so we can audit / restore from
- * S3 lifecycle policies if needed.
- */
 export class CreateTicketAttachments1780300000005 implements MigrationInterface {
   name = 'CreateTicketAttachments1780300000005';
 

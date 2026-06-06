@@ -12,18 +12,18 @@ import { cn, formatNumber } from "@/src/lib/utils";
 import type { ApiError } from "@/src/types/auth";
 interface JobMeta {
   fileName: string;
-  status:   "pending" | "processing" | "completed" | "failed";
-  total:    number;
-  valid:    number;
-  invalid:  number;
+  status: "pending" | "processing" | "completed" | "failed";
+  total: number;
+  valid: number;
+  invalid: number;
   catchall: number;
 }
 
 const STATUS_PILL: Record<string, string> = {
-  valid:    "bg-emerald-50 text-emerald-700 border-emerald-100",
-  invalid:  "bg-red-50 text-red-600 border-red-100",
+  valid: "bg-emerald-50 text-emerald-700 border-emerald-100",
+  invalid: "bg-red-50 text-red-600 border-red-100",
   catchall: "bg-amber-50 text-amber-700 border-amber-100",
-  unknown:  "bg-slate-50 text-slate-600 border-slate-200",
+  unknown: "bg-slate-50 text-slate-600 border-slate-200",
 };
 
 const PAGE_SIZE = 10;
@@ -33,40 +33,80 @@ interface Props {
 }
 
 interface EmailRow {
-  id:                 string;
-  address:            string;
+  id: string;
+  address: string;
   verificationResult: "VALID" | "INVALID" | "CATCHALL" | "UNKNOWN" | null;
-  score:              number | null;
-  processedAt:        string | null;
+  score: number | null;
+  processedAt: string | null;
 }
 
 function FileIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-      <path d="M10.5 1.5H4.5C4.10218 1.5 3.72064 1.65804 3.43934 1.93934C3.15804 2.22064 3 2.60218 3 3V15C3 15.3978 3.15804 15.7794 3.43934 16.0607C3.72064 16.342 4.10218 16.5 4.5 16.5H13.5C13.8978 16.5 14.2794 16.342 14.5607 16.0607C14.842 15.7794 15 15.3978 15 15V6L10.5 1.5Z" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M10.5 1.5V6H15" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path
+        d="M10.5 1.5H4.5C4.10218 1.5 3.72064 1.65804 3.43934 1.93934C3.15804 2.22064 3 2.60218 3 3V15C3 15.3978 3.15804 15.7794 3.43934 16.0607C3.72064 16.342 4.10218 16.5 4.5 16.5H13.5C13.8978 16.5 14.2794 16.342 14.5607 16.0607C14.842 15.7794 15 15.3978 15 15V6L10.5 1.5Z"
+        stroke="#2563EB"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10.5 1.5V6H15"
+        stroke="#2563EB"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 function CheckIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-      <path d="M15 4.5L6.75 12.75L3 9" stroke="#14A055" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path
+        d="M15 4.5L6.75 12.75L3 9"
+        stroke="#14A055"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 function WarningTriangleIcon({ color }: { color: string }) {
   return (
     <svg width="14" height="14" viewBox="0 0 11 11" fill="none" aria-hidden="true">
-      <path d="M5.5 4.125V5.95833" stroke={color} strokeWidth="1.00833" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M5.5 7.79175H5.50458" stroke={color} strokeWidth="1.00833" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M4.72093 1.76923L0.834268 8.25007C0.754228 8.38868 0.711878 8.54583 0.711429 8.70589C0.710981 8.86595 0.752451 9.02333 0.831713 9.16239C0.910975 9.30145 1.02527 9.41733 1.16322 9.4985C1.30117 9.57967 1.45797 9.62331 1.61802 9.62507H9.38218C9.54223 9.62331 9.69903 9.57967 9.83698 9.4985C9.97493 9.41733 10.0892 9.30145 10.1685 9.16239C10.2478 9.02333 10.2892 8.86595 10.2888 8.70589C10.2883 8.54583 10.246 8.38868 10.1659 8.25007L6.27927 1.76923C6.19706 1.63658 6.08234 1.52711 5.94599 1.4512C5.80964 1.37529 5.65616 1.33545 5.5001 1.33545C5.34404 1.33545 5.19056 1.37529 5.05421 1.4512C4.91786 1.52711 4.80314 1.63658 4.72093 1.76923Z" stroke={color} strokeWidth="1.00833" strokeLinecap="round" strokeLinejoin="round"/>
+      <path
+        d="M5.5 4.125V5.95833"
+        stroke={color}
+        strokeWidth="1.00833"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5.5 7.79175H5.50458"
+        stroke={color}
+        strokeWidth="1.00833"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4.72093 1.76923L0.834268 8.25007C0.754228 8.38868 0.711878 8.54583 0.711429 8.70589C0.710981 8.86595 0.752451 9.02333 0.831713 9.16239C0.910975 9.30145 1.02527 9.41733 1.16322 9.4985C1.30117 9.57967 1.45797 9.62331 1.61802 9.62507H9.38218C9.54223 9.62331 9.69903 9.57967 9.83698 9.4985C9.97493 9.41733 10.0892 9.30145 10.1685 9.16239C10.2478 9.02333 10.2892 8.86595 10.2888 8.70589C10.2883 8.54583 10.246 8.38868 10.1659 8.25007L6.27927 1.76923C6.19706 1.63658 6.08234 1.52711 5.94599 1.4512C5.80964 1.37529 5.65616 1.33545 5.5001 1.33545C5.34404 1.33545 5.19056 1.37529 5.05421 1.4512C4.91786 1.52711 4.80314 1.63658 4.72093 1.76923Z"
+        stroke={color}
+        strokeWidth="1.00833"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
 function StatTile({
-  label, value, icon, iconBg, loading,
+  label,
+  value,
+  icon,
+  iconBg,
+  loading,
 }: {
   label: string;
   value: number;
@@ -91,15 +131,15 @@ function StatTile({
 }
 
 export function JobResultsDetailView({ jobId }: Props) {
-  const [job,        setJob]        = useState<JobMeta | null>(null);
-  const [rows,       setRows]       = useState<EmailRow[]>([]);
-  const [rowsTotal,  setRowsTotal]  = useState(0);
-  const [page,       setPage]       = useState(1);
-  const [loadingMeta,    setLoadingMeta]    = useState(true);
-  const [loadingRows,    setLoadingRows]    = useState(true);
-  const [refreshing,     setRefreshing]     = useState(false);
-  const [error,          setError]          = useState<string | null>(null);
-  const [downloading,    setDownloading]    = useState(false);
+  const [job, setJob] = useState<JobMeta | null>(null);
+  const [rows, setRows] = useState<EmailRow[]>([]);
+  const [rowsTotal, setRowsTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loadingMeta, setLoadingMeta] = useState(true);
+  const [loadingRows, setLoadingRows] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const fetchMeta = useCallback(
     async (signal?: AbortSignal) => {
@@ -108,10 +148,10 @@ export function JobResultsDetailView({ jobId }: Props) {
         if (signal?.aborted) return;
         setJob({
           fileName: m.originalFilename ?? m.name,
-          status:   m.status.toLowerCase() as JobMeta["status"],
-          total:    m.totalCount,
-          valid:    m.validCount,
-          invalid:  m.invalidCount,
+          status: m.status.toLowerCase() as JobMeta["status"],
+          total: m.totalCount,
+          valid: m.validCount,
+          invalid: m.invalidCount,
           catchall: m.catchallCount + m.unknownCount,
         });
       } catch (err) {
@@ -122,7 +162,7 @@ export function JobResultsDetailView({ jobId }: Props) {
         if (!signal?.aborted) setLoadingMeta(false);
       }
     },
-    [jobId],
+    [jobId]
   );
 
   const fetchRows = useCallback(
@@ -141,7 +181,7 @@ export function JobResultsDetailView({ jobId }: Props) {
         if (!signal?.aborted) setLoadingRows(false);
       }
     },
-    [jobId],
+    [jobId]
   );
 
   useEffect(() => {
@@ -161,9 +201,9 @@ export function JobResultsDetailView({ jobId }: Props) {
   }, [fetchRows, page]);
 
   const totalPages = Math.max(1, Math.ceil(rowsTotal / PAGE_SIZE));
-  const safePage   = Math.min(page, totalPages);
-  const start      = rowsTotal === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const end        = Math.min(safePage * PAGE_SIZE, rowsTotal);
+  const safePage = Math.min(page, totalPages);
+  const start = rowsTotal === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const end = Math.min(safePage * PAGE_SIZE, rowsTotal);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -206,9 +246,7 @@ export function JobResultsDetailView({ jobId }: Props) {
     <div className="space-y-4">
       <PageHeader
         title={job?.fileName ?? "Job results"}
-        subtitle={
-          job ? `Verification results · ${job.status}` : "Verification results"
-        }
+        subtitle={job ? `Verification results · ${job.status}` : "Verification results"}
         onRefresh={handleRefresh}
         refreshing={refreshing || loadingMeta}
         backHref="/bulk-verify"
@@ -258,9 +296,7 @@ export function JobResultsDetailView({ jobId }: Props) {
             <div>
               <h2 className="text-base font-bold text-[#111827]">Emails</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                {rowsTotal === 0
-                  ? "No records yet"
-                  : `${formatNumber(rowsTotal)} verified emails`}
+                {rowsTotal === 0 ? "No records yet" : `${formatNumber(rowsTotal)} verified emails`}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -280,7 +316,11 @@ export function JobResultsDetailView({ jobId }: Props) {
                 onClick={handleDownload}
                 className="h-8 gap-1.5 rounded-full bg-[#0F5BFF] px-4 text-xs font-semibold text-white hover:bg-[#0a48cc] disabled:opacity-50"
               >
-                {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                {downloading ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <Download size={13} />
+                )}
                 Download CSV
               </Button>
             </div>
@@ -318,12 +358,14 @@ export function JobResultsDetailView({ jobId }: Props) {
                     const statusKey = (r.verificationResult ?? "UNKNOWN").toLowerCase();
                     return (
                       <tr key={r.id} className="border-t border-border">
-                        <td className="px-3 py-2 font-medium truncate max-w-[280px]">{r.address}</td>
+                        <td className="px-3 py-2 font-medium truncate max-w-[280px]">
+                          {r.address}
+                        </td>
                         <td className="px-3 py-2">
                           <span
                             className={cn(
                               "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold capitalize",
-                              STATUS_PILL[statusKey] ?? STATUS_PILL.unknown,
+                              STATUS_PILL[statusKey] ?? STATUS_PILL.unknown
                             )}
                           >
                             {statusKey}
@@ -336,9 +378,9 @@ export function JobResultsDetailView({ jobId }: Props) {
                           {r.processedAt
                             ? new Date(r.processedAt).toLocaleString(undefined, {
                                 month: "short",
-                                day:   "numeric",
-                                hour:  "numeric",
-                                minute:"2-digit",
+                                day: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
                               })
                             : "—"}
                         </td>
@@ -374,7 +416,8 @@ export function JobResultsDetailView({ jobId }: Props) {
                 <ChevronLeft size={13} /> Prev
               </Button>
               <span className="text-xs text-muted-foreground tabular-nums px-1">
-                Page <span className="font-semibold text-foreground">{safePage}</span> / {totalPages}
+                Page <span className="font-semibold text-foreground">{safePage}</span> /{" "}
+                {totalPages}
               </span>
               <Button
                 size="sm"

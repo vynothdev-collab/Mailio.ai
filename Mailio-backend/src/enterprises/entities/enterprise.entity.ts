@@ -25,11 +25,9 @@ export class Enterprise {
   @Column({ name: 'credits_used', type: 'bigint', default: 0 })
   creditsUsed!: string;
 
-  /** Total credits purchased in the current billing cycle (renewal detection). */
   @Column({ name: 'total_purchased_credits', type: 'bigint', default: 0 })
   totalPurchasedCredits!: string;
 
-  /** When the current credit cycle expires; NULL means no expiry is set. */
   @Column({ name: 'credit_expires_at', type: 'timestamptz', nullable: true })
   creditExpiresAt!: Date | null;
 

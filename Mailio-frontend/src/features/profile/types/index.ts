@@ -1,14 +1,14 @@
 export interface UserProfile {
-  fullName:   string;
-  email:      string;
-  jobTitle:   string;
-  company:    string;
-  avatarUrl:  string | null;
+  fullName: string;
+  email: string;
+  jobTitle: string;
+  company: string;
+  avatarUrl: string | null;
 }
 
 export interface AccountInfo {
-  accountId:   string;
+  accountId: string;
   memberSince: string;
-  plan:        string;
-  status:      "active" | "suspended";
+  plan: string;
+  status: "active" | "suspended";
 }

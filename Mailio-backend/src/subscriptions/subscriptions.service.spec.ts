@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/require-await, @typescript-eslint/no-unused-vars */
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -14,21 +13,12 @@ import {
 } from './entities/subscription.entity';
 import { SubscriptionsService } from './subscriptions.service';
 
-/**
- * Behaviour tests for the mobile-recharge-style subscription system.
- *
- * Strategy: this service does heavy work inside `dataSource.transaction` and
- * raw SQL. We mock `DataSource` to capture every txn body, expose a fake
- * EntityManager, and assert on the calls each flow makes. The repositories
- * for `Subscription` / `BillingPlan` are stubbed as well.
- */
 describe('SubscriptionsService', () => {
   let service: SubscriptionsService;
 
-  // ── Fakes ────────────────────────────────────────────────────────────────
   let plans: Map<string, BillingPlan>;
   let subs: Subscription[];
-  let queries: string[]; // captured raw SQL for assertions
+  let queries: string[];
 
   const makePlan = (overrides: Partial<BillingPlan> = {}): BillingPlan =>
     ({
@@ -80,9 +70,9 @@ describe('SubscriptionsService', () => {
     const fakeEm = {
       query: jest.fn(async (sql: string, _params?: unknown[]) => {
         queries.push(sql.replace(/\s+/g, ' ').trim());
-        // lockAccountRow expects [{ id }]
+
         if (sql.includes('SELECT id FROM')) return [{ id: 'OK' }];
-        // latestQueuedOrActiveEnd
+
         if (sql.includes('SELECT end_date FROM subscriptions')) {
           const active = subs.find(
             (s) =>
@@ -97,7 +87,7 @@ describe('SubscriptionsService', () => {
           const latest = queued?.endDate ?? active?.endDate ?? null;
           return latest ? [{ end_date: latest }] : [];
         }
-        // writeLedger reads live balance
+
         if (sql.includes('SELECT credit_balance FROM')) {
           return [{ credit_balance: '0' }];
         }
@@ -105,7 +95,6 @@ describe('SubscriptionsService', () => {
       }),
       create: jest.fn((_entity: unknown, payload: Subscription) => payload),
       save: jest.fn(async (row: Subscription) => {
-        // For sub rows, push into the fake list.
         if ('accountType' in row && 'planCategory' in row) {
           const stored = makeSub(row);
           subs.push(stored);
@@ -115,7 +104,6 @@ describe('SubscriptionsService', () => {
       }),
       findOne: jest.fn(
         async (_entity, opts: { where: Record<string, unknown> }) => {
-          // findActiveBase
           return (
             subs.find(
               (s) =>
@@ -169,7 +157,7 @@ describe('SubscriptionsService', () => {
         { provide: getRepositoryToken(CreditTransaction), useValue: txRepo },
       ],
     })
-      // The constructor uses `dataSource` injected by class, not token:
+
       .overrideProvider(SubscriptionsService)
       .useValue(
         new SubscriptionsService(
@@ -184,7 +172,6 @@ describe('SubscriptionsService', () => {
     service = module.get<SubscriptionsService>(SubscriptionsService);
   });
 
-  // ── 1. Buy validity plan with no active plan ─────────────────────────────
   it('purchaseValidityPlanForUser: creates an ACTIVE subscription when no plan active', async () => {
     const plan = makePlan();
     plans.set(plan.id, plan);
@@ -198,13 +185,11 @@ describe('SubscriptionsService', () => {
     expect(Number(sub.remainingCredits)).toBe(plan.credits);
     expect(sub.parentSubscriptionId).toBeNull();
 
-    // endDate ≈ now + 30 days
     const days =
       ((sub.endDate as Date).getTime() - sub.startDate.getTime()) /
       (1000 * 60 * 60 * 24);
     expect(days).toBeCloseTo(30, 0);
 
-    // Live balance update query was issued with the plan credits
     expect(
       queries.some(
         (q) => q.includes('UPDATE users') && q.includes('credit_balance'),
@@ -212,12 +197,10 @@ describe('SubscriptionsService', () => {
     ).toBe(true);
   });
 
-  // ── 2. Buy validity while active → queued ────────────────────────────────
   it('purchaseValidityPlanForUser: queues a second purchase to start after the current end', async () => {
     const plan = makePlan();
     plans.set(plan.id, plan);
 
-    // seed an active validity sub already in place
     const currentEnd = new Date(Date.now() + 10 * 86_400_000);
     subs.push(
       makeSub({
@@ -237,7 +220,6 @@ describe('SubscriptionsService', () => {
     expect(days).toBeCloseTo(30, 0);
   });
 
-  // ── 3. Buy top-up with active base ───────────────────────────────────────
   it('purchaseTopupForUser: creates ACTIVE top-up inheriting parent expiry', async () => {
     const validityPlan = makePlan();
     const topupPlan = makePlan({
@@ -267,7 +249,6 @@ describe('SubscriptionsService', () => {
     expect(Number(sub.totalCredits)).toBe(1_000);
   });
 
-  // ── 4. Top-up rejected without active base ───────────────────────────────
   it('purchaseTopupForUser: rejects with BadRequestException when no active base plan', async () => {
     const topupPlan = makePlan({
       id: 'PLAN-TOP-1k',
@@ -282,14 +263,12 @@ describe('SubscriptionsService', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  // ── 5. Plan lookup fails → NotFound ──────────────────────────────────────
   it('purchaseValidityPlanForUser: throws NotFound for unknown plan', async () => {
     await expect(
       service.purchaseValidityPlanForUser('U1', 'MISSING'),
     ).rejects.toThrow(NotFoundException);
   });
 
-  // ── 6. Wrong category rejected ───────────────────────────────────────────
   it('purchaseValidityPlanForUser: rejects TOPUP plans', async () => {
     const topup = makePlan({
       id: 'TOPUP',
@@ -303,7 +282,6 @@ describe('SubscriptionsService', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  // ── 7. Enterprise validity purchase ──────────────────────────────────────
   it('purchaseValidityPlanForEnterprise: creates ACTIVE enterprise subscription', async () => {
     const plan = makePlan();
     plans.set(plan.id, plan);
@@ -317,7 +295,6 @@ describe('SubscriptionsService', () => {
     expect(queries.some((q) => q.includes('UPDATE enterprises'))).toBe(true);
   });
 
-  // ── 8. Enterprise top-up purchase ────────────────────────────────────────
   it('purchaseTopupForEnterprise: creates top-up linked to active base for enterprise', async () => {
     const validity = makePlan();
     const topup = makePlan({
@@ -345,7 +322,6 @@ describe('SubscriptionsService', () => {
     expect(sub.enterpriseId).toBe('E1');
   });
 
-  // ── 9. Validity plan must have validityDays > 0 ──────────────────────────
   it('purchaseValidityPlanForUser: rejects plans with missing validityDays', async () => {
     const broken = makePlan({ validityDays: null });
     plans.set(broken.id, broken);
@@ -356,12 +332,6 @@ describe('SubscriptionsService', () => {
   });
 });
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
-
-/**
- * Minimal QueryBuilder mock that supports the fluent chain used by the
- * service: where / andWhere / orderBy / addOrderBy / setLock / getMany / getOne.
- */
 function makeQB(subs: Subscription[]) {
   let result = [...subs];
   const filters: Array<(s: Subscription) => boolean> = [];
@@ -407,7 +377,7 @@ function makeQB(subs: Subscription[]) {
       return result.filter((s) => filters.every((f) => f(s)))[0] ?? null;
     },
   };
-  // re-bind result so multiple QB instances don't share state across tests
+
   result = [...subs];
   return qb;
 }

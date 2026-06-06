@@ -7,12 +7,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-/**
- * Audience that a plan is offered to. `BOTH` lets a single plan be shown to
- * normal users and enterprise admins simultaneously.
- *
- * NOTE: the underlying DB column is still `plan_type` for backward compat.
- */
 export enum BillingPlanType {
   USER = 'USER',
   ENTERPRISE = 'ENTERPRISE',
@@ -32,7 +26,6 @@ export class BillingPlan {
   @Column({ type: 'varchar', length: 100 })
   name: string;
 
-  /** Audience: USER | ENTERPRISE | BOTH. Column stays `plan_type` for compat. */
   @Column({ name: 'plan_type', type: 'enum', enum: BillingPlanType })
   planType: BillingPlanType;
 
@@ -53,7 +46,6 @@ export class BillingPlan {
   @Column({ type: 'int' })
   credits: number;
 
-  /** Required for VALIDITY_BASED. NULL for TOPUP (inherits parent expiry). */
   @Column({ name: 'validity_days', type: 'int', nullable: true })
   validityDays: number | null;
 

@@ -36,15 +36,6 @@ function getIp(req: Request): string {
   return req.socket?.remoteAddress ?? '';
 }
 
-/**
- * Enterprise CRUD — restricted to SUPER_ADMIN.
- *
- * The `admins.role` column has two values, SUPER_ADMIN and ADMIN, but the
- * platform's documented role model only includes SUPER_ADMIN. The `ADMIN`
- * value is kept in the schema for backward compatibility / future support-staff
- * separation, but it currently grants no access to enterprise, credit, or
- * user-management endpoints.
- */
 @ApiTags('admin-enterprises')
 @ApiBearerAuth()
 @UseGuards(AdminJwtGuard, AdminRolesGuard)
@@ -160,7 +151,9 @@ export class AdminEnterprisesController {
 
   @Patch(':id/status')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Activate or deactivate an enterprise and all its members' })
+  @ApiOperation({
+    summary: 'Activate or deactivate an enterprise and all its members',
+  })
   async setStatus(
     @Param('id') id: string,
     @Body() body: { isActive: boolean },
@@ -183,7 +176,9 @@ export class AdminEnterprisesController {
 
   @Post(':id/reset-password')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Reset enterprise admin password and return temp password' })
+  @ApiOperation({
+    summary: 'Reset enterprise admin password and return temp password',
+  })
   async resetAdminPassword(
     @Param('id') id: string,
     @Body() body: { newPassword: string },

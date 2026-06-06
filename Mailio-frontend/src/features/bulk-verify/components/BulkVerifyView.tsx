@@ -4,11 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { bulkVerifyService } from "@/src/services/bulkVerifyService";
 import { useJobProgress } from "@/src/hooks/useJobProgress";
-import type {
-  BulkActiveJobDto,
-  BulkJobDto,
-  BulkStatsDto,
-} from "@/src/types/bulk";
+import type { BulkActiveJobDto, BulkJobDto, BulkStatsDto } from "@/src/types/bulk";
 import type { ApiError } from "@/src/types/auth";
 import { UploadCard } from "./UploadCard";
 import { BulkStatsRow } from "./BulkStatsRow";
@@ -20,12 +16,12 @@ import { BulkVerifyContentSkeleton } from "@/src/components/shared/Skeleton";
 const JOBS_PAGE_SIZE = 10;
 
 export function BulkVerifyView() {
-  const [stats,      setStats]      = useState<BulkStatsDto | null>(null);
-  const [active,     setActive]     = useState<BulkActiveJobDto | null>(null);
-  const [jobs,       setJobs]       = useState<BulkJobDto[]>([]);
-  const [jobsTotal,  setJobsTotal]  = useState(0);
-  const [jobsPage,   setJobsPage]   = useState(1);
-  const [loading,    setLoading]    = useState(true);
+  const [stats, setStats] = useState<BulkStatsDto | null>(null);
+  const [active, setActive] = useState<BulkActiveJobDto | null>(null);
+  const [jobs, setJobs] = useState<BulkJobDto[]>([]);
+  const [jobsTotal, setJobsTotal] = useState(0);
+  const [jobsPage, setJobsPage] = useState(1);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pendingUpload, setPendingUpload] = useState(false);
 
@@ -54,7 +50,7 @@ export function BulkVerifyView() {
         }
       }
     },
-    [jobsPage],
+    [jobsPage]
   );
 
   const refetchAfterChange = useCallback(() => {
@@ -78,25 +74,17 @@ export function BulkVerifyView() {
   useEffect(() => {
     if (!pendingUpload) return;
     const hasInFlight =
-      !!active?.jobId ||
-      jobs.some((j) => j.status === "processing" || j.status === "pending");
-    const timer = window.setTimeout(
-      () => setPendingUpload(false),
-      hasInFlight ? 0 : 4000,
-    );
+      !!active?.jobId || jobs.some((j) => j.status === "processing" || j.status === "pending");
+    const timer = window.setTimeout(() => setPendingUpload(false), hasInFlight ? 0 : 4000);
     return () => window.clearTimeout(timer);
   }, [pendingUpload, active, jobs]);
 
   const latestJob = jobs[0];
-  const latestIsInFlight =
-    latestJob?.status === 'pending' || latestJob?.status === 'processing';
+  const latestIsInFlight = latestJob?.status === "pending" || latestJob?.status === "processing";
   const activeIsDone =
-    !!active &&
-    active.totalCount > 0 &&
-    active.processedCount >= active.totalCount;
+    !!active && active.totalCount > 0 && active.processedCount >= active.totalCount;
 
-  const shouldPoll =
-    !!active?.jobId && latestIsInFlight && !activeIsDone;
+  const shouldPoll = !!active?.jobId && latestIsInFlight && !activeIsDone;
 
   useEffect(() => {
     if (!shouldPoll) return;
@@ -123,10 +111,7 @@ export function BulkVerifyView() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
             <div className="lg:col-span-2 space-y-3 md:space-y-4">
-              <UploadCard
-                onUploaded={refetchAfterChange}
-                onUploadingChange={setPendingUpload}
-              />
+              <UploadCard onUploaded={refetchAfterChange} onUploadingChange={setPendingUpload} />
               <RecentBulkVerificationsTable
                 jobs={jobs}
                 total={jobsTotal}
@@ -139,11 +124,7 @@ export function BulkVerifyView() {
             </div>
 
             <div className="space-y-4">
-              <RecentBulkFilesCard
-                jobs={jobs}
-                loading={loading}
-                pendingUpload={pendingUpload}
-              />
+              <RecentBulkFilesCard jobs={jobs} loading={loading} pendingUpload={pendingUpload} />
             </div>
           </div>
         </>

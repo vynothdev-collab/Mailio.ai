@@ -1,33 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Production-safe follow-up to `1780300000000-AddSupportTickets`.
- *
- * Goal: preserve ticket history even when the creator is deleted, and add
- * the activity tracking fields used by the new admin UI.
- *
- *   1. Add snapshot columns to `tickets` (nullable first).
- *   2. Backfill snapshot columns from joined `users` / `enterprises` data for
- *      every existing ticket.
- *   3. Promote snapshot columns to NOT NULL (where appropriate) once filled.
- *   4. Drop the `ON DELETE CASCADE` FK on `created_by_user_id` and re-add it
- *      as `ON DELETE SET NULL`, making the column nullable.
- *   5. Add activity-tracking columns (`last_message_at`, `last_message_by_role`,
- *      `admin_unread_count`, `user_unread_count`) plus an index.
- *
- * Safe to run on a DB that already has data — no DROP TABLE, no data loss.
- *
- * Reversible: the `down()` removes the new columns and restores the original
- * NOT NULL + ON DELETE CASCADE on the creator FK. NOTE that going down on a
- * DB where some tickets have a NULL `created_by_user_id` (because the user
- * was deleted after this migration ran) will fail the SET NOT NULL step;
- * operator must triage those rows manually before reverting.
- */
 export class FixSupportTicketsSnapshotAndDeleteBehavior1780300000001 implements MigrationInterface {
   name = 'FixSupportTicketsSnapshotAndDeleteBehavior1780300000001';
 
   public async up(qr: QueryRunner): Promise<void> {
-    // ── 1. Add snapshot columns (initially nullable so we can backfill) ──
     await qr.query(`
       ALTER TABLE tickets
         ADD COLUMN IF NOT EXISTS created_by_name             VARCHAR(255) NULL,
@@ -36,7 +12,6 @@ export class FixSupportTicketsSnapshotAndDeleteBehavior1780300000001 implements 
         ADD COLUMN IF NOT EXISTS created_by_enterprise_name  VARCHAR(255) NULL
     `);
 
-    // ── 2. Backfill from the live users / enterprises rows ──────────────
     await qr.query(`
       UPDATE tickets t
          SET created_by_name  = COALESCE(t.created_by_name,  u.name),
@@ -55,8 +30,7 @@ export class FixSupportTicketsSnapshotAndDeleteBehavior1780300000001 implements 
        WHERE t.enterprise_id = e.id
          AND t.created_by_enterprise_name IS NULL
     `);
-    // Fallbacks for rows where the join didn't find a user (already-deleted users
-    // are unlikely on a fresh install but covered defensively).
+
     await qr.query(`
       UPDATE tickets
          SET created_by_name  = COALESCE(created_by_name,  'Unknown user'),
@@ -67,7 +41,6 @@ export class FixSupportTicketsSnapshotAndDeleteBehavior1780300000001 implements 
           OR created_by_role IS NULL
     `);
 
-    // ── 3. Promote backfilled columns to NOT NULL ───────────────────────
     await qr.query(
       `ALTER TABLE tickets ALTER COLUMN created_by_name  SET NOT NULL`,
     );
@@ -78,9 +51,6 @@ export class FixSupportTicketsSnapshotAndDeleteBehavior1780300000001 implements 
       `ALTER TABLE tickets ALTER COLUMN created_by_role  SET NOT NULL`,
     );
 
-    // ── 4. Switch creator FK to ON DELETE SET NULL ──────────────────────
-    // First drop the existing constraint. The name follows TypeORM's default
-    // pattern but we discover it dynamically to be safe across schema drift.
     await qr.query(`
       DO $$
       DECLARE
@@ -112,7 +82,6 @@ export class FixSupportTicketsSnapshotAndDeleteBehavior1780300000001 implements 
         ON DELETE SET NULL
     `);
 
-    // ── 5. Activity tracking columns + index ────────────────────────────
     await qr.query(`
       ALTER TABLE tickets
         ADD COLUMN IF NOT EXISTS last_message_at       TIMESTAMPTZ NULL,
@@ -121,8 +90,6 @@ export class FixSupportTicketsSnapshotAndDeleteBehavior1780300000001 implements 
         ADD COLUMN IF NOT EXISTS user_unread_count     INT NOT NULL DEFAULT 0
     `);
 
-    // Seed last_message_at from the latest reply / fall back to created_at
-    // so existing rows have a sensible "last activity" value for sort UIs.
     await qr.query(`
       UPDATE tickets t
          SET last_message_at = COALESCE(t.last_message_at, sub.last_msg, t.created_at)
@@ -157,7 +124,6 @@ export class FixSupportTicketsSnapshotAndDeleteBehavior1780300000001 implements 
         DROP COLUMN IF EXISTS last_message_at
     `);
 
-    // Restore CASCADE on the creator FK.
     await qr.query(`
       DO $$
       DECLARE
@@ -178,8 +144,7 @@ export class FixSupportTicketsSnapshotAndDeleteBehavior1780300000001 implements 
       END
       $$;
     `);
-    // Operator must verify there are no NULL created_by_user_id rows before this
-    // step; otherwise SET NOT NULL will fail.
+
     await qr.query(
       `ALTER TABLE tickets ALTER COLUMN created_by_user_id SET NOT NULL`,
     );

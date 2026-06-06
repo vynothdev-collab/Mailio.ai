@@ -42,12 +42,12 @@ export function ProfileCard() {
   }
 
   const tiles: { label: string; value: string; emphasis?: boolean }[] = [
-    { label: "Name",         value: user.name                                                  },
-    { label: "Email",        value: user.email                                                 },
-    { label: "Plan",         value: user.plan                                                  },
-    { label: "Status",       value: user.isActive ? "Active" : "Inactive", emphasis: user.isActive },
-    { label: "Member Since", value: formatDate(user.createdAt)                                  },
-    { label: "Last Updated", value: formatDate(user.updatedAt)                                  },
+    { label: "Name", value: user.name },
+    { label: "Email", value: user.email },
+    { label: "Plan", value: user.plan },
+    { label: "Status", value: user.isActive ? "Active" : "Inactive", emphasis: user.isActive },
+    { label: "Member Since", value: formatDate(user.createdAt) },
+    { label: "Last Updated", value: formatDate(user.updatedAt) },
   ];
 
   async function handleLogout() {
@@ -76,8 +76,12 @@ export function ProfileCard() {
             <div key={label} className="rounded-xl border border-border bg-muted/30 px-3 py-3">
               <p className="text-[11px] text-muted-foreground mb-0.5">{label}</p>
               {label === "Status" ? (
-                <span className={`inline-flex items-center gap-1.5 text-sm font-semibold ${emphasis ? "text-emerald-600" : "text-muted-foreground"}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${emphasis ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />
+                <span
+                  className={`inline-flex items-center gap-1.5 text-sm font-semibold ${emphasis ? "text-emerald-600" : "text-muted-foreground"}`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${emphasis ? "bg-emerald-500" : "bg-muted-foreground/40"}`}
+                  />
                   {value}
                 </span>
               ) : (

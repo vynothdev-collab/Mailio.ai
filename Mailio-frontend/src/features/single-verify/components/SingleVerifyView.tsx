@@ -3,17 +3,17 @@
 import { useEffect, useState } from "react";
 import { VerificationProvider, useVerificationHistory } from "@/src/context/VerificationContext";
 import { useSingleVerify } from "../hooks/useSingleVerify";
-import { EmailInputCard }                  from "./EmailInputCard";
-import { VerificationResultCard }          from "./VerificationResultCard";
-import { VerificationSummaryCard }         from "./VerificationSummaryCard";
-import { RecentSingleVerificationsTable }  from "./RecentSingleVerificationsTable";
-import { ProTipCard }                      from "./ProTipCard";
-import { PageHeader }                      from "@/src/components/layout/PageHeader";
-import { SingleVerifyContentSkeleton }     from "@/src/components/shared/Skeleton";
+import { EmailInputCard } from "./EmailInputCard";
+import { VerificationResultCard } from "./VerificationResultCard";
+import { VerificationSummaryCard } from "./VerificationSummaryCard";
+import { RecentSingleVerificationsTable } from "./RecentSingleVerificationsTable";
+import { ProTipCard } from "./ProTipCard";
+import { PageHeader } from "@/src/components/layout/PageHeader";
+import { SingleVerifyContentSkeleton } from "@/src/components/shared/Skeleton";
 
 function SingleVerifyContent() {
   const { state, result, verify } = useSingleVerify();
-  const { recent }                = useVerificationHistory();
+  const { recent } = useVerificationHistory();
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const isLoading = state === "loading";

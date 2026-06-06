@@ -7,7 +7,5 @@ export class AddPasswordChangeOtpPurpose1779900000000 implements MigrationInterf
     );
   }
 
-  public async down(_queryRunner: QueryRunner): Promise<void> {
-    // PostgreSQL does not support removing enum values
-  }
+  public async down(_queryRunner: QueryRunner): Promise<void> {}
 }

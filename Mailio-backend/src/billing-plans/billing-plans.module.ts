@@ -13,8 +13,8 @@ import { BillingPlan } from './entities/billing-plan.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([BillingPlan, User, CreditTransaction]),
-    CreditsModule, // provides CreditsService + DataSource
-    SubscriptionsModule, // delegate plan purchase / topup to the new system
+    CreditsModule,
+    SubscriptionsModule,
   ],
   controllers: [AdminBillingPlansController, BillingPlansController],
   providers: [AdminBillingPlansService, BillingPlansService],

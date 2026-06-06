@@ -36,11 +36,6 @@ export class BillingPlansService {
     private readonly subscriptions: SubscriptionsService,
   ) {}
 
-  /**
-   * Return active plans visible to `userRole`.
-   *   USER role           → USER or BOTH
-   *   ENTERPRISE_ADMIN    → ENTERPRISE or BOTH
-   */
   async getActivePlans(userRole: string): Promise<BillingPlan[]> {
     const isEnterpriseAdmin =
       userRole === (UserRole.ENTERPRISE_ADMIN as string);
@@ -58,10 +53,6 @@ export class BillingPlansService {
     });
   }
 
-  /**
-   * BACKWARD-COMPATIBLE entry point retained for /billing/plans/:id/activate.
-   * Internally routes to the new subscription system based on plan category.
-   */
   async activatePlan(
     user: User,
     planId: string,
@@ -73,7 +64,6 @@ export class BillingPlansService {
 
     const isEnterpriseMember = ENTERPRISE_ROLES.includes(user.role);
 
-    // Enterprise members → enterprise account.
     if (isEnterpriseMember) {
       if (!user.enterpriseId) {
         throw new BadRequestException('Enterprise account missing.');
@@ -95,7 +85,6 @@ export class BillingPlansService {
       return { success: true, plan, creditBalance: refreshed };
     }
 
-    // Normal user.
     if (plan.planCategory === PlanCategory.TOPUP) {
       await this.subscriptions.purchaseTopupForUser(user.id, plan.id);
     } else {
@@ -109,7 +98,6 @@ export class BillingPlansService {
     };
   }
 
-  /** Get the current/queued subscription view for the given user. */
   async getCurrentSubscription(user: User): Promise<CurrentSubscriptionDto> {
     if (ENTERPRISE_ROLES.includes(user.role) && user.enterpriseId) {
       return this.subscriptions.getCurrentSubscriptionForEnterprise(
@@ -146,8 +134,6 @@ export class BillingPlansService {
       limit: safeLimit,
     };
   }
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
 
   private async dataSourceFetchEnterpriseBalance(
     enterpriseId: string,

@@ -78,7 +78,7 @@ export class AdminKeysController {
         monthlyQuota: String(dto.monthlyQuota),
       }),
     });
-    
+
     if (dto.status === ApiKeyStatus.ACTIVE) {
       row.cooldownUntil = null;
       row.failureCount = 0;
@@ -90,7 +90,6 @@ export class AdminKeysController {
     return this.redact(saved);
   }
 
-  
   @Delete(':id')
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     const row = await this.repo.findOne({ where: { id } });

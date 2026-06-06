@@ -35,7 +35,6 @@ export class VerifyRateLimitGuard implements CanActivate {
         windowMs: WINDOW_MS,
       });
     } catch (err) {
-
       this.logger.error(
         `Rate limiter failed for ${key}: ${(err as Error).message}`,
       );

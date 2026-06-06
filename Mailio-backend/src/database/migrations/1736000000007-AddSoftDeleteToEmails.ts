@@ -30,7 +30,9 @@ export class AddSoftDeleteToEmails1736000000007 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "idx_email_lists_user_active"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "idx_email_lists_user_active"`,
+    );
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_emails_user_active"`);
     await queryRunner.query(`
       ALTER TABLE "email_lists"

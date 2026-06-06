@@ -21,12 +21,6 @@ export enum SubscriptionStatus {
   CANCELLED = 'CANCELLED',
 }
 
-/**
- * One row per plan purchase. Acts as the source of truth for plan history,
- * queuing, and per-subscription credit tracking. The live aggregate balance
- * stays on users/enterprises.credit_balance for fast access — kept in sync
- * by SubscriptionsService.
- */
 @Entity('subscriptions')
 @Index('idx_subs_user_active', ['userId', 'status'])
 @Index('idx_subs_enterprise_active', ['enterpriseId', 'status'])
@@ -61,7 +55,6 @@ export class Subscription {
   @Column({ name: 'start_date', type: 'timestamptz' })
   startDate!: Date;
 
-  /** NULL only for QUEUED rows whose parent expiry is not yet known. */
   @Column({ name: 'end_date', type: 'timestamptz', nullable: true })
   endDate!: Date | null;
 
@@ -74,7 +67,6 @@ export class Subscription {
   @Column({ name: 'remaining_credits', type: 'bigint' })
   remainingCredits!: string;
 
-  /** For TOPUP rows, references the parent VALIDITY_BASED ACTIVE subscription. */
   @Column({ name: 'parent_subscription_id', type: 'uuid', nullable: true })
   parentSubscriptionId!: string | null;
 

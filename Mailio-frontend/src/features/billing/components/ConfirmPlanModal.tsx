@@ -16,9 +16,9 @@ import { billingService, type BillingPlan } from "@/src/services/billingService"
 import { useAuth } from "@/src/hooks/useAuth";
 
 interface Props {
-  plan:          BillingPlan | null;
-  onClose:       () => void;
-  onActivated:   (plan: BillingPlan, result?: PurchasePlanResult) => void;
+  plan: BillingPlan | null;
+  onClose: () => void;
+  onActivated: (plan: BillingPlan, result?: PurchasePlanResult) => void;
 }
 
 export function ConfirmPlanModal({ plan, onClose, onActivated }: Props) {
@@ -46,7 +46,12 @@ export function ConfirmPlanModal({ plan, onClose, onActivated }: Props) {
   }
 
   return (
-    <Dialog open={!!plan} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog
+      open={!!plan}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <DialogContent className="max-w-md!" showCloseButton>
         <DialogHeader>
           <DialogTitle>Confirm Plan Activation</DialogTitle>
@@ -61,11 +66,16 @@ export function ConfirmPlanModal({ plan, onClose, onActivated }: Props) {
               </div>
               <div>
                 <p className="text-sm font-semibold">{plan?.name}</p>
-                <p className="text-xs text-muted-foreground">{plan?.credits.toLocaleString()} credits</p>
+                <p className="text-xs text-muted-foreground">
+                  {plan?.credits.toLocaleString()} credits
+                </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-sm font-bold tabular-nums">{plan?.currency}{plan?.price.toLocaleString()}</p>
+              <p className="text-sm font-bold tabular-nums">
+                {plan?.currency}
+                {plan?.price.toLocaleString()}
+              </p>
               <p className="text-xs text-muted-foreground">{plan?.validityDays}d validity</p>
             </div>
           </div>

@@ -11,19 +11,7 @@ import type { NavItem } from "@/src/features/dashboard/types";
 import { roleFlagsFor, useRole } from "@/src/hooks/useRole";
 import { SIDEBAR_ICONS } from "./SidebarIcons";
 
-/**
- * Filter the global nav for the current user's role.
- *
- * - Enterprise members (ENTERPRISE_USER, ENTERPRISE_ADMIN) never see Billing.
- * - The "Enterprise Users" item is only visible to ENTERPRISE_ADMIN.
- * - All other items are visible to everyone.
- *
- * Auth not yet loaded → show the lowest-privilege set (no admin-only links).
- */
-function filterNavItemsForRole(
-  items: NavItem[],
-  flags: ReturnType<typeof useRole>,
-): NavItem[] {
+function filterNavItemsForRole(items: NavItem[], flags: ReturnType<typeof useRole>): NavItem[] {
   return items.filter((item) => {
     if (item.id === "billing") return flags.canAccessBilling;
     if (item.id === "enterprise-users") return flags.isEnterpriseAdmin;
@@ -34,16 +22,13 @@ function filterNavItemsForRole(
 function EmailanswersLogo({ collapsed }: { collapsed: boolean }) {
   if (collapsed) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
       <img src="/brand-icon.svg" alt="emailanswers.ai" className="h-8 w-auto" draggable={false} />
     );
   }
   return (
-    // eslint-disable-next-line @next/next/no-img-element
     <img src="/brand-logo.svg" alt="emailanswers.ai" className="h-10 w-auto" draggable={false} />
   );
 }
-
 
 interface NavLinkProps {
   item: NavItem;
@@ -91,23 +76,21 @@ function readCollapsed(): boolean {
 }
 
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
-  const pathname  = usePathname();
+  const pathname = usePathname();
   const [collapsed, setCollapsed] = useState<boolean>(readCollapsed);
   const roleFlags = useRole();
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-  const navItems = filterNavItemsForRole(
-    NAV_ITEMS,
-    mounted ? roleFlags : roleFlagsFor(null),
-  );
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const navItems = filterNavItemsForRole(NAV_ITEMS, mounted ? roleFlags : roleFlagsFor(null));
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((v) => {
       const next = !v;
       try {
         window.sessionStorage.setItem(COLLAPSED_KEY, next ? "1" : "0");
-      } catch {
-      }
+      } catch {}
       return next;
     });
   }, []);
@@ -116,10 +99,12 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     const isCollapsed = forceExpanded ? false : collapsed;
     return (
       <div className="relative flex h-full flex-col">
-        <div className={cn(
-          "flex items-center py-4",
-          isCollapsed ? "justify-center px-1" : "justify-between px-4"
-        )}>
+        <div
+          className={cn(
+            "flex items-center py-4",
+            isCollapsed ? "justify-center px-1" : "justify-between px-4"
+          )}
+        >
           <div className="flex items-center justify-center">
             <EmailanswersLogo collapsed={isCollapsed} />
           </div>
@@ -178,7 +163,6 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
   return (
     <>
-      
       <aside
         suppressHydrationWarning
         className={cn(
@@ -191,7 +175,10 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden" aria-hidden="true">
-          <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={onMobileClose} />
+          <div
+            className="absolute inset-0 bg-foreground/20 backdrop-blur-sm"
+            onClick={onMobileClose}
+          />
           <aside className="absolute left-0 top-0 h-full w-64 bg-[#EEF3FB] shadow-xl z-50">
             {renderContent(true)}
           </aside>

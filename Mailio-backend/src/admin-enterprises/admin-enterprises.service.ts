@@ -41,7 +41,6 @@ export class AdminEnterprisesService {
   async create(dto: CreateEnterpriseDto, adminId: string) {
     const adminEmail = dto.adminEmail.toLowerCase().trim();
 
-    // Pre-flight validations BEFORE we create anything.
     const [existingEnterprise, existingUser] = await Promise.all([
       this.enterprisesRepo.findOne({
         where: { name: dto.name, deletedAt: IsNull() },
@@ -50,12 +49,9 @@ export class AdminEnterprisesService {
     ]);
 
     if (existingEnterprise) {
-      throw new BadRequestException(
-        `Enterprise "${dto.name}" already exists.`,
-      );
+      throw new BadRequestException(`Enterprise "${dto.name}" already exists.`);
     }
 
-    // 1. Create the enterprise row.
     const enterprise = await this.enterprisesRepo.save(
       this.enterprisesRepo.create({
         name: dto.name,
@@ -64,10 +60,6 @@ export class AdminEnterprisesService {
       }),
     );
 
-    // 2. Create or upgrade the ENTERPRISE_ADMIN user. If the user with this
-    // email already exists, we promote them to ENTERPRISE_ADMIN of the new
-    // enterprise and reset their password to the one supplied here. If user
-    // create/update fails, roll back the enterprise row.
     let adminUser: User;
     try {
       const passwordHash = await bcrypt.hash(dto.adminPassword, 10);
@@ -103,7 +95,6 @@ export class AdminEnterprisesService {
       throw err;
     }
 
-    // 3. Allocate initial credits to the enterprise (best-effort).
     if (dto.initialCredits && dto.initialCredits > 0) {
       await this.credits.allocateToEnterprise(
         enterprise.id,
@@ -113,8 +104,6 @@ export class AdminEnterprisesService {
       );
     }
 
-    // 4. Email the credentials to the new admin. We don't fail the request
-    // if email delivery fails — the user has been created — but we log it.
     const loginUrl = `${(this.config.get<string>('mail.frontendUrl') ?? '').replace(/\/$/, '')}/login`;
     try {
       await this.mail.sendEnterpriseAdminCredentialsEmail(
@@ -147,7 +136,6 @@ export class AdminEnterprisesService {
       .orderBy('e.createdAt', 'DESC');
 
     if (opts.search) {
-      // Also match if an ENTERPRISE_ADMIN of the enterprise has email matching the search.
       qb.andWhere(
         `(e.name ILIKE :s OR e.domain ILIKE :s OR EXISTS (
             SELECT 1 FROM users adm
@@ -164,7 +152,6 @@ export class AdminEnterprisesService {
 
     const [rows, total] = await qb.getManyAndCount();
 
-    // Hydrate user counts in one go.
     const ids = rows.map((r) => r.id);
     const counts = ids.length
       ? await this.usersRepo
@@ -232,7 +219,7 @@ export class AdminEnterprisesService {
       where: { id, deletedAt: IsNull() },
     });
     if (!enterprise) throw new NotFoundException('Enterprise not found.');
-    // Deactivate all enterprise members first
+
     await this.usersRepo.update({ enterpriseId: id }, { isActive: false });
     await this.enterprisesRepo.update(id, {
       isActive: false,
@@ -264,7 +251,7 @@ export class AdminEnterprisesService {
       where: { id, deletedAt: IsNull() },
     });
     if (!enterprise) throw new NotFoundException('Enterprise not found.');
-    // Toggle enterprise and all its members together
+
     await this.enterprisesRepo.update(id, { isActive });
     await this.usersRepo.update({ enterpriseId: id }, { isActive });
     return { success: true };
@@ -296,7 +283,7 @@ export class AdminEnterprisesService {
     limit = 50,
     role?: UserRole,
   ) {
-    await this.findOne(enterpriseId); // validate exists
+    await this.findOne(enterpriseId);
 
     const qb = this.usersRepo
       .createQueryBuilder('u')

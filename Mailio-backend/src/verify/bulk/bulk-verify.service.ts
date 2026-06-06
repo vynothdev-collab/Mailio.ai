@@ -35,9 +35,6 @@ export class BulkVerifyService {
   ) {}
 
   async upload(user: User, filePath: string, originalFilename: string) {
-    // Cheap up-front guard: refuse if the caller has zero credits. The
-    // authoritative reservation happens after CSV parsing once we know the
-    // exact row count (see CsvParseProcessor).
     await this.credits.ensureSufficient(user, 1);
 
     const name = originalFilename.replace(/\.[^.]+$/, '');
@@ -332,12 +329,9 @@ export class BulkVerifyService {
   }
 
   async retry(jobId: string, user: User) {
-    // Resolve the actual owner of the list (could be a different enterprise
-    // member when the caller is an ENTERPRISE_ADMIN).
     const ownerList = await this.emailListsService.findByIdForUser(jobId, user);
     const ownerUserId = ownerList.userId;
 
-    // Count failed emails BEFORE flipping them, so we can pre-check credits.
     const failedCount = await this.emailsRepo.count({
       where: {
         listId: jobId,
@@ -350,9 +344,6 @@ export class BulkVerifyService {
       return { jobId, status: 'queued', requeuedCount: 0 };
     }
 
-    // Each previously-failed email had its reserved credit refunded by
-    // Phase 3b. Re-reserve exactly `failedCount` credits now or refuse the
-    // retry — otherwise the worker would process them for free.
     await this.credits.reserveForBulkByOwnerId(jobId, ownerUserId, failedCount);
 
     try {
@@ -386,13 +377,13 @@ export class BulkVerifyService {
       }
       return { jobId, status: 'queued', requeuedCount };
     } catch (e) {
-      // If we reserved but couldn't enqueue, refund the reservation we just
-      // made. Best-effort — ledger reconciliation can fix any miss.
       try {
-        await this.credits.refundBulkByListOwner(jobId, ownerUserId, failedCount);
+        await this.credits.refundBulkByListOwner(
+          jobId,
+          ownerUserId,
+          failedCount,
+        );
       } catch (refundErr) {
-        // logger via NestJS isn't injected here; rely on error propagation
-        // plus the credits service's own logging.
         void refundErr;
       }
       throw e;
@@ -408,7 +399,7 @@ export class BulkVerifyService {
     if (!result.affected) {
       throw new NotFoundException('Record not found');
     }
-    // Cascade: hide all child emails belonging to this list from list/stat APIs.
+
     await this.emailsRepo.update(
       { listId: jobId, userId, isDeleted: false },
       { isDeleted: true, deletedAt: now },
@@ -416,11 +407,8 @@ export class BulkVerifyService {
   }
 
   private toActiveJob(list: EmailList) {
-    const done =
-      list.totalCount > 0 && list.processedCount >= list.totalCount;
-    const status = done
-      ? EmailListStatus.COMPLETED
-      : list.status;
+    const done = list.totalCount > 0 && list.processedCount >= list.totalCount;
+    const status = done ? EmailListStatus.COMPLETED : list.status;
     return {
       jobId: list.id,
       fileName: list.originalFilename ?? list.name,

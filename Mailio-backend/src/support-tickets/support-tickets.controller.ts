@@ -50,13 +50,14 @@ export class SupportTicketsController {
   constructor(private readonly service: SupportTicketsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new support ticket (optionally with attachments)' })
+  @ApiOperation({
+    summary: 'Create a new support ticket (optionally with attachments)',
+  })
   @ApiConsumes('multipart/form-data', 'application/json')
   @UseInterceptors(
     FilesInterceptor('attachments', MAX_FILES, {
       storage: memoryStorage(),
-      // Per-file cap matches the overall request cap; the service then
-      // enforces the *combined* 5 MB rule on top.
+
       limits: { fileSize: MAX_TOTAL_BYTES, files: MAX_FILES },
       fileFilter: (_req, file, cb) => {
         if (!ATTACHMENT_MIMES.includes(file.mimetype)) {

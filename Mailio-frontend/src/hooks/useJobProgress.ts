@@ -5,17 +5,17 @@ import { getSocket } from "@/src/lib/socket";
 import type { ListStatusChangeEvent, ProgressEvent } from "@/src/types/bulk";
 
 interface JobProgressState {
-  progress:  ProgressEvent | null;
-  status:    string | null;
+  progress: ProgressEvent | null;
+  status: string | null;
 }
 
 export function useJobProgress(
   listId: string | null | undefined,
-  onComplete?: () => void,
+  onComplete?: () => void
 ): JobProgressState {
   const [state, setState] = useState<JobProgressState>({
     progress: null,
-    status:   null,
+    status: null,
   });
 
   useEffect(() => {

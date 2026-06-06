@@ -2,7 +2,17 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, Download, Eye, FileText, RotateCcw, Loader2, MoreVertical, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Eye,
+  FileText,
+  RotateCcw,
+  Loader2,
+  MoreVertical,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,11 +24,34 @@ import type { ApiError } from "@/src/types/auth";
 import type { BulkJobDto, BulkJobStatus } from "@/src/types/bulk";
 import { JobDetailsDialog } from "./JobDetailsDialog";
 
-const STATUS_CONFIG: Record<BulkJobStatus, { label: string; textColor: string; bgColor: string; dotColor: string }> = {
-  completed:  { label: "Completed",  textColor: "text-emerald-700", bgColor: "bg-emerald-50 border-emerald-100", dotColor: "bg-emerald-500" },
-  processing: { label: "Processing", textColor: "text-blue-700",    bgColor: "bg-blue-50 border-blue-100",       dotColor: "bg-blue-500 animate-pulse" },
-  failed:     { label: "Failed",     textColor: "text-red-700",     bgColor: "bg-red-50 border-red-100",         dotColor: "bg-red-500" },
-  pending:    { label: "Queued",     textColor: "text-amber-700",   bgColor: "bg-amber-50 border-amber-100",     dotColor: "bg-amber-500" },
+const STATUS_CONFIG: Record<
+  BulkJobStatus,
+  { label: string; textColor: string; bgColor: string; dotColor: string }
+> = {
+  completed: {
+    label: "Completed",
+    textColor: "text-emerald-700",
+    bgColor: "bg-emerald-50 border-emerald-100",
+    dotColor: "bg-emerald-500",
+  },
+  processing: {
+    label: "Processing",
+    textColor: "text-blue-700",
+    bgColor: "bg-blue-50 border-blue-100",
+    dotColor: "bg-blue-500 animate-pulse",
+  },
+  failed: {
+    label: "Failed",
+    textColor: "text-red-700",
+    bgColor: "bg-red-50 border-red-100",
+    dotColor: "bg-red-500",
+  },
+  pending: {
+    label: "Queued",
+    textColor: "text-amber-700",
+    bgColor: "bg-amber-50 border-amber-100",
+    dotColor: "bg-amber-500",
+  },
 };
 
 function NumCell({ val }: { val: number | null | undefined }) {
@@ -27,25 +60,35 @@ function NumCell({ val }: { val: number | null | undefined }) {
 }
 
 interface Props {
-  jobs:         BulkJobDto[];
-  total:        number;
-  page:         number;
-  pageSize:     number;
-  loading:      boolean;
+  jobs: BulkJobDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  loading: boolean;
   onPageChange: (page: number) => void;
-  onChange:     () => void;
+  onChange: () => void;
 }
 
 export function RecentBulkVerificationsTable({
-  jobs, total, page, pageSize, loading, onPageChange, onChange,
+  jobs,
+  total,
+  page,
+  pageSize,
+  loading,
+  onPageChange,
+  onChange,
 }: Props) {
-  const [retryingId,    setRetryingId]    = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [viewingJob,    setViewingJob]    = useState<BulkJobDto | null>(null);
+  const [viewingJob, setViewingJob] = useState<BulkJobDto | null>(null);
   const [pendingDelete, setPendingDelete] = useState<BulkJobDto | null>(null);
-  const [deleting,      setDeleting]      = useState(false);
-  const [openMenuId,    setOpenMenuId]    = useState<string | null>(null);
-  const [menuPos,       setMenuPos]       = useState<{ top: number; left: number; placement: "top" | "bottom" } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{
+    top: number;
+    left: number;
+    placement: "top" | "bottom";
+  } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -64,7 +107,10 @@ export function RecentBulkVerificationsTable({
   };
 
   useLayoutEffect(() => {
-    if (!openMenuId) { setMenuPos(null); return; }
+    if (!openMenuId) {
+      setMenuPos(null);
+      return;
+    }
     positionMenu(openMenuId);
   }, [openMenuId]);
 
@@ -120,10 +166,10 @@ export function RecentBulkVerificationsTable({
   };
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const start      = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const end        = Math.min(page * pageSize, total);
-  const canPrev    = page > 1 && !loading;
-  const canNext    = page < totalPages && !loading;
+  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, total);
+  const canPrev = page > 1 && !loading;
+  const canNext = page < totalPages && !loading;
 
   const handleRetry = async (jobId: string) => {
     setRetryingId(jobId);
@@ -149,7 +195,10 @@ export function RecentBulkVerificationsTable({
             <thead>
               <tr className="border-b border-[#DCE6F3]">
                 {["File", "Total", "Status", "Valid", "Invalid", "Catchall", "Actions"].map((h) => (
-                  <th key={h} className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                  <th
+                    key={h}
+                    className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap"
+                  >
                     {h}
                   </th>
                 ))}
@@ -159,7 +208,9 @@ export function RecentBulkVerificationsTable({
               {loading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <tr key={i} className="border-b border-[#DCE6F3]/60 last:border-0">
-                    <td colSpan={7} className="px-3 py-3"><Skeleton className="h-6 w-full" /></td>
+                    <td colSpan={7} className="px-3 py-3">
+                      <Skeleton className="h-6 w-full" />
+                    </td>
                   </tr>
                 ))
               ) : jobs.length === 0 ? (
@@ -187,21 +238,39 @@ export function RecentBulkVerificationsTable({
                           </span>
                         </div>
                       </td>
-                      <td className="px-3 py-3 tabular-nums font-semibold text-[#111827]">{formatNumber(job.totalEmails)}</td>
+                      <td className="px-3 py-3 tabular-nums font-semibold text-[#111827]">
+                        {formatNumber(job.totalEmails)}
+                      </td>
                       <td className="px-3 py-3">
-                        <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold", cfg.bgColor, cfg.textColor)}>
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+                            cfg.bgColor,
+                            cfg.textColor
+                          )}
+                        >
                           <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dotColor)} />
                           {cfg.label}
                         </span>
                       </td>
-                      <td className="px-3 py-3 font-bold tabular-nums text-emerald-600"><NumCell val={job.valid} /></td>
-                      <td className="px-3 py-3 font-bold tabular-nums text-red-500"><NumCell val={job.invalid} /></td>
-                      <td className="px-3 py-3 font-bold tabular-nums text-amber-500"><NumCell val={job.catchall} /></td>
+                      <td className="px-3 py-3 font-bold tabular-nums text-emerald-600">
+                        <NumCell val={job.valid} />
+                      </td>
+                      <td className="px-3 py-3 font-bold tabular-nums text-red-500">
+                        <NumCell val={job.invalid} />
+                      </td>
+                      <td className="px-3 py-3 font-bold tabular-nums text-amber-500">
+                        <NumCell val={job.catchall} />
+                      </td>
                       <td className="px-3 py-3">
                         <button
                           type="button"
-                          ref={(el) => { triggerRefs.current[job.jobId] = el; }}
-                          onClick={() => setOpenMenuId((id) => (id === job.jobId ? null : job.jobId))}
+                          ref={(el) => {
+                            triggerRefs.current[job.jobId] = el;
+                          }}
+                          onClick={() =>
+                            setOpenMenuId((id) => (id === job.jobId ? null : job.jobId))
+                          }
                           aria-label={`Actions for ${job.fileName}`}
                           aria-haspopup="menu"
                           aria-expanded={openMenuId === job.jobId}
@@ -220,10 +289,17 @@ export function RecentBulkVerificationsTable({
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#DCE6F3] pt-3">
           <p className="text-sm text-muted-foreground tabular-nums">
-            {total === 0
-              ? "No records"
-              : <>Showing <span className="font-semibold text-[#111827]">{start}-{end}</span> of <span className="font-semibold text-[#111827]">{total}</span> jobs</>
-            }
+            {total === 0 ? (
+              "No records"
+            ) : (
+              <>
+                Showing{" "}
+                <span className="font-semibold text-[#111827]">
+                  {start}-{end}
+                </span>{" "}
+                of <span className="font-semibold text-[#111827]">{total}</span> jobs
+              </>
+            )}
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -252,77 +328,115 @@ export function RecentBulkVerificationsTable({
         </div>
       </CardContent>
 
-      {openMenuId && menuPos && typeof window !== "undefined" && (() => {
-        const job = jobs.find((j) => j.jobId === openMenuId);
-        if (!job) return null;
-        const isCompleted = job.status === "completed";
-        const style: React.CSSProperties = menuPos.placement === "bottom"
-          ? { position: "fixed", top: menuPos.top, left: menuPos.left, width: MENU_WIDTH }
-          : { position: "fixed", top: menuPos.top, left: menuPos.left, width: MENU_WIDTH, transform: "translateY(-100%)" };
-        return createPortal(
-          <div
-            ref={menuRef}
-            role="menu"
-            style={style}
-            className="z-50 overflow-hidden rounded-lg border border-[#DCE6F3] bg-white py-1 shadow-lg"
-          >
-            {isCompleted && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => { setOpenMenuId(null); setViewingJob(job); }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF]"
-              >
-                <Eye size={13} /> View details
-              </button>
-            )}
-            {isCompleted && (
-              <button
-                type="button"
-                role="menuitem"
-                disabled={downloadingId === job.jobId}
-                onClick={() => { setOpenMenuId(null); void handleDownload(job); }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {downloadingId === job.jobId
-                  ? <><Loader2 size={13} className="animate-spin" /> Downloading…</>
-                  : <><Download size={13} /> Download</>}
-              </button>
-            )}
-            {job.status === "failed" && (
-              <button
-                type="button"
-                role="menuitem"
-                disabled={retryingId === job.jobId}
-                onClick={() => { setOpenMenuId(null); void handleRetry(job.jobId); }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {retryingId === job.jobId
-                  ? <><Loader2 size={13} className="animate-spin" /> Retrying…</>
-                  : <><RotateCcw size={13} /> Retry</>}
-              </button>
-            )}
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => { setOpenMenuId(null); setPendingDelete(job); }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50"
+      {openMenuId &&
+        menuPos &&
+        typeof window !== "undefined" &&
+        (() => {
+          const job = jobs.find((j) => j.jobId === openMenuId);
+          if (!job) return null;
+          const isCompleted = job.status === "completed";
+          const style: React.CSSProperties =
+            menuPos.placement === "bottom"
+              ? { position: "fixed", top: menuPos.top, left: menuPos.left, width: MENU_WIDTH }
+              : {
+                  position: "fixed",
+                  top: menuPos.top,
+                  left: menuPos.left,
+                  width: MENU_WIDTH,
+                  transform: "translateY(-100%)",
+                };
+          return createPortal(
+            <div
+              ref={menuRef}
+              role="menu"
+              style={style}
+              className="z-50 overflow-hidden rounded-lg border border-[#DCE6F3] bg-white py-1 shadow-lg"
             >
-              <Trash2 size={13} /> Delete
-            </button>
-          </div>,
-          document.body,
-        );
-      })()}
+              {isCompleted && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    setViewingJob(job);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF]"
+                >
+                  <Eye size={13} /> View details
+                </button>
+              )}
+              {isCompleted && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={downloadingId === job.jobId}
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    void handleDownload(job);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {downloadingId === job.jobId ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" /> Downloading…
+                    </>
+                  ) : (
+                    <>
+                      <Download size={13} /> Download
+                    </>
+                  )}
+                </button>
+              )}
+              {job.status === "failed" && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={retryingId === job.jobId}
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    void handleRetry(job.jobId);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#161514] hover:bg-[#F4F8FF] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {retryingId === job.jobId ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" /> Retrying…
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw size={13} /> Retry
+                    </>
+                  )}
+                </button>
+              )}
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpenMenuId(null);
+                  setPendingDelete(job);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50"
+              >
+                <Trash2 size={13} /> Delete
+              </button>
+            </div>,
+            document.body
+          );
+        })()}
 
       <JobDetailsDialog
         job={viewingJob}
-        onOpenChange={(open) => { if (!open) setViewingJob(null); }}
+        onOpenChange={(open) => {
+          if (!open) setViewingJob(null);
+        }}
       />
 
       <ConfirmDeleteDialog
         open={pendingDelete !== null}
-        onOpenChange={(open) => { if (!open && !deleting) setPendingDelete(null); }}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setPendingDelete(null);
+        }}
         title="Delete bulk job?"
         itemLabel={pendingDelete?.fileName}
         pending={deleting}

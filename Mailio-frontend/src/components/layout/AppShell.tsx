@@ -15,7 +15,7 @@ export function AppShell({ children }: AppShellProps) {
   const [headerCount, setHeaderCount] = useState(0);
   const countRef = useRef(0);
 
-  const openMobile  = useCallback(() => setMobileOpen(true),  []);
+  const openMobile = useCallback(() => setMobileOpen(true), []);
   const closeMobile = useCallback(() => setMobileOpen(false), []);
 
   const registerHeader = useCallback(() => {
@@ -29,7 +29,7 @@ export function AppShell({ children }: AppShellProps) {
 
   const ctx = useMemo(
     () => ({ openMobile, registerHeader, hasHeader: headerCount > 0 }),
-    [openMobile, registerHeader, headerCount],
+    [openMobile, registerHeader, headerCount]
   );
 
   return (
@@ -38,7 +38,11 @@ export function AppShell({ children }: AppShellProps) {
         <Sidebar mobileOpen={mobileOpen} onMobileClose={closeMobile} />
         <div className="flex flex-1 flex-col overflow-hidden">
           {headerCount === 0 && <Navbar onMenuClick={openMobile} />}
-          <main id="main-content" role="main" className="flex-1 overflow-y-auto px-4 pb-4 lg:px-6 lg:pb-6">
+          <main
+            id="main-content"
+            role="main"
+            className="flex-1 overflow-y-auto px-4 pb-4 lg:px-6 lg:pb-6"
+          >
             {children}
           </main>
         </div>

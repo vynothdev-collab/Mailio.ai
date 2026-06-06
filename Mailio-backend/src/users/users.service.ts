@@ -18,7 +18,7 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set([
   'image/png',
   'image/webp',
 ]);
-const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
+const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024;
 
 const MIME_EXTENSION: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -160,9 +160,7 @@ export class UsersService {
       );
     }
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
-      throw new BadRequestException(
-        'Image must be 2 MB or smaller.',
-      );
+      throw new BadRequestException('Image must be 2 MB or smaller.');
     }
 
     const user = await this.usersRepo.findOneOrFail({ where: { id: userId } });
@@ -176,13 +174,11 @@ export class UsersService {
     });
 
     const previousKey = user.profileImageKey;
-    // Only persist a static URL when the bucket is publicly readable.
-    // Private buckets get nothing here — backend hands out fresh signed URLs.
+
     user.profileImageUrl = this.storage.isPublicRead() ? uploaded.url : null;
     user.profileImageKey = uploaded.key;
     await this.usersRepo.save(user);
 
-    // Best-effort cleanup. Don't fail the request if the old object isn't there.
     if (previousKey && previousKey !== uploaded.key) {
       void this.storage.deleteFile(previousKey);
     }
@@ -251,7 +247,8 @@ export class UsersService {
 
   private async touchProfile(user: User, profile: OAuthProfile): Promise<User> {
     const nameChanged = profile.name && user.name !== profile.name;
-    const avatarChanged = profile.avatarUrl && user.avatarUrl !== profile.avatarUrl;
+    const avatarChanged =
+      profile.avatarUrl && user.avatarUrl !== profile.avatarUrl;
     if (!nameChanged && !avatarChanged) return user;
     if (nameChanged) user.name = profile.name;
     if (avatarChanged) user.avatarUrl = profile.avatarUrl;

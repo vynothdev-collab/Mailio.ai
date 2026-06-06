@@ -10,15 +10,20 @@ const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const MAX_BYTES = 2 * 1024 * 1024;
 
 function initials(name: string): string {
-  return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 }
 
 interface Props {
   name: string;
   email: string;
-  /** Renderable URL (signed for private buckets, static for public). */
+
   profileImageViewUrl: string | null;
-  /** Whether the user currently has any image (controls the Remove button). */
+
   hasImage: boolean;
   onUpdated: () => Promise<unknown>;
 }
@@ -51,7 +56,6 @@ export function ProfileImageUpload({
       return;
     }
 
-    // Optimistic preview while we upload.
     const localUrl = URL.createObjectURL(file);
     setPreviewUrl(localUrl);
     setBusy(true);
@@ -64,7 +68,7 @@ export function ProfileImageUpload({
       toast.error((err as ApiError)?.message ?? "Failed to upload image.");
     } finally {
       setBusy(false);
-      // Release the optimistic preview once the real URL is in.
+
       URL.revokeObjectURL(localUrl);
       setPreviewUrl(null);
     }
@@ -87,7 +91,7 @@ export function ProfileImageUpload({
   function onChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) void handleFile(file);
-    e.target.value = ""; // allow re-selecting the same file later
+    e.target.value = "";
   }
 
   return (
@@ -101,12 +105,7 @@ export function ProfileImageUpload({
           className="group relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full overflow-hidden bg-[#0B47CF] text-white text-base sm:text-lg font-bold shadow-sm select-none disabled:opacity-70"
         >
           {displayUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={displayUrl}
-              alt={name}
-              className="h-full w-full object-cover"
-            />
+            <img src={displayUrl} alt={name} className="h-full w-full object-cover" />
           ) : (
             <span>{initials(name)}</span>
           )}
@@ -150,7 +149,9 @@ export function ProfileImageUpload({
               <Trash2 size={11} /> Remove
             </button>
           )}
-          <span className="text-[10px] text-muted-foreground ml-1">JPG / PNG / WEBP · max 2 MB</span>
+          <span className="text-[10px] text-muted-foreground ml-1">
+            JPG / PNG / WEBP · max 2 MB
+          </span>
         </div>
       </div>
     </div>

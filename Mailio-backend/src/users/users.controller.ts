@@ -46,14 +46,13 @@ export class UsersController {
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({
     status: 200,
-    description: 'Current user profile including role, enterprise, and the credit balance applicable to this user (own balance for normal users; enterprise shared balance for enterprise users/admins).',
+    description:
+      'Current user profile including role, enterprise, and the credit balance applicable to this user (own balance for normal users; enterprise shared balance for enterprise users/admins).',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getMe(@CurrentUser() user: User) {
     const { passwordHash, ...profile } = user;
 
-    // Resolve the effective credit balance for this caller. Enterprise members
-    // see the shared enterprise balance; everyone else sees their own.
     let enterprise: {
       id: string;
       name: string;
@@ -75,9 +74,6 @@ export class UsersController {
       }
     }
 
-    // Private bucket: turn the stored key into a short-lived signed GET URL.
-    // If the bucket is configured public-read, the stored URL is already
-    // returnable — only sign when needed.
     const profileImageViewUrl = user.profileImageKey
       ? this.storage.isPublicRead()
         ? user.profileImageUrl
@@ -117,10 +113,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Change password using OTP verification' })
   @ApiResponse({ status: 200, description: 'Password changed' })
   @ApiResponse({ status: 400, description: 'Invalid OTP or current password' })
-  changePassword(
-    @CurrentUser() user: User,
-    @Body() dto: ChangePasswordDto,
-  ) {
+  changePassword(@CurrentUser() user: User, @Body() dto: ChangePasswordDto) {
     return this.usersService.changePassword(user, dto);
   }
 
@@ -139,14 +132,9 @@ export class UsersController {
   @UseInterceptors(
     FileInterceptor('image', {
       storage: memoryStorage(),
-      limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB hard cap.
+      limits: { fileSize: 2 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        const allowed = [
-          'image/jpeg',
-          'image/jpg',
-          'image/png',
-          'image/webp',
-        ];
+        const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
         if (!allowed.includes(file.mimetype)) {
           return cb(
             new BadRequestException(

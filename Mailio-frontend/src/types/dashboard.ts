@@ -1,49 +1,49 @@
 interface DashboardChanges {
   totalVerified?: string;
-  validRate?:     string;
+  validRate?: string;
   avgResponseMs?: string;
-  catchallEmails?:   string;
-  catchallRate?:     string;
+  catchallEmails?: string;
+  catchallRate?: string;
 }
 
 export interface DashboardStatsResponse {
   totalVerified: number;
-  validRate:     number;
-  invalidRate?:  number;
-  catchallRate?:    number;
-  catchallEmails?:  number;
+  validRate: number;
+  invalidRate?: number;
+  catchallRate?: number;
+  catchallEmails?: number;
   avgResponseMs?: number;
-  changes?:      DashboardChanges;
+  changes?: DashboardChanges;
 }
 
 export type DashboardChartPeriod = "7d" | "14d" | "30d";
 
 interface DashboardChartPoint {
-  name:       string;
-  value:      number;
+  name: string;
+  value: number;
   percentage: number;
-  color:      string;
+  color: string;
 }
 
 export interface DashboardChartResponse {
-  data:  DashboardChartPoint[];
+  data: DashboardChartPoint[];
   total: number;
 }
 
 export type RecentVerificationStatus = "queued" | "pending" | "completed" | "failed";
 
 export interface RecentVerificationItem {
-  id:         string;
-  label:      string;
-  email:      string;
-  isBulk:     boolean;
-  status:     RecentVerificationStatus;
+  id: string;
+  label: string;
+  email: string;
+  isBulk: boolean;
+  status: RecentVerificationStatus;
   verifiedAt: string;
 }
 
 export interface RecentVerificationsResponse {
-  data:  RecentVerificationItem[];
+  data: RecentVerificationItem[];
   total: number;
-  page:  number;
+  page: number;
   limit: number;
 }

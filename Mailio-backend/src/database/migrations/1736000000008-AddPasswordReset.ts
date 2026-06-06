@@ -9,6 +9,5 @@ export class AddPasswordReset1736000000008 implements MigrationInterface {
     `);
   }
 
-  public async down(_queryRunner: QueryRunner): Promise<void> {
-  }
+  public async down(_queryRunner: QueryRunner): Promise<void> {}
 }

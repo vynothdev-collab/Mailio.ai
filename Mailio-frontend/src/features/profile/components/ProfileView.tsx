@@ -16,9 +16,7 @@ export function ProfileView() {
         onRefresh={refresh}
         refreshing={loading}
       />
-      <div className="max-w-2xl">
-        {loading ? <ProfileSkeleton /> : <ProfileDetailsCard />}
-      </div>
+      <div className="max-w-2xl">{loading ? <ProfileSkeleton /> : <ProfileDetailsCard />}</div>
     </div>
   );
 }

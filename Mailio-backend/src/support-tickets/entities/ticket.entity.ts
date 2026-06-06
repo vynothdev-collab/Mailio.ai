@@ -54,7 +54,6 @@ export class Ticket {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  /** Human-readable identifier, e.g. TCK-000123. Backed by ticket_number_seq. */
   @Column({ name: 'ticket_number', type: 'varchar', length: 32, unique: true })
   ticketNumber!: string;
 
@@ -80,9 +79,6 @@ export class Ticket {
   })
   priority!: TicketPriority;
 
-  // ── Creator (FK + snapshot) ────────────────────────────────────────────
-  // FK is nullable because users may be deleted; snapshot fields below
-  // preserve creator identity for admins regardless of FK state.
   @Column({ name: 'created_by_user_id', type: 'uuid', nullable: true })
   createdByUserId!: string | null;
 
@@ -92,7 +88,6 @@ export class Ticket {
   @Column({ name: 'enterprise_id', type: 'uuid', nullable: true })
   enterpriseId!: string | null;
 
-  /** Snapshot of the creator's display name at ticket creation. */
   @Column({ name: 'created_by_name', type: 'varchar', length: 255 })
   createdByName!: string;
 
@@ -110,11 +105,9 @@ export class Ticket {
   })
   createdByEnterpriseName!: string | null;
 
-  // ── Assignment ─────────────────────────────────────────────────────────
   @Column({ name: 'assigned_admin_id', type: 'uuid', nullable: true })
   assignedAdminId!: string | null;
 
-  // ── Activity tracking ──────────────────────────────────────────────────
   @Column({ name: 'last_message_at', type: 'timestamptz', nullable: true })
   lastMessageAt!: Date | null;
 
@@ -135,7 +128,6 @@ export class Ticket {
   @Column({ name: 'last_reply_at', type: 'timestamptz', nullable: true })
   lastReplyAt!: Date | null;
 
-  /** Set the first time any admin opens the ticket detail. Used for "New" badge. */
   @Column({
     name: 'first_admin_opened_at',
     type: 'timestamptz',
@@ -143,7 +135,6 @@ export class Ticket {
   })
   firstAdminOpenedAt!: Date | null;
 
-  /** Updated every time an admin opens the ticket detail. */
   @Column({ name: 'last_admin_viewed_at', type: 'timestamptz', nullable: true })
   lastAdminViewedAt!: Date | null;
 

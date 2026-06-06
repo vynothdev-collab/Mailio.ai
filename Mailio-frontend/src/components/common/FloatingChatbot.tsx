@@ -3,19 +3,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Send, X } from "lucide-react";
 
-const BUTTON_SIZE = 48;       // sm:h-12 w-12
+const BUTTON_SIZE = 48;
 const EDGE_MARGIN = 12;
 const PANEL_WIDTH = 360;
-const PANEL_HEIGHT = 440;     // approx
+const PANEL_HEIGHT = 440;
 const GREETING_GAP = 12;
 const STORAGE_KEY = "floating-chatbot:pos";
-const DRAG_THRESHOLD = 5;     // px — distinguishes click from drag
+const DRAG_THRESHOLD = 5;
 
-interface Pos { x: number; y: number; }
+interface Pos {
+  x: number;
+  y: number;
+}
 
 function clampToViewport(p: Pos): Pos {
   if (typeof window === "undefined") return p;
-  const maxX = window.innerWidth  - BUTTON_SIZE - EDGE_MARGIN;
+  const maxX = window.innerWidth - BUTTON_SIZE - EDGE_MARGIN;
   const maxY = window.innerHeight - BUTTON_SIZE - EDGE_MARGIN;
   return {
     x: Math.min(Math.max(EDGE_MARGIN, p.x), maxX),
@@ -26,7 +29,7 @@ function clampToViewport(p: Pos): Pos {
 function defaultPos(): Pos {
   if (typeof window === "undefined") return { x: 0, y: 0 };
   return {
-    x: window.innerWidth  - BUTTON_SIZE - 20,
+    x: window.innerWidth - BUTTON_SIZE - 20,
     y: window.innerHeight - BUTTON_SIZE - 20,
   };
 }
@@ -40,7 +43,6 @@ export function FloatingChatbot() {
   const dragStartRef = useRef<Pos>({ x: 0, y: 0 });
   const movedRef = useRef(false);
 
-  // Initial position — restore from storage or default to bottom-right.
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY);
@@ -49,11 +51,10 @@ export function FloatingChatbot() {
         setPos(clampToViewport(saved));
         return;
       }
-    } catch {/* ignore */}
+    } catch {}
     setPos(defaultPos());
   }, []);
 
-  // Re-clamp on window resize so the button never floats off-screen.
   useEffect(() => {
     const onResize = () => setPos((p) => (p ? clampToViewport(p) : p));
     window.addEventListener("resize", onResize);
@@ -62,7 +63,9 @@ export function FloatingChatbot() {
 
   useEffect(() => {
     if (!open) return;
-    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
     document.addEventListener("keydown", onEsc);
     return () => document.removeEventListener("keydown", onEsc);
   }, [open]);
@@ -73,12 +76,11 @@ export function FloatingChatbot() {
     return () => window.clearTimeout(t);
   }, [open]);
 
-  // ── Drag handling ─────────────────────────────────────────────────────────
   const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (!pos) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     dragOffsetRef.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
-    dragStartRef.current  = { x: e.clientX, y: e.clientY };
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
     movedRef.current = false;
     setDragging(true);
   };
@@ -92,54 +94,60 @@ export function FloatingChatbot() {
       setShowGreeting(false);
     }
     if (movedRef.current) {
-      setPos(clampToViewport({
-        x: e.clientX - dragOffsetRef.current.x,
-        y: e.clientY - dragOffsetRef.current.y,
-      }));
+      setPos(
+        clampToViewport({
+          x: e.clientX - dragOffsetRef.current.x,
+          y: e.clientY - dragOffsetRef.current.y,
+        })
+      );
     }
   };
 
   const onPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
     const wasDrag = movedRef.current;
     setDragging(false);
-    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {/* ignore */}
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
     if (wasDrag && pos) {
-      try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(pos)); } catch {/* ignore */}
+      try {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(pos));
+      } catch {}
     } else {
-      // Treat as click — toggle the panel.
       setOpen((v) => !v);
       setShowGreeting(false);
     }
   };
 
-  // ── Computed adjacent positions ───────────────────────────────────────────
   const greetingPos = useCallback((): React.CSSProperties => {
     if (!pos) return { display: "none" };
     const vw = window.innerWidth;
-    // Default: greeting to the LEFT of the button; if too close to left edge, show on RIGHT.
+
     const placeRight = pos.x < 240;
     const top = pos.y + BUTTON_SIZE / 2;
     return placeRight
       ? { left: pos.x + BUTTON_SIZE + GREETING_GAP, top, transform: "translateY(-50%)" }
-      : { left: Math.max(EDGE_MARGIN, pos.x - GREETING_GAP),  top, transform: "translate(-100%, -50%)", maxWidth: vw - 2 * EDGE_MARGIN };
+      : {
+          left: Math.max(EDGE_MARGIN, pos.x - GREETING_GAP),
+          top,
+          transform: "translate(-100%, -50%)",
+          maxWidth: vw - 2 * EDGE_MARGIN,
+        };
   }, [pos]);
 
   const panelPos = useCallback((): React.CSSProperties => {
     if (!pos) return { display: "none" };
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    // Vertical: prefer ABOVE; if not enough space, place BELOW.
+
     const spaceAbove = pos.y;
     const placeBelow = spaceAbove < PANEL_HEIGHT + GREETING_GAP;
     const top = placeBelow
       ? pos.y + BUTTON_SIZE + GREETING_GAP
       : Math.max(EDGE_MARGIN, pos.y - PANEL_HEIGHT - GREETING_GAP);
-    // Horizontal: anchor right edge to button's right edge when possible, then clamp.
+
     const desiredLeft = pos.x + BUTTON_SIZE - PANEL_WIDTH;
-    const left = Math.min(
-      Math.max(EDGE_MARGIN, desiredLeft),
-      vw - PANEL_WIDTH - EDGE_MARGIN,
-    );
+    const left = Math.min(Math.max(EDGE_MARGIN, desiredLeft), vw - PANEL_WIDTH - EDGE_MARGIN);
     return { left, top, maxHeight: vh - 2 * EDGE_MARGIN };
   }, [pos]);
 
@@ -164,17 +172,25 @@ export function FloatingChatbot() {
         onPointerUp={onPointerUp}
         style={{
           left: pos.x,
-          top:  pos.y,
-          width:  BUTTON_SIZE,
+          top: pos.y,
+          width: BUTTON_SIZE,
           height: BUTTON_SIZE,
           cursor: dragging ? "grabbing" : "grab",
           touchAction: "none",
         }}
         className="group fixed z-[60] flex items-center justify-center rounded-full bg-gradient-to-br from-[#2356F6] to-[#0F5BFF] text-white shadow-lg shadow-[#2356F6]/30 transition-transform duration-100 hover:scale-105 active:scale-95 select-none"
       >
-        {open
-          ? <X size={18} />
-          : <img src="/chatbot-icon.svg" alt="" aria-hidden draggable={false} className="h-7 w-7 pointer-events-none transition-transform duration-200 group-hover:rotate-6" />}
+        {open ? (
+          <X size={18} />
+        ) : (
+          <img
+            src="/chatbot-icon.svg"
+            alt=""
+            aria-hidden
+            draggable={false}
+            className="h-7 w-7 pointer-events-none transition-transform duration-200 group-hover:rotate-6"
+          />
+        )}
       </button>
 
       {open && (
@@ -198,17 +214,12 @@ export function FloatingChatbot() {
               <img src="/auth-brand.svg" alt="emailanswers.ai" className="h-7 w-auto" />
             </div>
             <h2 className="mt-3 text-center text-lg font-bold tracking-tight">
-              AI support is rolling out soon <br/> Leave us a message!
+              AI support is rolling out soon <br /> Leave us a message!
             </h2>
-            <p className="mt-1 text-center text-xs text-white/85">
-              We&apos;ll be right with you
-            </p>
+            <p className="mt-1 text-center text-xs text-white/85">We&apos;ll be right with you</p>
           </div>
 
-          <form
-            onSubmit={(e) => e.preventDefault()}
-            className="space-y-3 bg-white px-5 pt-4 pb-5"
-          >
+          <form onSubmit={(e) => e.preventDefault()} className="space-y-3 bg-white px-5 pt-4 pb-5">
             <input
               type="text"
               placeholder="Your name"

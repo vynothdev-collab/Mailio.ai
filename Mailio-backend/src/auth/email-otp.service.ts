@@ -28,8 +28,7 @@ export class EmailOtpService {
     user: User,
     purpose = OtpPurpose.SIGNUP_VERIFY,
   ): Promise<void> {
-    const expireMinutes =
-      this.config.get<number>('mail.otpExpireMinutes') ?? 5;
+    const expireMinutes = this.config.get<number>('mail.otpExpireMinutes') ?? 5;
 
     const otp = this.generateOtp();
     const otpHash = await bcrypt.hash(otp, 10);

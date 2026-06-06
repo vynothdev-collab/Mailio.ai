@@ -7,7 +7,7 @@ import { formatFileSize as fmtSize } from "./ticket-attachments-utils";
 
 interface Props {
   attachments: TicketAttachment[];
-  /** Called when a preview fails — usually because the signed URL expired. */
+
   onRefresh?: () => void;
 }
 
@@ -34,7 +34,6 @@ export function TicketAttachmentsList({ attachments, onRefresh }: Props) {
             >
               <div className="aspect-video bg-[#F4F8FF] flex items-center justify-center overflow-hidden">
                 {a.fileType === "image" ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={a.viewUrl}
                     alt={a.originalName}
@@ -54,9 +53,7 @@ export function TicketAttachmentsList({ attachments, onRefresh }: Props) {
               <div className="px-2 py-1.5 flex items-center gap-1.5">
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-medium truncate" title={a.originalName}>
-                    {a.fileType === "video" && (
-                      <Film size={10} className="inline mr-0.5 -mt-0.5" />
-                    )}
+                    {a.fileType === "video" && <Film size={10} className="inline mr-0.5 -mt-0.5" />}
                     {a.originalName}
                   </p>
                   <p className="text-[10px] text-muted-foreground">{fmtSize(a.sizeBytes)}</p>
@@ -85,13 +82,16 @@ export function TicketAttachmentsList({ attachments, onRefresh }: Props) {
         >
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); setLightbox(null); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightbox(null);
+            }}
             aria-label="Close"
             className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
           >
             <X size={16} />
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {}
           <img
             src={lightbox.viewUrl}
             alt={lightbox.originalName}

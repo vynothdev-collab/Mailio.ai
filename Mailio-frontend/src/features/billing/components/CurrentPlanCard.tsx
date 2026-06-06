@@ -16,7 +16,8 @@ export function CurrentPlanCard() {
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
 
   useEffect(() => {
-    billingService.getPlans()
+    billingService
+      .getPlans()
       .then(setPlans)
       .catch(() => setPlans([]))
       .finally(() => setLoading(false));
@@ -59,7 +60,8 @@ export function CurrentPlanCard() {
               {plans.slice(0, 3).map((p) => (
                 <li key={p.id} className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Check size={11} className="shrink-0 text-emerald-500" />
-                  {p.name} — {p.credits.toLocaleString()} credits ({p.currency}{p.price})
+                  {p.name} — {p.credits.toLocaleString()} credits ({p.currency}
+                  {p.price})
                 </li>
               ))}
             </ul>

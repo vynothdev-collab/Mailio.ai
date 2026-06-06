@@ -198,10 +198,6 @@ export class EmailListsService {
     return list;
   }
 
-  /**
-   * Endpoint-facing variant that lets an ENTERPRISE_ADMIN read any list
-   * belonging to a user in their enterprise.
-   */
   async findByIdForUser(id: string, user: User): Promise<EmailList> {
     const userIds = await this.scope.resolveUserIds(user);
     const list = await this.listsRepo.findOne({
@@ -329,8 +325,6 @@ export class EmailListsService {
       return 'catchall';
     };
 
-    
-    
     type Report = {
       email: string;
       user: string;
@@ -353,7 +347,6 @@ export class EmailListsService {
       };
     };
 
-    
     const STATUS_ORDER: Record<string, number> = {
       valid: 0,
       catchall: 1,
@@ -367,8 +360,6 @@ export class EmailListsService {
           (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99),
       );
 
-    
-    
     const baseName = (list.originalFilename ?? `bulk-${listId}`).replace(
       /\.[^.]+$/,
       '',
@@ -383,7 +374,7 @@ export class EmailListsService {
       res.end(JSON.stringify(report));
     } else {
       res.setHeader('Content-Type', 'text/csv');
-      
+
       const escape = (v: string): string => `"${v.replace(/"/g, '""')}"`;
       const lines = ['email,user,domain,status'];
       for (const r of report) {
@@ -421,12 +412,11 @@ export class EmailListsService {
       parser.on('data', (row: string[]) => {
         const raw = (row[0] ?? '').trim().toLowerCase();
 
-        
         if (isFirstRow) {
           isFirstRow = false;
           if (!this.looksLikeEmail(raw)) {
             detectedColumn = raw || 'email';
-            return; 
+            return;
           }
         }
 

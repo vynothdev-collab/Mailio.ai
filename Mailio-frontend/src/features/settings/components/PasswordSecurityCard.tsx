@@ -11,7 +11,11 @@ import { userService } from "@/src/services/userService";
 import type { ApiError } from "@/src/types/auth";
 
 function PasswordInput({
-  label, value, onChange, placeholder, autoComplete = "new-password",
+  label,
+  value,
+  onChange,
+  placeholder,
+  autoComplete = "new-password",
 }: {
   label: string;
   value: string;
@@ -48,27 +52,34 @@ function PasswordInput({
 }
 
 function strengthLabel(pw: string): { label: string; color: string; bg: string; width: string } {
-  if (pw.length === 0) return { label: "",       color: "text-transparent", bg: "bg-red-500",     width: "w-0"    };
-  if (pw.length < 6)   return { label: "Weak",   color: "text-red-500",     bg: "bg-red-500",     width: "w-1/4"  };
-  if (pw.length < 10)  return { label: "Fair",   color: "text-amber-500",   bg: "bg-amber-500",   width: "w-2/4"  };
-  if (pw.length < 14)  return { label: "Good",   color: "text-blue-500",    bg: "bg-blue-500",    width: "w-3/4"  };
-  return                      { label: "Strong", color: "text-emerald-600", bg: "bg-emerald-500", width: "w-full" };
+  if (pw.length === 0)
+    return { label: "", color: "text-transparent", bg: "bg-red-500", width: "w-0" };
+  if (pw.length < 6)
+    return { label: "Weak", color: "text-red-500", bg: "bg-red-500", width: "w-1/4" };
+  if (pw.length < 10)
+    return { label: "Fair", color: "text-amber-500", bg: "bg-amber-500", width: "w-2/4" };
+  if (pw.length < 14)
+    return { label: "Good", color: "text-blue-500", bg: "bg-blue-500", width: "w-3/4" };
+  return { label: "Strong", color: "text-emerald-600", bg: "bg-emerald-500", width: "w-full" };
 }
 
 type Step = "form" | "otp";
 
-function PasswordForm({ hasPassword, onOtpSent }: {
+function PasswordForm({
+  hasPassword,
+  onOtpSent,
+}: {
   hasPassword: boolean;
   onOtpSent: (current: string, next: string) => void;
 }) {
   const [current, setCurrent] = useState("");
-  const [next,    setNext]    = useState("");
+  const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
   const [sending, setSending] = useState(false);
 
   const strength = strengthLabel(next);
   const mismatch = confirm.length > 0 && next !== confirm;
-  const canSend  = (!hasPassword || current.length > 0) && next.length >= 8 && next === confirm;
+  const canSend = (!hasPassword || current.length > 0) && next.length >= 8 && next === confirm;
 
   async function handleSendOtp() {
     if (!canSend) return;
@@ -101,7 +112,13 @@ function PasswordForm({ hasPassword, onOtpSent }: {
         <div className="space-y-1 -mt-1">
           <div className="flex items-center gap-2">
             <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-              <div className={cn("h-full rounded-full transition-all duration-300", strength.bg, strength.width)} />
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-300",
+                  strength.bg,
+                  strength.width
+                )}
+              />
             </div>
             <span className={cn("text-[11px] font-semibold w-10 text-right", strength.color)}>
               {strength.label}
@@ -124,24 +141,35 @@ function PasswordForm({ hasPassword, onOtpSent }: {
           onClick={handleSendOtp}
           className="w-full sm:w-auto gradient-brand border-0 text-white hover:opacity-90 text-xs sm:text-sm disabled:opacity-40"
         >
-          {sending
-            ? <><Loader2 size={13} className="animate-spin" /> Sending…</>
-            : <><ShieldCheck size={13} /> Send Verification Code</>}
+          {sending ? (
+            <>
+              <Loader2 size={13} className="animate-spin" /> Sending…
+            </>
+          ) : (
+            <>
+              <ShieldCheck size={13} /> Send Verification Code
+            </>
+          )}
         </Button>
       </div>
     </div>
   );
 }
 
-function OtpStep({ currentPassword, newPassword, onSuccess, onBack }: {
+function OtpStep({
+  currentPassword,
+  newPassword,
+  onSuccess,
+  onBack,
+}: {
   currentPassword: string;
   newPassword: string;
   onSuccess: () => void;
   onBack: () => void;
 }) {
   const { user } = useAuth();
-  const [otp,       setOtp]       = useState("");
-  const [saving,    setSaving]    = useState(false);
+  const [otp, setOtp] = useState("");
+  const [saving, setSaving] = useState(false);
   const [resending, setResending] = useState(false);
 
   async function handleVerify() {
@@ -176,13 +204,13 @@ function OtpStep({ currentPassword, newPassword, onSuccess, onBack }: {
 
   return (
     <div className="space-y-4">
-      {/* Info banner */}
+      {}
       <div className="rounded-xl bg-[#F4F8FF] border border-[#DCE6F3] px-4 py-3 flex items-start gap-3">
         <ShieldCheck size={16} className="shrink-0 text-[#0B47CF] mt-0.5" />
         <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
           A 6-digit code was sent to{" "}
-          <span className="font-semibold text-[#111827]">{user?.email}</span>.
-          Enter it below to confirm.
+          <span className="font-semibold text-[#111827]">{user?.email}</span>. Enter it below to
+          confirm.
         </p>
       </div>
 
@@ -220,9 +248,15 @@ function OtpStep({ currentPassword, newPassword, onSuccess, onBack }: {
           onClick={handleVerify}
           className="w-full sm:w-auto gradient-brand border-0 text-white hover:opacity-90 text-xs sm:text-sm disabled:opacity-40"
         >
-          {saving
-            ? <><Loader2 size={13} className="animate-spin" /> Verifying…</>
-            : <><ShieldCheck size={13} /> Confirm Change</>}
+          {saving ? (
+            <>
+              <Loader2 size={13} className="animate-spin" /> Verifying…
+            </>
+          ) : (
+            <>
+              <ShieldCheck size={13} /> Confirm Change
+            </>
+          )}
         </Button>
       </div>
     </div>
@@ -231,9 +265,9 @@ function OtpStep({ currentPassword, newPassword, onSuccess, onBack }: {
 
 export function PasswordSecurityCard() {
   const { user } = useAuth();
-  const [step,            setStep]            = useState<Step>("form");
+  const [step, setStep] = useState<Step>("form");
   const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword,     setNewPassword]     = useState("");
+  const [newPassword, setNewPassword] = useState("");
 
   const hasPassword = user?.hasPassword ?? true;
 
@@ -251,7 +285,7 @@ export function PasswordSecurityCard() {
 
   return (
     <div className="rounded-2xl border border-[#DCE6F3] bg-white shadow-sm overflow-hidden">
-      {/* Card header */}
+      {}
       <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-[#DCE6F3]">
         <h2 className="text-sm sm:text-base font-semibold text-[#111827]">Password & Security</h2>
         <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">

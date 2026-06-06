@@ -3,7 +3,7 @@ import { StatCard } from "./StatCard";
 import { StatCardSkeleton } from "@/src/components/shared/Skeleton";
 
 interface StatsGridProps {
-  stats:   StatItem[];
+  stats: StatItem[];
   loading: boolean;
 }
 

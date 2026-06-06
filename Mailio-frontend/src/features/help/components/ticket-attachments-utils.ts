@@ -1,5 +1,3 @@
-/** Shared rules for ticket attachment selection. Mirrors the backend allow-list. */
-
 export const ATTACHMENT_MIMES = [
   "image/jpeg",
   "image/jpg",
@@ -31,18 +29,10 @@ export function isAllowedAttachment(file: File): boolean {
 
 export interface ValidateResult {
   accepted: File[];
-  errors:   string[];
+  errors: string[];
 }
 
-/**
- * Merge `incoming` into `existing` while enforcing all attachment rules.
- * Returns the next files array + an array of human-readable error messages
- * for anything we rejected. The caller decides how to display them (toast etc).
- */
-export function validateTicketAttachments(
-  existing: File[],
-  incoming: File[],
-): ValidateResult {
+export function validateTicketAttachments(existing: File[], incoming: File[]): ValidateResult {
   const accepted = [...existing];
   const errors: string[] = [];
   let runningTotal = existing.reduce((s, f) => s + f.size, 0);
@@ -57,15 +47,10 @@ export function validateTicketAttachments(
       continue;
     }
     if (runningTotal + f.size > MAX_TOTAL_BYTES) {
-      errors.push(
-        `${f.name || "file"}: would exceed the 5 MB combined limit.`,
-      );
+      errors.push(`${f.name || "file"}: would exceed the 5 MB combined limit.`);
       continue;
     }
-    if (
-      accepted.some((e) => e.name === f.name && e.size === f.size && e.type === f.type)
-    ) {
-      // Silent de-dupe — picking the same file twice is almost always accidental.
+    if (accepted.some((e) => e.name === f.name && e.size === f.size && e.type === f.type)) {
       continue;
     }
     accepted.push(f);
@@ -75,7 +60,6 @@ export function validateTicketAttachments(
   return { accepted, errors };
 }
 
-/** Give a clipboard-pasted blob a safe, predictable filename. */
 export function namePastedFile(file: File, index: number): File {
   if (file.name && file.name !== "image.png" && file.name !== "blob") {
     return file;

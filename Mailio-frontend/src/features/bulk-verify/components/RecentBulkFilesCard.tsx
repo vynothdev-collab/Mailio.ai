@@ -14,10 +14,10 @@ import type { BulkJobDto, BulkJobStatus } from "@/src/types/bulk";
 import type { ApiError } from "@/src/types/auth";
 
 interface Props {
-  jobs:           BulkJobDto[];
-  loading:        boolean;
+  jobs: BulkJobDto[];
+  loading: boolean;
   pendingUpload?: boolean;
-  onDeleted?:     () => void;
+  onDeleted?: () => void;
 }
 
 const STATUS_STYLES: Record<
@@ -25,31 +25,33 @@ const STATUS_STYLES: Record<
   { label: string; text: string; bg: string; dot: string; cardTint: string }
 > = {
   processing: {
-    label:    "In progress",
-    text:     "text-blue-700",
-    bg:       "bg-blue-50 border border-blue-100",
-    dot:      "bg-blue-500 animate-pulse",
-    cardTint: "border-2 border-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.12),0_8px_22px_-8px_rgba(59,130,246,0.35)]",
+    label: "In progress",
+    text: "text-blue-700",
+    bg: "bg-blue-50 border border-blue-100",
+    dot: "bg-blue-500 animate-pulse",
+    cardTint:
+      "border-2 border-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.12),0_8px_22px_-8px_rgba(59,130,246,0.35)]",
   },
   pending: {
-    label:    "Queued",
-    text:     "text-blue-700",
-    bg:       "bg-blue-50 border border-blue-100",
-    dot:      "bg-blue-500 animate-pulse",
-    cardTint: "border-2 border-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.12),0_8px_22px_-8px_rgba(59,130,246,0.35)]",
+    label: "Queued",
+    text: "text-blue-700",
+    bg: "bg-blue-50 border border-blue-100",
+    dot: "bg-blue-500 animate-pulse",
+    cardTint:
+      "border-2 border-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.12),0_8px_22px_-8px_rgba(59,130,246,0.35)]",
   },
   completed: {
-    label:    "Completed",
-    text:     "text-emerald-700",
-    bg:       "bg-emerald-50 border border-emerald-100",
-    dot:      "bg-emerald-500",
+    label: "Completed",
+    text: "text-emerald-700",
+    bg: "bg-emerald-50 border border-emerald-100",
+    dot: "bg-emerald-500",
     cardTint: "",
   },
   failed: {
-    label:    "Failed",
-    text:     "text-red-700",
-    bg:       "bg-red-50 border border-red-100",
-    dot:      "bg-red-500",
+    label: "Failed",
+    text: "text-red-700",
+    bg: "bg-red-50 border border-red-100",
+    dot: "bg-red-500",
     cardTint: "",
   },
 };
@@ -61,7 +63,7 @@ function StatusBadge({ status }: { status: BulkJobStatus }) {
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold",
         s.bg,
-        s.text,
+        s.text
       )}
     >
       <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
@@ -75,14 +77,14 @@ function JobMenu({
   onView,
   onDeleted,
 }: {
-  jobId:      string;
-  onView:     () => void;
+  jobId: string;
+  onView: () => void;
   onDeleted?: () => void;
 }) {
-  const [open,        setOpen]        = useState(false);
+  const [open, setOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleting,    setDeleting]    = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -150,7 +152,10 @@ function JobMenu({
           <div className="absolute right-0 top-full z-30 mt-1.5 w-40 rounded-xl border border-[#DCE6F3] bg-white py-1 shadow-lg">
             <button
               type="button"
-              onClick={() => { setOpen(false); onView(); }}
+              onClick={() => {
+                setOpen(false);
+                onView();
+              }}
               className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-[#111827] hover:bg-[#F4F8FF] transition-colors"
             >
               <Eye size={14} className="text-muted-foreground" />
@@ -166,7 +171,10 @@ function JobMenu({
             </button>
             <button
               type="button"
-              onClick={() => { setOpen(false); setConfirmOpen(true); }}
+              onClick={() => {
+                setOpen(false);
+                setConfirmOpen(true);
+              }}
               className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
             >
               <Trash2 size={14} />
@@ -178,7 +186,9 @@ function JobMenu({
 
       <ConfirmDeleteDialog
         open={confirmOpen}
-        onOpenChange={(v) => { if (!v && !deleting) setConfirmOpen(false); }}
+        onOpenChange={(v) => {
+          if (!v && !deleting) setConfirmOpen(false);
+        }}
         title="Delete bulk job?"
         pending={deleting}
         onConfirm={handleConfirmDelete}
@@ -188,10 +198,10 @@ function JobMenu({
 }
 
 function ResultCard({ job, onDeleted }: { job: BulkJobDto; onDeleted?: () => void }) {
-  const valid    = job.valid    ?? 0;
-  const invalid  = job.invalid  ?? 0;
+  const valid = job.valid ?? 0;
+  const invalid = job.invalid ?? 0;
   const catchall = job.catchall ?? 0;
-  const total    = valid + invalid + catchall;
+  const total = valid + invalid + catchall;
   const isInFlight = job.status === "processing" || job.status === "pending";
   const tint = STATUS_STYLES[job.status]?.cardTint ?? "";
   const [viewingJob, setViewingJob] = useState<BulkJobDto | null>(null);
@@ -210,11 +220,7 @@ function ResultCard({ job, onDeleted }: { job: BulkJobDto; onDeleted?: () => voi
               </div>
             </div>
             {job.status === "completed" && (
-              <JobMenu
-                jobId={job.jobId}
-                onView={() => setViewingJob(job)}
-                onDeleted={onDeleted}
-              />
+              <JobMenu jobId={job.jobId} onView={() => setViewingJob(job)} onDeleted={onDeleted} />
             )}
           </div>
 
@@ -227,9 +233,24 @@ function ResultCard({ job, onDeleted }: { job: BulkJobDto; onDeleted?: () => voi
               <div className="flex flex-col items-center">
                 <DonutChart
                   data={[
-                    { name: "Valid",    value: valid,    percentage: `${((valid    / total) * 100).toFixed(1)}%`, color: "#22c55e" },
-                    { name: "Invalid",  value: invalid,  percentage: `${((invalid  / total) * 100).toFixed(1)}%`, color: "#ef4444" },
-                    { name: "Catchall", value: catchall, percentage: `${((catchall / total) * 100).toFixed(1)}%`, color: "#f59e0b" },
+                    {
+                      name: "Valid",
+                      value: valid,
+                      percentage: `${((valid / total) * 100).toFixed(1)}%`,
+                      color: "#22c55e",
+                    },
+                    {
+                      name: "Invalid",
+                      value: invalid,
+                      percentage: `${((invalid / total) * 100).toFixed(1)}%`,
+                      color: "#ef4444",
+                    },
+                    {
+                      name: "Catchall",
+                      value: catchall,
+                      percentage: `${((catchall / total) * 100).toFixed(1)}%`,
+                      color: "#f59e0b",
+                    },
                   ]}
                   total={isInFlight ? (job.totalEmails ?? total) : total}
                 />
@@ -237,13 +258,26 @@ function ResultCard({ job, onDeleted }: { job: BulkJobDto; onDeleted?: () => voi
 
               <ul className="space-y-3" role="list">
                 {[
-                  { name: "Valid",    value: valid,    color: "#22c55e", pct: (valid    / total) * 100 },
-                  { name: "Invalid",  value: invalid,  color: "#ef4444", pct: (invalid  / total) * 100 },
-                  { name: "Catchall", value: catchall, color: "#f59e0b", pct: (catchall / total) * 100 },
+                  { name: "Valid", value: valid, color: "#22c55e", pct: (valid / total) * 100 },
+                  {
+                    name: "Invalid",
+                    value: invalid,
+                    color: "#ef4444",
+                    pct: (invalid / total) * 100,
+                  },
+                  {
+                    name: "Catchall",
+                    value: catchall,
+                    color: "#f59e0b",
+                    pct: (catchall / total) * 100,
+                  },
                 ].map((row) => (
                   <li key={row.name} className="space-y-1">
                     <div className="flex items-center gap-3">
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: row.color }}
+                      />
                       <span className="text-sm font-medium text-[#111827]">{row.name}</span>
                       <div className="ml-2 flex-1 h-1.5 rounded-full bg-[#EEF3FB] overflow-hidden">
                         <div
@@ -275,7 +309,9 @@ function ResultCard({ job, onDeleted }: { job: BulkJobDto; onDeleted?: () => voi
 
       <JobDetailsDialog
         job={viewingJob}
-        onOpenChange={(open) => { if (!open) setViewingJob(null); }}
+        onOpenChange={(open) => {
+          if (!open) setViewingJob(null);
+        }}
       />
     </>
   );

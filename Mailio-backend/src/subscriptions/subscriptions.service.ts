@@ -54,15 +54,6 @@ interface Target {
   enterpriseId: string | null;
 }
 
-/**
- * Mobile-recharge-style subscription manager.
- *
- *   Validity-based plans: queue if an active/queued plan already exists.
- *   Topup plans:          require an active base plan; inherit its expiry.
- *
- * The live `credit_balance` on users/enterprises stays in sync with the sum
- * of remaining_credits across all ACTIVE subscriptions for that account.
- */
 @Injectable()
 export class SubscriptionsService {
   private readonly logger = new Logger(SubscriptionsService.name);
@@ -76,8 +67,6 @@ export class SubscriptionsService {
     @InjectRepository(CreditTransaction)
     private readonly txRepo: Repository<CreditTransaction>,
   ) {}
-
-  // ─── Public purchase API ─────────────────────────────────────────────────
 
   async purchaseValidityPlanForUser(
     userId: string,
@@ -119,8 +108,6 @@ export class SubscriptionsService {
     );
   }
 
-  // ─── Validity-based purchase ─────────────────────────────────────────────
-
   private async purchaseValidity(
     target: Target,
     planId: string,
@@ -140,8 +127,6 @@ export class SubscriptionsService {
 
     return this.dataSource.transaction(async (em) => {
       await this.lockAccountRow(em, target);
-
-      // Find the latest ACTIVE or QUEUED validity-based end date for this account.
       const latestEnd = await this.latestQueuedOrActiveEnd(em, target);
 
       let startDate: Date;
@@ -174,8 +159,6 @@ export class SubscriptionsService {
       });
       const saved = await em.save(sub);
 
-      // ACTIVE → credit the live balance + extend expiry now.
-      // QUEUED → no live balance change until activation.
       if (status === SubscriptionStatus.ACTIVE) {
         await this.addToLiveBalance(em, target, plan.credits, endDate);
         await this.writeLedger(em, target, {
@@ -186,7 +169,6 @@ export class SubscriptionsService {
           description: `Plan purchased: ${plan.name} (+${plan.credits} credits)`,
         });
       } else {
-        // Ledger row so admins can see queued purchases.
         await this.writeLedgerNoBalance(em, target, {
           reason: CreditTransactionReason.PLAN_PURCHASE,
           subscriptionId: saved.id,
@@ -201,8 +183,6 @@ export class SubscriptionsService {
       return saved;
     });
   }
-
-  // ─── Topup purchase ──────────────────────────────────────────────────────
 
   private async purchaseTopup(
     target: Target,
@@ -231,7 +211,7 @@ export class SubscriptionsService {
         planCategory: plan.planCategory,
         status: SubscriptionStatus.ACTIVE,
         startDate: new Date(),
-        endDate: parent.endDate, // inherit parent expiry
+        endDate: parent.endDate,
         totalCredits: String(plan.credits),
         usedCredits: '0',
         remainingCredits: String(plan.credits),
@@ -239,7 +219,6 @@ export class SubscriptionsService {
       });
       const saved = await em.save(sub);
 
-      // Add to live balance; do NOT extend expiry.
       await this.addToLiveBalance(em, target, plan.credits, null);
       await this.writeLedger(em, target, {
         type: CreditTransactionType.ALLOCATION,
@@ -256,8 +235,6 @@ export class SubscriptionsService {
       return saved;
     });
   }
-
-  // ─── Current subscription view ───────────────────────────────────────────
 
   async getCurrentSubscriptionForUser(
     userId: string,
@@ -351,19 +328,6 @@ export class SubscriptionsService {
     };
   }
 
-  // ─── Subscription-aware deduction tracking ───────────────────────────────
-
-  /**
-   * Reflect a credit deduction in subscription-level counters.
-   *
-   * IMPORTANT: pass the live-balance EntityManager so the subscription update
-   * and the user/enterprise balance update commit atomically. If `em` is
-   * omitted we open our own transaction (used by reconciliation jobs only).
-   *
-   * Deduction order is deterministic — same-expiry TOPUP credits are spent
-   * before VALIDITY_BASED so users don't lose top-up credits to expiry, and
-   * we tie-break on `created_at ASC` for full reproducibility.
-   */
   async recordDeduction(
     accountType: CreditAccountType,
     accountId: string,
@@ -391,11 +355,6 @@ export class SubscriptionsService {
         ? SubscriptionAccountType.USER
         : SubscriptionAccountType.ENTERPRISE;
 
-    // Deterministic order:
-    //   1) end_date ASC NULLS LAST     — credits about to expire are spent first
-    //   2) plan_category TOPUP first   — when expiries are equal, drain top-ups
-    //      so the user keeps their base-plan credits as long as possible
-    //   3) created_at ASC              — final tie-break: oldest row first
     const candidates = await em
       .createQueryBuilder(Subscription, 's')
       .where(
@@ -432,9 +391,6 @@ export class SubscriptionsService {
     }
 
     if (remaining > 0) {
-      // Subscription counters under-cover the live balance debit. This means
-      // the user has live credits that aren't accounted for in subscriptions.
-      // Throwing rolls back the live debit AND keeps invariants intact.
       throw new Error(
         `Cannot record deduction of ${amount} for ${accountType}=${accountId}: ` +
           `subscriptions cover only ${amount - remaining}. ` +
@@ -443,13 +399,6 @@ export class SubscriptionsService {
     }
   }
 
-  /**
-   * Add credits back to subscription counters when a bulk refund is issued.
-   * Mirrors the deduction order in reverse so refunds land on the same
-   * subscription rows that were debited. Logs a warning (not a throw) if
-   * the refund exceeds recorded usage — that would mean the caller refunded
-   * more than was ever deducted.
-   */
   async recordRefund(
     accountType: CreditAccountType,
     accountId: string,
@@ -477,8 +426,6 @@ export class SubscriptionsService {
         ? SubscriptionAccountType.USER
         : SubscriptionAccountType.ENTERPRISE;
 
-    // Refund in reverse deduction order: latest-expiry first, validity-based
-    // before topup, newest first. This mirrors how credits were drained.
     const candidates = await em
       .createQueryBuilder(Subscription, 's')
       .where(
@@ -522,12 +469,6 @@ export class SubscriptionsService {
     }
   }
 
-  // ─── Expiry + queued activation (run by cron) ────────────────────────────
-
-  /**
-   * Process expired subscriptions and activate queued ones.
-   * Returns counts for observability.
-   */
   async expireAndActivateSubscriptions(): Promise<{
     expired: number;
     activated: number;
@@ -544,7 +485,6 @@ export class SubscriptionsService {
     let expired = 0;
     let activated = 0;
 
-    // Group by account so we activate the queued plan for each affected account.
     const touchedAccounts = new Set<string>();
 
     for (const sub of expiredRows) {
@@ -555,7 +495,6 @@ export class SubscriptionsService {
         expired += 1;
         touchedAccounts.add(this.accountKey(sub));
 
-        // Also expire all topups parented to this subscription (if it's the base).
         if (sub.planCategory === PlanCategory.VALIDITY_BASED) {
           const topups = await this.subRepo.find({
             where: {
@@ -577,7 +516,6 @@ export class SubscriptionsService {
       }
     }
 
-    // For every account that lost an ACTIVE base plan, try to activate the next queued one.
     for (const key of touchedAccounts) {
       try {
         const [t, id] = key.split(':');
@@ -620,8 +558,6 @@ export class SubscriptionsService {
     return { expired, activated };
   }
 
-  // ─── Internal transactions ───────────────────────────────────────────────
-
   private async expireSubscriptionTx(
     em: EntityManager,
     sub: Subscription,
@@ -643,7 +579,6 @@ export class SubscriptionsService {
     };
 
     if (remaining > 0) {
-      // Remove the unused credits from the live balance.
       await this.addToLiveBalance(em, target, -remaining, null);
       await this.writeLedger(em, target, {
         type: CreditTransactionType.ADJUSTMENT,
@@ -654,8 +589,6 @@ export class SubscriptionsService {
       });
     }
 
-    // If we just expired the LAST active base plan with no queued replacement,
-    // clear the live expiry timestamp so the account is not flagged active.
     if (sub.planCategory === PlanCategory.VALIDITY_BASED) {
       const remainingActive = await em.count(Subscription, {
         where: {
@@ -676,9 +609,6 @@ export class SubscriptionsService {
     em: EntityManager,
     sub: Subscription,
   ): Promise<void> {
-    // The queued row already has start_date / end_date computed at purchase time.
-    // We honour them but bump start_date to now if the user is past the originally
-    // scheduled start (e.g. expiry ran late).
     const now = new Date();
     let startDate = sub.startDate;
     let endDate = sub.endDate;
@@ -715,8 +645,6 @@ export class SubscriptionsService {
       description: `Queued plan activated (+${credits} credits)`,
     });
   }
-
-  // ─── Helpers ─────────────────────────────────────────────────────────────
 
   private async loadPlan(planId: string): Promise<BillingPlan> {
     const plan = await this.planRepo.findOne({
@@ -828,9 +756,6 @@ export class SubscriptionsService {
         );
       }
     } else {
-      // No expiry extension — this is a topup or queued-plan activation path.
-      // Do NOT bump total_purchased_credits for topups (they add to the pool
-      // but are not standalone plan purchases; the base plan already counted them).
       await em.query(
         `UPDATE "${table}"
            SET credit_balance = GREATEST(0, credit_balance + $1),
@@ -880,7 +805,6 @@ export class SubscriptionsService {
         ? target.enterpriseId!
         : target.userId!;
 
-    // Read the current live balance for the ledger's balance_after column.
     const table =
       accountType === CreditAccountType.ENTERPRISE ? 'enterprises' : 'users';
     const rows: { credit_balance: string }[] = await em.query(
@@ -909,7 +833,6 @@ export class SubscriptionsService {
     await em.save(tx);
   }
 
-  /** Ledger entry that does NOT debit/credit live balance (e.g. queued purchase). */
   private async writeLedgerNoBalance(
     em: EntityManager,
     target: Target,
@@ -967,6 +890,4 @@ export class SubscriptionsService {
     d.setDate(d.getDate() + days);
     return d;
   }
-
-  // Reference to silence "unused" hints in some configs.
 }

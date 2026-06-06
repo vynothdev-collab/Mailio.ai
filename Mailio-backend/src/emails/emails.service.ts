@@ -248,9 +248,7 @@ export class EmailsService {
         ? (raw[0] as TransitionedRow[])
         : (raw as TransitionedRow[]);
 
-    return transitioned.filter(
-      (r) => r && typeof r.emailId === 'string',
-    );
+    return transitioned.filter((r) => r && typeof r.emailId === 'string');
   }
 
   async markFailedBatch(rows: BatchFailureRow[]): Promise<TransitionedRow[]> {
@@ -279,8 +277,6 @@ export class EmailsService {
         ? (raw[0] as TransitionedRow[])
         : (raw as TransitionedRow[]);
 
-    return transitioned.filter(
-      (r) => r && typeof r.emailId === 'string',
-    );
+    return transitioned.filter((r) => r && typeof r.emailId === 'string');
   }
 }

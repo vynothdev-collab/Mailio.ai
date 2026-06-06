@@ -1,9 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Add a short "title" column to tickets, separate from the longer "subject".
- * Existing rows are backfilled with the subject value so the column can be NOT NULL.
- */
 export class AddTitleToTickets1780300000003 implements MigrationInterface {
   name = 'AddTitleToTickets1780300000003';
 

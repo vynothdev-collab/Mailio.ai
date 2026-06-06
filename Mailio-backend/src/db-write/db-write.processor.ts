@@ -137,9 +137,7 @@ export class DbWriteProcessor extends WorkerHost {
     if (d.listId && transitioned) {
       await this.bumpListAndEmit(d.listId, VerificationResult.UNKNOWN, false);
       await this.advanceBulkCursorBy(1);
-      // Refund the reserved credit for this bulk row. System/provider failure
-      // means the provider call never produced a billable result. Gated on
-      // `transitioned` so re-runs of the same db.write job are no-ops.
+
       await this.refundBulkSafely(d.listId, d.userId, 1);
       this.notifier.emitJobFailed(d.listId, {
         listId: d.listId,
@@ -258,10 +256,6 @@ export class DbWriteProcessor extends WorkerHost {
         );
       }
 
-      // Refund credits for every email that actually transitioned. `delta.processed`
-      // equals the number of newly-failed emails in this list — already filtered
-      // by `markFailedBatch` returning only rows that flipped state, so duplicate
-      // batch jobs can't double-refund.
       await this.refundBulkSafely(listId, d.userId, delta.processed);
     }
 
@@ -276,11 +270,6 @@ export class DbWriteProcessor extends WorkerHost {
     this.metrics?.wsEmits?.labels({ kind: 'failed' }).inc();
   }
 
-  /**
-   * Wrap refund in try/catch — a failed refund must NOT cause the db.write job
-   * to retry, otherwise we'd double-process the email transition. Refunds are
-   * recoverable manually via the ledger if anything ever slips through.
-   */
   private async refundBulkSafely(
     listId: string,
     userId: string,
@@ -296,11 +285,6 @@ export class DbWriteProcessor extends WorkerHost {
     }
   }
 
-  /**
-   * Promote the pending RESERVATION transaction to a DEDUCTION once the bulk
-   * list reaches COMPLETED. Wrapped in try/catch so a DB hiccup here cannot
-   * prevent the job from being marked done.
-   */
   private async finalizeReservationSafely(listId: string): Promise<void> {
     try {
       await this.credits.finalizeReservation(listId);

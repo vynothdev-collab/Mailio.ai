@@ -4,7 +4,6 @@ export class AddListParseStatus1736000000002 implements MigrationInterface {
   name = 'AddListParseStatus1736000000002';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    
     await queryRunner.query(`
       DO $$ BEGIN
         CREATE TYPE "email_list_parse_status" AS ENUM

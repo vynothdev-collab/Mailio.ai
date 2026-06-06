@@ -19,10 +19,10 @@ import { UsageLogTable } from "./UsageLogTable";
 const CHART_PERIOD: UsagePeriod = "30d";
 
 export function UsageView() {
-  const [quota,     setQuota]     = useState<UsageQuotaDto | null>(null);
+  const [quota, setQuota] = useState<UsageQuotaDto | null>(null);
   const [breakdown, setBreakdown] = useState<UsageBreakdownDto | null>(null);
-  const [chart,     setChart]     = useState<UsageChartPoint[]>([]);
-  const [loading,   setLoading]   = useState(true);
+  const [chart, setChart] = useState<UsageChartPoint[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();

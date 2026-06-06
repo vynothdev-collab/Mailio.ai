@@ -154,7 +154,6 @@ export class CsvParseProcessor extends WorkerHost {
         });
       });
 
-      // Exceeded limit: delete any partially-inserted rows so credits are not charged
       if (limitExceeded) {
         if (collectedIds.length > 0) {
           await this.dataSource.query(`DELETE FROM emails WHERE list_id = $1`, [
@@ -197,10 +196,6 @@ export class CsvParseProcessor extends WorkerHost {
         return;
       }
 
-      // Reserve credits for the parsed row count BEFORE handing the list off
-      // to the verification queue. If the caller can't afford it we abort the
-      // job and mark the list FAILED — no provider calls happen, no credits
-      // are deducted.
       const owner = await this.usersRepo.findOne({ where: { id: userId } });
       if (!owner) {
         throw new Error(`Owner user ${userId} not found for list ${listId}`);
@@ -222,12 +217,6 @@ export class CsvParseProcessor extends WorkerHost {
         );
       } catch (e) {
         if (e instanceof InsufficientCreditsException) {
-          // Mark list FAILED and move child emails to a TERMINAL state. We use
-          // status=COMPLETED + verification_result=UNKNOWN (matching how the
-          // worker's markFailed records system errors) so that the retry
-          // endpoint — which only re-queues EmailStatus.FAILED rows — cannot
-          // re-enqueue them without a fresh reservation. Users must re-upload
-          // after topping up.
           await this.listsRepo.update(listId, {
             parseStatus: EmailListParseStatus.PARSED,
             status: EmailListStatus.FAILED,
@@ -253,11 +242,6 @@ export class CsvParseProcessor extends WorkerHost {
         throw e;
       }
 
-      // From this point on the reservation is "live" — if anything below
-      // throws we must refund it, otherwise credits leak from the user's
-      // account with no corresponding work. We DON'T re-throw inside the
-      // refund block because retrying the parse job would (a) re-insert
-      // duplicate email rows and (b) re-attempt the reservation.
       try {
         await this.listsRepo.update(listId, {
           parseStatus: EmailListParseStatus.PARSED,
@@ -291,8 +275,7 @@ export class CsvParseProcessor extends WorkerHost {
         this.logger.error(
           `List ${listId}: failed to publish after reservation (balanceAfter=${reservedBalanceAfter}) — refunding ${inserted} credits: ${(e as Error).message}`,
         );
-        // Best-effort refund. If THIS fails too, we log loudly; a Super Admin
-        // can reconcile from the ledger.
+
         try {
           await this.credits.refundBulkByListOwner(listId, userId, inserted);
         } catch (refundErr) {
@@ -300,7 +283,7 @@ export class CsvParseProcessor extends WorkerHost {
             `List ${listId}: CRITICAL — refund-after-publish-failure also failed: ${(refundErr as Error).message}`,
           );
         }
-        // Mark list FAILED and child emails terminal so they aren't retried.
+
         await this.listsRepo.update(listId, {
           parseStatus: EmailListParseStatus.PARSED,
           status: EmailListStatus.FAILED,

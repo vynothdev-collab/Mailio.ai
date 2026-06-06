@@ -17,10 +17,7 @@ import {
   EmailVerificationJobPayload,
 } from './dto/job-payload.dto';
 import { VerificationBaseProcessor } from './verification-base.processor';
-import {
-  VERIFY_BULK_QUEUE,
-  VerificationService,
-} from './verification.service';
+import { VERIFY_BULK_QUEUE, VerificationService } from './verification.service';
 
 const MAILTESTER_PROVIDER = 'mailtester';
 
@@ -88,17 +85,11 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
     return Number.isFinite(raw) && raw > 0 ? raw : 57;
   })();
 
-  // Interval between successive HTTP dispatch starts (matches token-bucket refill rate).
-  // Staggering the initial burst prevents sending 57+ simultaneous requests to the
-  // API which triggers 429 with a large Retry-After, causing multi-second stalls.
   private readonly dispatchIntervalMs = Math.ceil(
     parseInt(process.env.MAILTESTER_RATE_WINDOW_MS ?? '10000', 10) /
       Math.max(1, parseInt(process.env.MAILTESTER_RATE_LIMIT ?? '228', 10)),
   );
 
-  // Cap on full reverify cycles. Each cycle = `attempts` BullMQ tries inside
-  // processBatch. Default 3 cycles × 3 attempts = 9 verification attempts per
-  // email before it can land in the UNKNOWN bucket.
   private readonly maxReverifyCycles = (() => {
     const raw = parseInt(process.env.MAX_REVERIFY_CYCLES ?? '3', 10);
     return Number.isFinite(raw) && raw > 0 ? raw : 3;
@@ -155,12 +146,6 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
     const settled = await Promise.allSettled(
       claimed.map((email, i) =>
         batchLimit(async () => {
-          // Stagger the first perBatchConcurrency emails so they start HTTP
-          // calls at dispatchIntervalMs apart (~44ms) instead of simultaneously.
-          // Without this, 57+ requests hit the API at once → 429 Retry-After N
-          // → all verifications stall for N seconds.  After the initial window
-          // the natural pipeline cadence (slots free as HTTP calls complete)
-          // maintains the correct spacing automatically.
           if (i < this.perBatchConcurrency) {
             await new Promise<void>((r) =>
               setTimeout(r, i * this.dispatchIntervalMs),
@@ -189,11 +174,6 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
         const ra = err.retryAfterMs ?? 5000;
         rateLimitRetryMs = Math.max(rateLimitRetryMs ?? 0, ra);
       } else {
-        // Every other failure (server, network, auth, bad-request, or any
-        // unexpected throw) is treated as retryable so the email goes
-        // through another verification attempt rather than being bucketed
-        // as UNKNOWN. The cap is enforced by the outer reverifyCycle ladder
-        // (BullMQ attempts × MAX_REVERIFY_CYCLES).
         hasRetryableInfra = true;
       }
     }
@@ -224,9 +204,6 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
     const isFinal =
       bullAttemptsExhausted && reverifyCycle + 1 >= this.maxReverifyCycles;
 
-    // BullMQ has retries left → release the failed emails back to QUEUED and
-    // let BullMQ retry the same batch. tryClaimMany on next attempt will only
-    // re-pick the released ones (others stay COMPLETED).
     if (!bullAttemptsExhausted) {
       await this.emailsService.releaseClaimMany(
         failures.map((f) => f.email.id),
@@ -240,9 +217,6 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
       );
     }
 
-    // BullMQ exhausted but we still have reverify cycles left → release the
-    // claims and re-enqueue the failed emails as a brand-new batch job with a
-    // fresh attempts counter. Do NOT mark them UNKNOWN.
     if (!isFinal) {
       await this.emailsService.releaseClaimMany(
         failures.map((f) => f.email.id),
@@ -266,8 +240,7 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
         this.batchLogger.error(
           `Reverify enqueue failed for ${batchId} — falling through to UNKNOWN: ${(e as Error).message}`,
         );
-        // Fall through to the final-failure branch so emails don't get stuck
-        // in PROCESSING forever if the re-enqueue itself blew up.
+
         await this.writeFinalFailure(
           batchId,
           userId,
@@ -281,8 +254,6 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
       return;
     }
 
-    // Reverify ladder fully exhausted (e.g. 3 cycles × 3 attempts = 9 tries).
-    // Now and only now do we accept UNKNOWN.
     await this.writeFinalFailure(
       batchId,
       userId,
@@ -349,10 +320,6 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
     listId: string,
     stride: number | undefined,
   ): Promise<void> {
-    // No try-catch here — if enqueue throws (e.g. Redis down), the error
-    // propagates to Promise.allSettled in processBatch, the email appears in
-    // `failures`, releaseClaimMany resets it to QUEUED, and BullMQ retries the
-    // batch job. Silent catch would leave the email stuck in PROCESSING forever.
     await this.dbWrite.enqueue({
       kind: 'success',
       emailId: s.email.id,
@@ -411,8 +378,7 @@ export class VerificationBulkProcessor extends VerificationBaseProcessor {
           slot.retryAfterMs,
         );
       }
-      // Sleep for the actual token-bucket retryAfterMs (~44ms at 228/10s)
-      // plus small jitter to spread concurrent retries.
+
       const sleepMs =
         Math.max(slot.retryAfterMs || 44, 10) + Math.floor(Math.random() * 50);
       await new Promise((r) => setTimeout(r, sleepMs));

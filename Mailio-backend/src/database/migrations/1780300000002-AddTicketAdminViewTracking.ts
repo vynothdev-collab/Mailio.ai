@@ -1,11 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Track when an admin first opened a ticket and when any admin last viewed it.
- * Used by the helpdesk UI to highlight "new for admin" tickets.
- *
- * Safe to run on existing data — both columns are nullable, no backfill needed.
- */
 export class AddTicketAdminViewTracking1780300000002 implements MigrationInterface {
   name = 'AddTicketAdminViewTracking1780300000002';
 

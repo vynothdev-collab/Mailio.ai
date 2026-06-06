@@ -2,7 +2,7 @@ import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
 import { cn } from "@/src/lib/utils";
 
 interface ProgressBarProps {
-  value: number;          
+  value: number;
   className?: string;
   trackClassName?: string;
   fillClassName?: string;

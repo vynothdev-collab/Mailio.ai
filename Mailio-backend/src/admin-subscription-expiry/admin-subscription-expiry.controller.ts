@@ -21,7 +21,9 @@ export class AdminSubscriptionExpiryController {
   }
 
   @Get('plans')
-  @ApiOperation({ summary: 'Distinct validity-based plans for the plan filter' })
+  @ApiOperation({
+    summary: 'Distinct validity-based plans for the plan filter',
+  })
   plans(@Query('tab') tab: string = 'single') {
     return this.service.listPlans(this.tab(tab));
   }
@@ -32,15 +34,15 @@ export class AdminSubscriptionExpiryController {
     @Query('search') search?: string,
     @Query('planId') planId?: string,
     @Query('bucket') bucket?: string,
-    @Query('page')   page?:   string,
-    @Query('limit')  limit?:  string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     return this.service.listUsers({
       search,
       planId,
       bucket: this.bucket(bucket),
-      page:   page  ? parseInt(page,  10) : undefined,
-      limit:  limit ? parseInt(limit, 10) : undefined,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
     });
   }
 
@@ -50,15 +52,15 @@ export class AdminSubscriptionExpiryController {
     @Query('search') search?: string,
     @Query('planId') planId?: string,
     @Query('bucket') bucket?: string,
-    @Query('page')   page?:   string,
-    @Query('limit')  limit?:  string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     return this.service.listEnterprises({
       search,
       planId,
       bucket: this.bucket(bucket),
-      page:   page  ? parseInt(page,  10) : undefined,
-      limit:  limit ? parseInt(limit, 10) : undefined,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
     });
   }
 
@@ -67,7 +69,14 @@ export class AdminSubscriptionExpiryController {
   }
 
   private bucket(value?: string): ExpiryBucket | undefined {
-    const allowed: ExpiryBucket[] = ['TODAY', 'WEEK', 'MONTH', 'EXPIRED', 'ACTIVE', 'ALL'];
+    const allowed: ExpiryBucket[] = [
+      'TODAY',
+      'WEEK',
+      'MONTH',
+      'EXPIRED',
+      'ACTIVE',
+      'ALL',
+    ];
     if (!value) return undefined;
     return (allowed as string[]).includes(value)
       ? (value as ExpiryBucket)

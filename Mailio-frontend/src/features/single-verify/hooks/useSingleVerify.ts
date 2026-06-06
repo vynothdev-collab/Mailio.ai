@@ -12,24 +12,23 @@ import type { ApiError } from "@/src/types/auth";
 import { useVerificationHistory } from "@/src/context/VerificationContext";
 import { useAuth } from "@/src/hooks/useAuth";
 import { getCreditErrorMessage } from "@/src/utils/creditError";
-import type {
-  CheckItem,
-  CheckStatus,
-  EmailStatus,
-  VerificationResult,
-} from "../types";
+import type { CheckItem, CheckStatus, EmailStatus, VerificationResult } from "../types";
 
 type VerifyState = "idle" | "loading" | "done" | "error";
 
 interface UseSingleVerifyResult {
-  state:    VerifyState;
-  result:   VerificationResult | null;
-  verify:   (email: string) => Promise<void>;
-  reset:    () => void;
+  state: VerifyState;
+  result: VerificationResult | null;
+  verify: (email: string) => Promise<void>;
+  reset: () => void;
 }
 
 const ALLOWED_EMAIL_STATUSES: readonly EmailStatus[] = [
-  "valid", "invalid", "catchall", "disposable", "unknown",
+  "valid",
+  "invalid",
+  "catchall",
+  "disposable",
+  "unknown",
 ];
 
 function mapEmailStatus(raw: string): EmailStatus {
@@ -43,9 +42,9 @@ function mapCheckStatus(raw: ApiCheckStatus): CheckStatus {
 
 function mapCheck(check: VerificationCheck): CheckItem {
   return {
-    key:    check.key,
-    label:  check.label,
-    value:  check.value,
+    key: check.key,
+    label: check.label,
+    value: check.value,
     status: mapCheckStatus(check.status),
   };
 }
@@ -57,46 +56,49 @@ function formatConfidence(score: number): string {
 
 function mapResponse(res: VerificationResponse): VerificationResult {
   return {
-    id:          res.id,
-    email:       res.email,
-    status:      mapEmailStatus(res.status),
-    confidence:  formatConfidence(res.confidence),
+    id: res.id,
+    email: res.email,
+    status: mapEmailStatus(res.status),
+    confidence: formatConfidence(res.confidence),
     description: res.description,
-    verifiedAt:  res.verifiedAt,
-    durationMs:  res.durationMs,
-    checks:      res.checks.map(mapCheck),
+    verifiedAt: res.verifiedAt,
+    durationMs: res.durationMs,
+    checks: res.checks.map(mapCheck),
   };
 }
 
 export function useSingleVerify(): UseSingleVerifyResult {
-  const [state,  setState]  = useState<VerifyState>("idle");
+  const [state, setState] = useState<VerifyState>("idle");
   const [result, setResult] = useState<VerificationResult | null>(null);
   const { push } = useVerificationHistory();
   const { user, refresh } = useAuth();
 
-  const verify = useCallback(async (email: string) => {
-    setState("loading");
-    setResult(null);
-    try {
-      const apiResult = await verificationService.verifySingleEmail(email);
-      const mapped    = mapResponse(apiResult);
-      setResult(mapped);
-      push(mapped);
-      setState("done");
-      toast.success(`${email} verified.`);
-      // Refresh profile so the new credit balance shows in the sidebar/cards.
-      void refresh();
-    } catch (err) {
-      const creditMsg = getCreditErrorMessage(err, user);
-      if (creditMsg) {
-        toast.error(creditMsg);
-      } else {
-        const apiErr = err as ApiError;
-        toast.error(apiErr?.message ?? "Verification failed. Please try again.");
+  const verify = useCallback(
+    async (email: string) => {
+      setState("loading");
+      setResult(null);
+      try {
+        const apiResult = await verificationService.verifySingleEmail(email);
+        const mapped = mapResponse(apiResult);
+        setResult(mapped);
+        push(mapped);
+        setState("done");
+        toast.success(`${email} verified.`);
+
+        void refresh();
+      } catch (err) {
+        const creditMsg = getCreditErrorMessage(err, user);
+        if (creditMsg) {
+          toast.error(creditMsg);
+        } else {
+          const apiErr = err as ApiError;
+          toast.error(apiErr?.message ?? "Verification failed. Please try again.");
+        }
+        setState("error");
       }
-      setState("error");
-    }
-  }, [push, refresh, user]);
+    },
+    [push, refresh, user]
+  );
 
   const reset = useCallback(() => {
     setState("idle");

@@ -23,13 +23,13 @@ import {
 } from "@/src/utils/storage";
 
 interface AuthContextValue {
-  user:            UserProfile | null;
-  loading:         boolean;
-  isInitialized:   boolean;
-  error:           string | null;
+  user: UserProfile | null;
+  loading: boolean;
+  isInitialized: boolean;
+  error: string | null;
   isAuthenticated: boolean;
-  refresh:         () => Promise<UserProfile | null>;
-  logout:          () => Promise<void>;
+  refresh: () => Promise<UserProfile | null>;
+  logout: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -41,16 +41,15 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
 
-  // Seed from sessionStorage so the UI is never blank on first paint.
-  const [user,          setUser]          = useState<UserProfile | null>(() =>
-    typeof window !== "undefined" ? loadUserProfile() : null,
+  const [user, setUser] = useState<UserProfile | null>(() =>
+    typeof window !== "undefined" ? loadUserProfile() : null
   );
-  const [loading,       setLoading]       = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
-  const [error,         setError]         = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const bootstrappedRef = useRef(false);
-  const inFlightRef     = useRef<Promise<UserProfile | null> | null>(null);
+  const inFlightRef = useRef<Promise<UserProfile | null> | null>(null);
 
   const refresh = useCallback(async (): Promise<UserProfile | null> => {
     if (inFlightRef.current) return inFlightRef.current;
@@ -114,7 +113,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       refresh,
       logout,
     }),
-    [user, loading, isInitialized, error, refresh, logout],
+    [user, loading, isInitialized, error, refresh, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -310,13 +310,7 @@ export class BulkVerifyController {
     @Query('format') format: 'csv' | 'json' = 'csv',
     @Query('type') type: 'verified' | 'full' = 'full',
   ) {
-    await this.bulkVerifyService.streamDownload(
-      jobId,
-      user,
-      res,
-      format,
-      type,
-    );
+    await this.bulkVerifyService.streamDownload(jobId, user, res, format, type);
   }
 
   @Post(':jobId/retry')

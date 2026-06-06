@@ -4,7 +4,7 @@ import { formatNumber } from "@/src/lib/utils";
 import type { ChartDataPoint } from "../types";
 
 interface ResultsOverviewProps {
-  data:  ChartDataPoint[];
+  data: ChartDataPoint[];
   total: number;
 }
 

@@ -61,7 +61,7 @@ export class KeyHealthService
       HEALTH_LOCK_TTL_SEC,
       'NX',
     );
-    if (acquired !== 'OK') return; 
+    if (acquired !== 'OK') return;
 
     try {
       const now = new Date();

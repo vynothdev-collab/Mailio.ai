@@ -17,7 +17,7 @@ export default registerAs(
     extra: {
       max: parseInt(process.env.DB_POOL_MAX ?? '30', 10),
       min: parseInt(process.env.DB_POOL_MIN ?? '2', 10),
-      
+
       idleTimeoutMillis: parseInt(
         process.env.DB_POOL_IDLE_TIMEOUT_MS ?? '30000',
         10,

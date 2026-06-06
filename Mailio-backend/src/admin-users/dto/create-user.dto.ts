@@ -35,8 +35,10 @@ export class CreateUserDto {
     description:
       'Required when role is ENTERPRISE_USER or ENTERPRISE_ADMIN. Ignored for USER / SUPER_ADMIN.',
   })
-  @ValidateIf((o) =>
-    o.role === UserRole.ENTERPRISE_USER || o.role === UserRole.ENTERPRISE_ADMIN,
+  @ValidateIf(
+    (o) =>
+      o.role === UserRole.ENTERPRISE_USER ||
+      o.role === UserRole.ENTERPRISE_ADMIN,
   )
   @IsUUID()
   enterpriseId?: string;

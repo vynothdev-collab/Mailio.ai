@@ -99,7 +99,10 @@ export class AuthController {
 
   @Get('otp-status')
   @ApiOperation({ summary: 'Get remaining resend cooldown for an email OTP' })
-  @ApiResponse({ status: 200, description: 'Returns remainingSeconds and sendCount' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns remainingSeconds and sendCount',
+  })
   getOtpStatus(
     @Query('email') email: string,
     @Query('purpose') purpose?: string,

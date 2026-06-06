@@ -92,20 +92,23 @@ export class UsageService {
       .select('COUNT(l.id)', 'jobs')
       .addSelect('COALESCE(SUM(l.totalCount), 0)', 'credits')
       .where('l.userId IN (:...ids)', { ids: userIds })
-      .andWhere('l.createdAt BETWEEN :since AND :now', { since: billingStart, now })
+      .andWhere('l.createdAt BETWEEN :since AND :now', {
+        since: billingStart,
+        now,
+      })
       .getRawOne<{ jobs: string; credits: string }>();
 
-    const bulkJobs    = Number(bulkResult?.jobs    ?? 0);
+    const bulkJobs = Number(bulkResult?.jobs ?? 0);
     const bulkCredits = Number(bulkResult?.credits ?? 0);
-    const total       = singleCount + bulkJobs;
+    const total = singleCount + bulkJobs;
 
     return {
-      single:        singleCount,
-      bulk:          bulkJobs,
+      single: singleCount,
+      bulk: bulkJobs,
       total,
       singleCredits: singleCount,
       bulkCredits,
-      totalCredits:  singleCount + bulkCredits,
+      totalCredits: singleCount + bulkCredits,
       period,
     };
   }
@@ -118,7 +121,10 @@ export class UsageService {
     });
 
     const days = this.daysBetween(since, new Date());
-    const map = new Map<string, { date: string; single: number; bulk: number }>();
+    const map = new Map<
+      string,
+      { date: string; single: number; bulk: number }
+    >();
     for (const d of days) {
       map.set(d, { date: this.formatLabel(d), single: 0, bulk: 0 });
     }
@@ -134,7 +140,12 @@ export class UsageService {
     return Array.from(map.values());
   }
 
-  async getLog(userIds: string[], page: number, limit: number, type: UsageType) {
+  async getLog(
+    userIds: string[],
+    page: number,
+    limit: number,
+    type: UsageType,
+  ) {
     const fetchSingles = type !== 'bulk';
     const fetchBulks = type !== 'single';
 
@@ -224,7 +235,20 @@ export class UsageService {
 
   private formatLabel(key: string): string {
     const [, m, d] = key.split('-').map(Number);
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return `${months[(m ?? 1) - 1]} ${d ?? 1}`;
   }
 }

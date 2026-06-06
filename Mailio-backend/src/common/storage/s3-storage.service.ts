@@ -9,7 +9,6 @@ import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 export interface UploadParams {
-  /** Full S3 object key, e.g. `profiles/<userId>/avatar-<ts>.png`. */
   key: string;
   buffer: Buffer;
   mimeType: string;
@@ -20,7 +19,6 @@ export interface UploadResult {
   url: string;
 }
 
-/** How long a signed GET URL stays valid. 15 minutes — long enough to render, short enough to be safe. */
 const SIGNED_URL_EXPIRY_SECONDS = 60 * 15;
 
 @Injectable()
@@ -37,8 +35,7 @@ export class S3StorageService implements OnModuleDestroy {
     this.publicRead = config.get<boolean>('storage.publicRead') ?? false;
 
     const accessKeyId = config.get<string>('storage.accessKeyId') ?? '';
-    const secretAccessKey =
-      config.get<string>('storage.secretAccessKey') ?? '';
+    const secretAccessKey = config.get<string>('storage.secretAccessKey') ?? '';
 
     this.client = new S3Client({
       region: this.region,
@@ -59,27 +56,14 @@ export class S3StorageService implements OnModuleDestroy {
     this.client.destroy();
   }
 
-  /** Whether the bucket has been configured for public reads (via bucket policy, not ACLs). */
   isPublicRead(): boolean {
     return this.publicRead;
   }
 
-  /** Direct virtual-hosted URL. Only resolvable when the bucket policy grants public GetObject. */
   publicUrl(key: string): string {
     return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
   }
 
-  /**
-   * Upload an object to S3.
-   *
-   * No `ACL` is sent on the PUT request — modern S3 buckets default to
-   * "Bucket owner enforced" Object Ownership, which disables ACLs entirely
-   * and rejects requests that include one. Public visibility (when desired)
-   * should be granted via a bucket policy on the `profiles/*` prefix.
-   *
-   * `url` in the result is informational only — callers must use
-   * `getSignedViewUrl(key)` for display when the bucket is private.
-   */
   async uploadFile(params: UploadParams): Promise<UploadResult> {
     if (!this.bucket) {
       throw new Error('Storage bucket is not configured.');
@@ -111,10 +95,6 @@ export class S3StorageService implements OnModuleDestroy {
     }
   }
 
-  /**
-   * Build a short-lived (15 minute) presigned GET URL for the given object key.
-   * Use this when serving images from a private bucket.
-   */
   async getSignedViewUrl(key: string): Promise<string> {
     if (!this.bucket || !key) return '';
     return getSignedUrl(
@@ -124,20 +104,10 @@ export class S3StorageService implements OnModuleDestroy {
     );
   }
 
-  /**
-   * Short-lived presigned URL that forces the browser to download the file
-   * with the supplied original filename via `Content-Disposition: attachment`.
-   *
-   * The filename is emitted twice for maximum browser compatibility:
-   *  - `filename="…"` — ASCII fallback with quotes/CR/LF/backslash stripped.
-   *  - `filename*=UTF-8''…` — RFC 5987 percent-encoded form for spaces,
-   *    quotes, and any non-ASCII characters. Modern browsers prefer this one.
-   */
   async getSignedDownloadUrl(key: string, filename: string): Promise<string> {
     if (!this.bucket || !key) return '';
     const safe = filename || 'download';
-    // Fallback: strip everything that would break the header parser, then
-    // replace anything outside printable ASCII with `_`.
+
     const ascii =
       safe
         .replace(/[\r\n"\\]/g, '')

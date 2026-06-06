@@ -25,7 +25,12 @@ export class AdminActivityLogsController {
     @Query('limit') limit?: string,
   ) {
     const opts: QueryLogsOptions = {
-      type: type === 'SYSTEM' ? LogType.SYSTEM : type === 'SINGLE_USER' ? LogType.SINGLE_USER : undefined,
+      type:
+        type === 'SYSTEM'
+          ? LogType.SYSTEM
+          : type === 'SINGLE_USER'
+            ? LogType.SINGLE_USER
+            : undefined,
       module,
       search,
       from,
@@ -37,7 +42,9 @@ export class AdminActivityLogsController {
   }
 
   @Get('modules')
-  @ApiOperation({ summary: 'Get distinct log module names for filter dropdown' })
+  @ApiOperation({
+    summary: 'Get distinct log module names for filter dropdown',
+  })
   getModules() {
     return this.logsService.getModules();
   }

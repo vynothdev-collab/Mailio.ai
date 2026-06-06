@@ -11,16 +11,16 @@ import {
 import type { ApiError } from "@/src/types/auth";
 
 interface CreateEnterpriseUserDialogProps {
-  open:             boolean;
-  onClose:          () => void;
-  onCreated:        (user: EnterpriseUser) => void;
+  open: boolean;
+  onClose: () => void;
+  onCreated: (user: EnterpriseUser) => void;
   availableCredits: number;
 }
 
 interface FieldErrors {
-  name?:             string;
-  email?:            string;
-  password?:         string;
+  name?: string;
+  email?: string;
+  password?: string;
   creditAllocation?: string;
 }
 
@@ -51,22 +51,30 @@ export function CreateEnterpriseUserDialog({
   onCreated,
   availableCredits,
 }: CreateEnterpriseUserDialogProps) {
-  const [name,             setName]             = useState("");
-  const [email,            setEmail]            = useState("");
-  const [password,         setPassword]         = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [creditAllocation, setCreditAllocation] = useState("");
-  const [errors,           setErrors]           = useState<FieldErrors>({});
-  const [submitting,       setSubmitting]       = useState(false);
-  const [serverError,      setServerError]      = useState<string | null>(null);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   if (!open) return null;
 
   const reset = () => {
-    setName(""); setEmail(""); setPassword(""); setCreditAllocation("");
-    setErrors({}); setServerError(null);
+    setName("");
+    setEmail("");
+    setPassword("");
+    setCreditAllocation("");
+    setErrors({});
+    setServerError(null);
   };
 
-  const handleClose = () => { if (submitting) return; reset(); onClose(); };
+  const handleClose = () => {
+    if (submitting) return;
+    reset();
+    onClose();
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -97,8 +105,17 @@ export function CreateEnterpriseUserDialog({
   };
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button type="button" aria-label="Close" onClick={handleClose} className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    >
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={handleClose}
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+      />
       <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
         <div className="flex items-start justify-between mb-1">
           <div>
@@ -107,13 +124,17 @@ export function CreateEnterpriseUserDialog({
               The new user will join your enterprise and can use allocated credits.
             </p>
           </div>
-          <button type="button" onClick={handleClose} className="p-1 rounded hover:bg-gray-100 ml-3 shrink-0">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="p-1 rounded hover:bg-gray-100 ml-3 shrink-0"
+          >
             <X size={16} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {/* Name */}
+          {}
           <div>
             <label className="text-sm font-medium text-gray-700">Name</label>
             <input
@@ -127,7 +148,7 @@ export function CreateEnterpriseUserDialog({
             {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
           </div>
 
-          {/* Email */}
+          {}
           <div>
             <label className="text-sm font-medium text-gray-700">Email</label>
             <input
@@ -141,7 +162,7 @@ export function CreateEnterpriseUserDialog({
             {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
           </div>
 
-          {/* Password */}
+          {}
           <div>
             <label className="text-sm font-medium text-gray-700">Temporary Password</label>
             <input
@@ -155,15 +176,16 @@ export function CreateEnterpriseUserDialog({
             {errors.password ? (
               <p className="mt-1 text-xs text-red-600">{errors.password}</p>
             ) : (
-              <p className="mt-1 text-xs text-gray-500">Share this securely; the user can change it after first sign-in.</p>
+              <p className="mt-1 text-xs text-gray-500">
+                Share this securely; the user can change it after first sign-in.
+              </p>
             )}
           </div>
 
-          {/* Credit Allocation */}
+          {}
           <div className="border-t border-gray-100 pt-4">
             <label className="text-sm font-medium text-gray-700">
-              Credit Allocation{" "}
-              <span className="font-normal text-gray-400">(optional)</span>
+              Credit Allocation <span className="font-normal text-gray-400">(optional)</span>
             </label>
             <input
               type="number"
@@ -172,7 +194,11 @@ export function CreateEnterpriseUserDialog({
               min={1}
               max={availableCredits}
               disabled={submitting || availableCredits === 0}
-              placeholder={availableCredits > 0 ? `Up to ${availableCredits.toLocaleString()}` : "No credits available"}
+              placeholder={
+                availableCredits > 0
+                  ? `Up to ${availableCredits.toLocaleString()}`
+                  : "No credits available"
+              }
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
             />
             {errors.creditAllocation ? (
@@ -193,8 +219,12 @@ export function CreateEnterpriseUserDialog({
           )}
 
           <div className="flex justify-end gap-3 pt-1">
-            <Button type="button" variant="ghost" onClick={handleClose} disabled={submitting}>Cancel</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "Adding…" : "Add User"}</Button>
+            <Button type="button" variant="ghost" onClick={handleClose} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Adding…" : "Add User"}
+            </Button>
           </div>
         </form>
       </div>

@@ -2,17 +2,17 @@
 
 import { useState } from "react";
 import { MessageCircle, Ticket, HelpCircle } from "lucide-react";
-import { PageHeader }          from "@/src/components/layout/PageHeader";
-import { LiveChatSection }     from "./LiveChatSection";
+import { PageHeader } from "@/src/components/layout/PageHeader";
+import { LiveChatSection } from "./LiveChatSection";
 import { SubmitTicketSection } from "./SubmitTicketSection";
-import { FAQsSection }         from "./FAQsSection";
+import { FAQsSection } from "./FAQsSection";
 
 type Tab = "live-chat" | "submit-ticket" | "faqs";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: "live-chat",     label: "Live Chat",       icon: MessageCircle },
-  { id: "submit-ticket", label: "Submit a Ticket", icon: Ticket        },
-  { id: "faqs",          label: "FAQs",            icon: HelpCircle    },
+  { id: "live-chat", label: "Live Chat", icon: MessageCircle },
+  { id: "submit-ticket", label: "Submit a Ticket", icon: Ticket },
+  { id: "faqs", label: "FAQs", icon: HelpCircle },
 ];
 
 export function HelpView() {
@@ -25,7 +25,7 @@ export function HelpView() {
         subtitle="Get answers, chat with our team, or browse the FAQ."
       />
 
-      {/* Tab bar — same background as page */}
+      {}
       <div className="sticky top-[57px] sm:top-[65px] z-20 -mx-4 lg:-mx-6 bg-[#EEF3FB] border-b border-[#DCE6F3] overflow-x-auto">
         <div className="flex min-w-max px-4 lg:px-6">
           {TABS.map(({ id, label, icon: Icon }) => {
@@ -48,11 +48,11 @@ export function HelpView() {
         </div>
       </div>
 
-      {/* Tab content — full width */}
+      {}
       <div className="pt-4 sm:pt-5">
-        {active === "live-chat"     && <LiveChatSection />}
+        {active === "live-chat" && <LiveChatSection />}
         {active === "submit-ticket" && <SubmitTicketSection />}
-        {active === "faqs"          && <FAQsSection />}
+        {active === "faqs" && <FAQsSection />}
       </div>
     </div>
   );

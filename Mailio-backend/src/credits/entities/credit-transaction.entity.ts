@@ -59,7 +59,6 @@ export class CreditTransaction {
   @Column({ type: 'enum', enum: CreditTransactionReason })
   reason!: CreditTransactionReason;
 
-  // Positive = credit added; Negative = credit removed/reserved.
   @Column({ type: 'bigint' })
   delta!: string;
 

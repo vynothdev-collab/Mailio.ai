@@ -8,15 +8,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/src/lib/utils";
 import { PERFORMED_CHECKS } from "../constants";
 
-interface FormData { email: string }
+interface FormData {
+  email: string;
+}
 
 interface EmailInputCardProps {
-  onVerify:  (email: string) => void;
+  onVerify: (email: string) => void;
   isLoading: boolean;
 }
 
 export function EmailInputCard({ onVerify, isLoading }: EmailInputCardProps) {
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormData>();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm<FormData>();
   const emailValue = watch("email", "");
 
   const onSubmit = ({ email }: FormData) => onVerify(email);
@@ -29,7 +37,10 @@ export function EmailInputCard({ onVerify, isLoading }: EmailInputCardProps) {
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Mail
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+              />
               <Input
                 type="email"
                 placeholder="name@company.com"
@@ -61,12 +72,26 @@ export function EmailInputCard({ onVerify, isLoading }: EmailInputCardProps) {
               className="h-10 shrink-0 gap-1.5 rounded-full border-0 bg-[#0F5BFF] px-4 md:px-6 text-xs md:text-sm text-white hover:bg-[#0A4BD9] disabled:bg-[#7EA6FF] disabled:opacity-100"
             >
               {isLoading ? (
-                <><Loader2 size={14} className="animate-spin" /> Verifying…</>
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Verifying…
+                </>
               ) : (
                 <>
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                    <path d="M12.8334 1.16675L8.75008 12.8334L6.41675 7.58341L1.16675 5.25008L12.8334 1.16675Z" stroke="white" strokeWidth="1.28333" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M12.8334 1.16675L6.41675 7.58341" stroke="white" strokeWidth="1.28333" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path
+                      d="M12.8334 1.16675L8.75008 12.8334L6.41675 7.58341L1.16675 5.25008L12.8334 1.16675Z"
+                      stroke="white"
+                      strokeWidth="1.28333"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M12.8334 1.16675L6.41675 7.58341"
+                      stroke="white"
+                      strokeWidth="1.28333"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                   Verify Now
                 </>
@@ -93,8 +118,20 @@ export function EmailInputCard({ onVerify, isLoading }: EmailInputCardProps) {
         </div>
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <path d="M9 5.5H3C2.44772 5.5 2 5.94772 2 6.5V9.5C2 10.0523 2.44772 10.5 3 10.5H9C9.55228 10.5 10 10.0523 10 9.5V6.5C10 5.94772 9.55228 5.5 9 5.5Z" stroke="#8B847A" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M4 5.5V4C4 3.46957 4.21071 2.96086 4.58579 2.58579C4.96086 2.21071 5.46957 2 6 2C6.53043 2 7.03914 2.21071 7.41421 2.58579C7.78929 2.96086 8 3.46957 8 4V5.5" stroke="#8B847A" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"/>
+            <path
+              d="M9 5.5H3C2.44772 5.5 2 5.94772 2 6.5V9.5C2 10.0523 2.44772 10.5 3 10.5H9C9.55228 10.5 10 10.0523 10 9.5V6.5C10 5.94772 9.55228 5.5 9 5.5Z"
+              stroke="#8B847A"
+              strokeWidth="0.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M4 5.5V4C4 3.46957 4.21071 2.96086 4.58579 2.58579C4.96086 2.21071 5.46957 2 6 2C6.53043 2 7.03914 2.21071 7.41421 2.58579C7.78929 2.96086 8 3.46957 8 4V5.5"
+              stroke="#8B847A"
+              strokeWidth="0.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
           Your data is secure and never shared.
         </span>

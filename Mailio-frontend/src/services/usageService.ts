@@ -16,7 +16,7 @@ export const usageService = {
 
   async getBreakdown(
     period: UsagePeriod = "30d",
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<UsageBreakdownDto> {
     const { data } = await api.get<UsageBreakdownDto>("/usage/breakdown", {
       params: { period },
@@ -25,10 +25,7 @@ export const usageService = {
     return data;
   },
 
-  async getChart(
-    period: UsagePeriod = "30d",
-    signal?: AbortSignal,
-  ): Promise<UsageChartPoint[]> {
+  async getChart(period: UsagePeriod = "30d", signal?: AbortSignal): Promise<UsageChartPoint[]> {
     const { data } = await api.get<UsageChartPoint[]>("/usage/chart", {
       params: { period },
       signal,
@@ -40,7 +37,7 @@ export const usageService = {
     page = 1,
     limit = 10,
     type: UsageType = "all",
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<UsageLogResponse> {
     const { data } = await api.get<UsageLogResponse>("/usage/log", {
       params: { page, limit, type },

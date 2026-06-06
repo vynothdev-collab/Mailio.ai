@@ -12,13 +12,13 @@ import {
 } from "@/components/ui/dialog";
 
 interface ConfirmDeleteDialogProps {
-  open:         boolean;
+  open: boolean;
   onOpenChange: (open: boolean) => void;
-  title?:       string;
+  title?: string;
   description?: string;
-  itemLabel?:   string;
-  pending?:     boolean;
-  onConfirm:    () => void;
+  itemLabel?: string;
+  pending?: boolean;
+  onConfirm: () => void;
 }
 
 export function ConfirmDeleteDialog({
@@ -42,10 +42,8 @@ export function ConfirmDeleteDialog({
       ) : (
         "this record"
       )}
-      {isBulk
-        ? ". All associated verification results will be lost."
-        : "."}
-      {" "}This action <span className="font-semibold text-foreground">cannot be undone</span>.
+      {isBulk ? ". All associated verification results will be lost." : "."} This action{" "}
+      <span className="font-semibold text-foreground">cannot be undone</span>.
     </>
   );
 
@@ -83,9 +81,13 @@ export function ConfirmDeleteDialog({
             className="h-9 gap-1.5 bg-red-600 text-sm text-white hover:bg-red-700 disabled:opacity-70 sm:h-10"
           >
             {pending ? (
-              <><Loader2 size={14} className="animate-spin" /> Deleting…</>
+              <>
+                <Loader2 size={14} className="animate-spin" /> Deleting…
+              </>
             ) : (
-              <><Trash2 size={14} /> Delete</>
+              <>
+                <Trash2 size={14} /> Delete
+              </>
             )}
           </Button>
         </DialogFooter>

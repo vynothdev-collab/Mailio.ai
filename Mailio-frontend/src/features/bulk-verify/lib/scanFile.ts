@@ -1,12 +1,12 @@
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface FileScanResult {
-  totalRows:     number;
-  validEmails:   string[];
+  totalRows: number;
+  validEmails: string[];
   invalidEntries: { row: number; value: string }[];
-  duplicates:    number;
+  duplicates: number;
   detectedColumn: string | null;
-  hasHeaderRow:  boolean;
+  hasHeaderRow: boolean;
 }
 
 function unquote(s: string): string {
@@ -18,16 +18,16 @@ function splitRow(line: string): string[] {
 }
 
 export async function scanEmailFile(file: File): Promise<FileScanResult> {
-  const text  = await file.text();
+  const text = await file.text();
   const lines = text.split(/\r?\n/);
 
   const result: FileScanResult = {
-    totalRows:      0,
-    validEmails:    [],
+    totalRows: 0,
+    validEmails: [],
     invalidEntries: [],
-    duplicates:     0,
+    duplicates: 0,
     detectedColumn: null,
-    hasHeaderRow:   false,
+    hasHeaderRow: false,
   };
 
   const seen = new Set<string>();

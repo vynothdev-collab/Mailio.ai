@@ -5,17 +5,8 @@ import axios, {
   InternalAxiosRequestConfig,
 } from "axios";
 import { toast } from "sonner";
-import type {
-  ApiError,
-  RefreshPayload,
-  RefreshResponse,
-} from "@/src/types/auth";
-import {
-  STORAGE_KEYS,
-  clearSession,
-  getItem,
-  setItem,
-} from "@/src/utils/storage";
+import type { ApiError, RefreshPayload, RefreshResponse } from "@/src/types/auth";
+import { STORAGE_KEYS, clearSession, getItem, setItem } from "@/src/utils/storage";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -25,7 +16,7 @@ if (!BASE_URL) {
 
 declare module "axios" {
   export interface AxiosRequestConfig {
-    _retry?:    boolean;
+    _retry?: boolean;
     _skipAuth?: boolean;
   }
 }
@@ -50,7 +41,7 @@ async function performRefresh(refreshToken: string): Promise<string> {
   const { data } = await api.post<RefreshResponse>(
     "/auth/refresh",
     { refreshToken } satisfies RefreshPayload,
-    { _skipAuth: true } as AxiosRequestConfig,
+    { _skipAuth: true } as AxiosRequestConfig
   );
 
   setItem(STORAGE_KEYS.accessToken, data.accessToken);
@@ -85,10 +76,12 @@ function forceLogout(message = "Your session has expired. Please sign in again."
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<{ message?: string; error?: string }>) => {
-    const original = error.config as (InternalAxiosRequestConfig & {
-      _retry?: boolean;
-      _skipAuth?: boolean;
-    }) | undefined;
+    const original = error.config as
+      | (InternalAxiosRequestConfig & {
+          _retry?: boolean;
+          _skipAuth?: boolean;
+        })
+      | undefined;
 
     const status = error.response?.status ?? 0;
 
@@ -106,8 +99,10 @@ api.interceptors.response.use(
         original!._retry = true;
         original!.headers = original!.headers ?? {};
         if (typeof (original!.headers as { set?: unknown }).set === "function") {
-          (original!.headers as { set: (k: string, v: string) => void })
-            .set("Authorization", `Bearer ${newToken}`);
+          (original!.headers as { set: (k: string, v: string) => void }).set(
+            "Authorization",
+            `Bearer ${newToken}`
+          );
         } else {
           (original!.headers as Record<string, string>).Authorization = `Bearer ${newToken}`;
         }
@@ -116,7 +111,7 @@ api.interceptors.response.use(
       } catch {
         forceLogout();
         const normalized: ApiError = {
-          status:  401,
+          status: 401,
           message: "Session expired. Please sign in again.",
         };
         return Promise.reject(normalized);
@@ -142,7 +137,7 @@ api.interceptors.response.use(
 
     const normalized: ApiError = { status, message };
     return Promise.reject(normalized);
-  },
+  }
 );
 
 export { STORAGE_KEYS };

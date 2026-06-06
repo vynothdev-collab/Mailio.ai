@@ -8,13 +8,13 @@ import type {
 import type { BulkActiveJobDto } from "@/src/types/bulk";
 
 export interface AccountUsageDto {
-  used:        number;
-  total?:      number;
-  limit?:      number;
-  plan:        "PRO" | "ULTIMATE" | string;
+  used: number;
+  total?: number;
+  limit?: number;
+  plan: "PRO" | "ULTIMATE" | string;
   percentage?: number;
   periodStart?: string;
-  periodEnd?:   string;
+  periodEnd?: string;
 }
 
 export const dashboardService = {
@@ -25,7 +25,7 @@ export const dashboardService = {
 
   async getDashboardChart(
     period: DashboardChartPeriod = "7d",
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<DashboardChartResponse> {
     const { data } = await api.get<DashboardChartResponse>("/dashboard/chart", {
       params: { period },
@@ -53,22 +53,19 @@ export const dashboardService = {
       from?: string;
       to?: string;
     } = {},
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<RecentVerificationsResponse> {
-    const { data } = await api.get<RecentVerificationsResponse>(
-      "/dashboard/recent-verifications",
-      {
-        params: {
-          page:   params.page  ?? 1,
-          limit:  params.limit ?? 10,
-          ...(params.status && { status: params.status }),
-          ...(params.period && params.period !== "all" && { period: params.period }),
-          ...(params.from && { from: params.from }),
-          ...(params.to && { to: params.to }),
-        },
-        signal,
+    const { data } = await api.get<RecentVerificationsResponse>("/dashboard/recent-verifications", {
+      params: {
+        page: params.page ?? 1,
+        limit: params.limit ?? 10,
+        ...(params.status && { status: params.status }),
+        ...(params.period && params.period !== "all" && { period: params.period }),
+        ...(params.from && { from: params.from }),
+        ...(params.to && { to: params.to }),
       },
-    );
+      signal,
+    });
     return data;
   },
 };

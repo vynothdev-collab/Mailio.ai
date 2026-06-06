@@ -12,32 +12,56 @@ import type { BulkJobDto } from "@/src/types/bulk";
 import type { ResultRecord, EmailStatus, ResultsFilters } from "../types";
 import { JobDetailsDialog } from "@/src/features/bulk-verify/components/JobDetailsDialog";
 
-const STATUS_CONFIG: Record<EmailStatus, { label: string; textColor: string; bgColor: string; dotColor: string }> = {
-  valid:   { label: "Valid",   textColor: "text-emerald-700", bgColor: "bg-emerald-50 border-emerald-100", dotColor: "bg-emerald-500" },
-  invalid: { label: "Invalid", textColor: "text-red-600",     bgColor: "bg-red-50 border-red-100",         dotColor: "bg-red-500"     },
-  catchall:   { label: "Catchall",   textColor: "text-amber-700",   bgColor: "bg-amber-50 border-amber-100",     dotColor: "bg-amber-400"   },
+const STATUS_CONFIG: Record<
+  EmailStatus,
+  { label: string; textColor: string; bgColor: string; dotColor: string }
+> = {
+  valid: {
+    label: "Valid",
+    textColor: "text-emerald-700",
+    bgColor: "bg-emerald-50 border-emerald-100",
+    dotColor: "bg-emerald-500",
+  },
+  invalid: {
+    label: "Invalid",
+    textColor: "text-red-600",
+    bgColor: "bg-red-50 border-red-100",
+    dotColor: "bg-red-500",
+  },
+  catchall: {
+    label: "Catchall",
+    textColor: "text-amber-700",
+    bgColor: "bg-amber-50 border-amber-100",
+    dotColor: "bg-amber-400",
+  },
 };
 
 const PAGE_SIZES = [10, 25, 50] as const;
 
 interface Props {
-  records:   ResultRecord[];
-  filters:   ResultsFilters;
-  total:     number;
-  loading:   boolean;
-  onChange:  (patch: Partial<ResultsFilters>) => void;
+  records: ResultRecord[];
+  filters: ResultsFilters;
+  total: number;
+  loading: boolean;
+  onChange: (patch: Partial<ResultsFilters>) => void;
 }
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? iso
-    : d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    : d.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 }
 
 export function ResultsTable({ records, filters, total, loading, onChange }: Props) {
   const totalPages = Math.max(1, Math.ceil(total / filters.pageSize));
-  const [busyId,     setBusyId]     = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [viewingJob, setViewingJob] = useState<BulkJobDto | null>(null);
 
   const handleDownload = async (row: ResultRecord) => {
@@ -59,18 +83,25 @@ export function ResultsTable({ records, filters, total, loading, onChange }: Pro
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40">
-              {["Email / File", "Type", "Status", "Catchall", "Verified At", "View", "Actions"].map((h) => (
-                <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
-                  {h}
-                </th>
-              ))}
+              {["Email / File", "Type", "Status", "Catchall", "Verified At", "View", "Actions"].map(
+                (h) => (
+                  <th
+                    key={h}
+                    className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap"
+                  >
+                    {h}
+                  </th>
+                )
+              )}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i} className="border-b border-border last:border-0">
-                  <td colSpan={7} className="px-3 py-2.5"><Skeleton className="h-5 w-full" /></td>
+                  <td colSpan={7} className="px-3 py-2.5">
+                    <Skeleton className="h-5 w-full" />
+                  </td>
                 </tr>
               ))
             ) : records.length === 0 ? (
@@ -87,26 +118,39 @@ export function ResultsTable({ records, filters, total, loading, onChange }: Pro
                 return (
                   <tr
                     key={row.id}
-                    className={cn("border-b border-border last:border-0 transition-colors hover:bg-muted/20", i % 2 === 1 && "bg-muted/10")}
+                    className={cn(
+                      "border-b border-border last:border-0 transition-colors hover:bg-muted/20",
+                      i % 2 === 1 && "bg-muted/10"
+                    )}
                   >
                     <td className="px-3 py-2.5">
                       <span className="flex items-center gap-2">
-                        {isBulk
-                          ? <FileText size={13} className="shrink-0 text-muted-foreground" />
-                          : <Mail size={13} className="shrink-0 text-muted-foreground" />}
+                        {isBulk ? (
+                          <FileText size={13} className="shrink-0 text-muted-foreground" />
+                        ) : (
+                          <Mail size={13} className="shrink-0 text-muted-foreground" />
+                        )}
                         <span className="font-medium truncate max-w-52">{row.label}</span>
                       </span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className={cn(
-                        "rounded-md px-2 py-0.5 text-xs font-medium",
-                        isBulk ? "bg-fuchsia-50 text-fuchsia-700" : "bg-blue-50 text-blue-700",
-                      )}>
+                      <span
+                        className={cn(
+                          "rounded-md px-2 py-0.5 text-xs font-medium",
+                          isBulk ? "bg-fuchsia-50 text-fuchsia-700" : "bg-blue-50 text-blue-700"
+                        )}
+                      >
                         {isBulk ? "Bulk" : "Single"}
                       </span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold", cfg.bgColor, cfg.textColor)}>
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold",
+                          cfg.bgColor,
+                          cfg.textColor
+                        )}
+                      >
                         <span className={cn("h-1.5 w-1.5 rounded-full", cfg.dotColor)} />
                         {cfg.label}
                       </span>
@@ -115,12 +159,14 @@ export function ResultsTable({ records, filters, total, loading, onChange }: Pro
                       {row.catchall === null ? (
                         <span className="text-xs text-muted-foreground">—</span>
                       ) : (
-                        <span className={cn(
-                          "text-xs font-medium",
-                          row.catchall === "low"    && "text-emerald-600",
-                          row.catchall === "medium" && "text-amber-600",
-                          row.catchall === "high"   && "text-red-600",
-                        )}>
+                        <span
+                          className={cn(
+                            "text-xs font-medium",
+                            row.catchall === "low" && "text-emerald-600",
+                            row.catchall === "medium" && "text-amber-600",
+                            row.catchall === "high" && "text-red-600"
+                          )}
+                        >
                           {row.catchall.charAt(0).toUpperCase() + row.catchall.slice(1)}
                         </span>
                       )}
@@ -150,9 +196,15 @@ export function ResultsTable({ records, filters, total, loading, onChange }: Pro
                           onClick={() => handleDownload(row)}
                           className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
                         >
-                          {busyId === row.id
-                            ? <><Loader2 size={12} className="animate-spin" /> Downloading…</>
-                            : <><Download size={12} /> Download</>}
+                          {busyId === row.id ? (
+                            <>
+                              <Loader2 size={12} className="animate-spin" /> Downloading…
+                            </>
+                          ) : (
+                            <>
+                              <Download size={12} /> Download
+                            </>
+                          )}
                         </button>
                       ) : (
                         <span className="text-xs text-muted-foreground px-2">—</span>
@@ -176,7 +228,9 @@ export function ResultsTable({ records, filters, total, loading, onChange }: Pro
                 onClick={() => onChange({ pageSize: size, page: 1 })}
                 className={cn(
                   "rounded px-2 py-0.5 text-xs font-medium transition-colors",
-                  filters.pageSize === size ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+                  filters.pageSize === size
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted"
                 )}
               >
                 {size}
@@ -187,7 +241,10 @@ export function ResultsTable({ records, filters, total, loading, onChange }: Pro
 
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <span>
-            {total === 0 ? "0" : `${(filters.page - 1) * filters.pageSize + 1}–${Math.min(filters.page * filters.pageSize, total)}`} of {total}
+            {total === 0
+              ? "0"
+              : `${(filters.page - 1) * filters.pageSize + 1}–${Math.min(filters.page * filters.pageSize, total)}`}{" "}
+            of {total}
           </span>
           <div className="flex gap-1">
             <Button
@@ -214,7 +271,9 @@ export function ResultsTable({ records, filters, total, loading, onChange }: Pro
 
       <JobDetailsDialog
         job={viewingJob}
-        onOpenChange={(open) => { if (!open) setViewingJob(null); }}
+        onOpenChange={(open) => {
+          if (!open) setViewingJob(null);
+        }}
       />
     </div>
   );

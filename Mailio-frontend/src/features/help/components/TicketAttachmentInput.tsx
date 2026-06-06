@@ -14,29 +14,16 @@ import {
 } from "./ticket-attachments-utils";
 
 interface Props {
-  files:         File[];
+  files: File[];
   onFilesChange: (files: File[]) => void;
-  disabled?:     boolean;
-  /** Visual style: full chat-style composer with a textarea, or just the file area. */
-  variant?:      "composer" | "attachOnly";
-  /** Textarea / form fields the container should wrap. Provided by parent. */
-  children?:     ReactNode;
-  className?:    string;
+  disabled?: boolean;
+
+  variant?: "composer" | "attachOnly";
+
+  children?: ReactNode;
+  className?: string;
 }
 
-/**
- * Drop / paste / click container for ticket attachments. Use as a wrapper
- * around the message textarea (variant="composer") or as a standalone picker
- * (variant="attachOnly").
- *
- * Three input modes:
- *  - Plus icon button → opens the file picker.
- *  - Drag a file onto the container → drop adds it.
- *  - Paste image/video from clipboard while focus is inside the container.
- *
- * Validation is identical to the backend: 5 files max, 5 MB combined,
- * jpg/png/webp/mp4/webm/mov only. Bad files surface as toasts.
- */
 export function TicketAttachmentInput({
   files,
   onFilesChange,
@@ -60,7 +47,7 @@ export function TicketAttachmentInput({
         onFilesChange(accepted);
       }
     },
-    [files, onFilesChange],
+    [files, onFilesChange]
   );
 
   function openPicker() {
@@ -106,7 +93,7 @@ export function TicketAttachmentInput({
   function onPaste(e: React.ClipboardEvent) {
     if (disabled) return;
     const pasted = Array.from(e.clipboardData?.files ?? []);
-    if (pasted.length === 0) return; // pure text — let normal paste happen
+    if (pasted.length === 0) return;
     e.preventDefault();
     const named = pasted.map((f, i) => namePastedFile(f, i));
     addFiles(named);
@@ -138,7 +125,6 @@ export function TicketAttachmentInput({
           >
             <div className="aspect-video bg-[#F4F8FF] flex items-center justify-center overflow-hidden">
               {preview ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={preview}
                   alt={f.name}
@@ -155,13 +141,14 @@ export function TicketAttachmentInput({
               <p className="text-[11px] font-medium truncate" title={f.name}>
                 {f.name}
               </p>
-              <p className="text-[10px] text-muted-foreground">
-                {formatFileSize(f.size)}
-              </p>
+              <p className="text-[10px] text-muted-foreground">{formatFileSize(f.size)}</p>
             </div>
             <button
               type="button"
-              onClick={() => { removeAt(i); toast.success("Attachment removed."); }}
+              onClick={() => {
+                removeAt(i);
+                toast.success("Attachment removed.");
+              }}
               disabled={disabled}
               aria-label="Remove attachment"
               className="absolute top-1 right-1 inline-flex items-center justify-center h-6 w-6 rounded-full bg-white/90 border border-[#DCE6F3] text-red-600 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white disabled:opacity-50"
@@ -182,7 +169,6 @@ export function TicketAttachmentInput({
     </div>
   );
 
-  // ── attachOnly: clean single-block layout used by the create form ──────────
   if (variant === "attachOnly") {
     return (
       <div
@@ -215,7 +201,8 @@ export function TicketAttachmentInput({
               : "border-[#DCE6F3] bg-[#F4F8FF]/60 text-muted-foreground hover:bg-[#F4F8FF]"
           }`}
         >
-          Click to add images or videos · drop or paste also works · JPG / PNG / WEBP / MP4 / WEBM / MOV
+          Click to add images or videos · drop or paste also works · JPG / PNG / WEBP / MP4 / WEBM /
+          MOV
         </button>
 
         {previewGrid}
@@ -224,13 +211,10 @@ export function TicketAttachmentInput({
     );
   }
 
-  // ── composer: wraps a textarea ────────────────────────────────────────────
   return (
     <div
       className={`relative rounded-2xl border bg-white transition-colors ${
-        dragActive
-          ? "border-[#0B47CF] ring-2 ring-[#0B47CF]/15"
-          : "border-[#DCE6F3]"
+        dragActive ? "border-[#0B47CF] ring-2 ring-[#0B47CF]/15" : "border-[#DCE6F3]"
       } ${className}`}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
@@ -242,9 +226,7 @@ export function TicketAttachmentInput({
       {children}
 
       {files.length > 0 && (
-        <div className="px-3 pt-3 pb-1 border-t border-[#DCE6F3]/60">
-          {previewGrid}
-        </div>
+        <div className="px-3 pt-3 pb-1 border-t border-[#DCE6F3]/60">{previewGrid}</div>
       )}
 
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-[#DCE6F3]/60">

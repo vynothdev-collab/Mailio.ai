@@ -67,15 +67,15 @@ export class AdminSupportTicketsController {
     @Query('priority') priority?: TicketPriority,
     @Query('type') type?: TicketType,
     @Query('userType') userType?: TicketCreatorRole,
-    @Query('userRole') userRole?: TicketCreatorRole, // alias kept for compat
+    @Query('userRole') userRole?: TicketCreatorRole,
     @Query('enterpriseId') enterpriseId?: string,
     @Query('enterpriseOnly') enterpriseOnly?: string,
     @Query('unreadOnly') unreadOnly?: string,
     @Query('search') search?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
-    @Query('from') from?: string, // alias
-    @Query('to') to?: string, // alias
+    @Query('from') from?: string,
+    @Query('to') to?: string,
     @Query('sortBy') sortBy?: AdminTicketSort,
     @Query('page') page?: string,
     @Query('limit') limit?: string,

@@ -18,11 +18,11 @@ interface Props {
 export function BulkVerifyCard({ onUploaded }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [file,       setFile]       = useState<File | null>(null);
-  const [uploading,  setUploading]  = useState(false);
-  const [uploadPct,  setUploadPct]  = useState(0);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
   const [lastUpload, setLastUpload] = useState<BulkUploadResponse | null>(null);
-  const [progress,   setProgress]   = useState<BulkProgressDto | null>(null);
+  const [progress, setProgress] = useState<BulkProgressDto | null>(null);
 
   useEffect(() => {
     if (!lastUpload?.jobId) return;
@@ -37,8 +37,7 @@ export function BulkVerifyCard({ onUploaded }: Props) {
           window.clearInterval(timer);
           onUploaded?.();
         }
-      } catch {
-      }
+      } catch {}
     };
 
     void tick();
@@ -70,17 +69,23 @@ export function BulkVerifyCard({ onUploaded }: Props) {
     setFile(f);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const dropped = e.dataTransfer.files[0];
-    if (dropped) handleSelect(dropped);
-  }, [handleSelect]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const dropped = e.dataTransfer.files[0];
+      if (dropped) handleSelect(dropped);
+    },
+    [handleSelect]
+  );
 
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (selected) handleSelect(selected);
-  }, [handleSelect]);
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const selected = e.target.files?.[0];
+      if (selected) handleSelect(selected);
+    },
+    [handleSelect]
+  );
 
   const reset = () => {
     setFile(null);
@@ -117,7 +122,8 @@ export function BulkVerifyCard({ onUploaded }: Props) {
           </span>
         </div>
         <CardDescription className="mt-1">
-          Upload a list and we&apos;ll verify every address — SMTP, MX, syntax, and catch-all checks.
+          Upload a list and we&apos;ll verify every address — SMTP, MX, syntax, and catch-all
+          checks.
         </CardDescription>
       </CardHeader>
 
@@ -127,9 +133,12 @@ export function BulkVerifyCard({ onUploaded }: Props) {
             "flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed cursor-pointer py-8 transition-colors select-none",
             isDragging
               ? "border-[#0F5BFF] bg-[#F4F8FF]"
-              : "border-[#DCE6F3] bg-[#F4F8FF] hover:border-[#0F5BFF]/40",
+              : "border-[#DCE6F3] bg-[#F4F8FF] hover:border-[#0F5BFF]/40"
           )}
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
           aria-label="File drop zone"
@@ -143,9 +152,27 @@ export function BulkVerifyCard({ onUploaded }: Props) {
           />
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white border border-[#DCE6F3] shadow-sm">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <path d="M17.5 12.5V15.8333C17.5 16.2754 17.3244 16.6993 17.0118 17.0118C16.6993 17.3244 16.2754 17.5 15.8333 17.5H4.16667C3.72464 17.5 3.30072 17.3244 2.98816 17.0118C2.67559 16.6993 2.5 16.2754 2.5 15.8333V12.5" stroke="#0F5BFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M14.1667 6.66667L10 2.5L5.83334 6.66667" stroke="#0F5BFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M10 2.5V12.5" stroke="#0F5BFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path
+                d="M17.5 12.5V15.8333C17.5 16.2754 17.3244 16.6993 17.0118 17.0118C16.6993 17.3244 16.2754 17.5 15.8333 17.5H4.16667C3.72464 17.5 3.30072 17.3244 2.98816 17.0118C2.67559 16.6993 2.5 16.2754 2.5 15.8333V12.5"
+                stroke="#0F5BFF"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M14.1667 6.66667L10 2.5L5.83334 6.66667"
+                stroke="#0F5BFF"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M10 2.5V12.5"
+                stroke="#0F5BFF"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </div>
 
@@ -172,9 +199,12 @@ export function BulkVerifyCard({ onUploaded }: Props) {
             </>
           ) : (
             <>
-              <span className="text-sm font-medium text-[#161514]">Drag &amp; drop your file here</span>
+              <span className="text-sm font-medium text-[#161514]">
+                Drag &amp; drop your file here
+              </span>
               <span className="text-xs text-muted-foreground">
-                or click to browse · {UPLOAD_CONFIG.acceptedFormats.join(" / ")} up to {UPLOAD_CONFIG.maxSizeMb}MB
+                or click to browse · {UPLOAD_CONFIG.acceptedFormats.join(" / ")} up to{" "}
+                {UPLOAD_CONFIG.maxSizeMb}MB
               </span>
             </>
           )}
@@ -187,7 +217,10 @@ export function BulkVerifyCard({ onUploaded }: Props) {
               <span>{uploadPct}%</span>
             </div>
             <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-              <div className="h-full bg-primary transition-all" style={{ width: `${uploadPct}%` }} />
+              <div
+                className="h-full bg-primary transition-all"
+                style={{ width: `${uploadPct}%` }}
+              />
             </div>
           </div>
         )}
@@ -198,12 +231,26 @@ export function BulkVerifyCard({ onUploaded }: Props) {
           onClick={startUpload}
         >
           {uploading ? (
-            <><Loader2 size={14} className="animate-spin" /> Uploading…</>
+            <>
+              <Loader2 size={14} className="animate-spin" /> Uploading…
+            </>
           ) : (
             <>
               <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
-                <path d="M7.5 13.75C7.5 13.75 12.5 11.25 12.5 7.5V3.125L7.5 1.25L2.5 3.125V7.5C2.5 11.25 7.5 13.75 7.5 13.75Z" stroke="white" strokeWidth="1.375" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M5.625 7.5L6.875 8.75L9.375 6.25" stroke="white" strokeWidth="1.375" strokeLinecap="round" strokeLinejoin="round"/>
+                <path
+                  d="M7.5 13.75C7.5 13.75 12.5 11.25 12.5 7.5V3.125L7.5 1.25L2.5 3.125V7.5C2.5 11.25 7.5 13.75 7.5 13.75Z"
+                  stroke="white"
+                  strokeWidth="1.375"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M5.625 7.5L6.875 8.75L9.375 6.25"
+                  stroke="white"
+                  strokeWidth="1.375"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
               Upload &amp; Verify
             </>
@@ -212,8 +259,20 @@ export function BulkVerifyCard({ onUploaded }: Props) {
 
         <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <path d="M9 5.5H3C2.44772 5.5 2 5.94772 2 6.5V9.5C2 10.0523 2.44772 10.5 3 10.5H9C9.55228 10.5 10 10.0523 10 9.5V6.5C10 5.94772 9.55228 5.5 9 5.5Z" stroke="#8B847A" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M4 5.5V4C4 3.46957 4.21071 2.96086 4.58579 2.58579C4.96086 2.21071 5.46957 2 6 2C6.53043 2 7.03914 2.21071 7.41421 2.58579C7.78929 2.96086 8 3.46957 8 4V5.5" stroke="#8B847A" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"/>
+            <path
+              d="M9 5.5H3C2.44772 5.5 2 5.94772 2 6.5V9.5C2 10.0523 2.44772 10.5 3 10.5H9C9.55228 10.5 10 10.0523 10 9.5V6.5C10 5.94772 9.55228 5.5 9 5.5Z"
+              stroke="#8B847A"
+              strokeWidth="0.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M4 5.5V4C4 3.46957 4.21071 2.96086 4.58579 2.58579C4.96086 2.21071 5.46957 2 6 2C6.53043 2 7.03914 2.21071 7.41421 2.58579C7.78929 2.96086 8 3.46957 8 4V5.5"
+              stroke="#8B847A"
+              strokeWidth="0.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
           Your data is encrypted and never shared.
         </p>
@@ -229,7 +288,10 @@ export function BulkVerifyCard({ onUploaded }: Props) {
                   </p>
                   <button
                     type="button"
-                    onClick={() => { setLastUpload(null); setProgress(null); }}
+                    onClick={() => {
+                      setLastUpload(null);
+                      setProgress(null);
+                    }}
                     aria-label="Dismiss result"
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
@@ -237,17 +299,21 @@ export function BulkVerifyCard({ onUploaded }: Props) {
                   </button>
                 </div>
                 {(() => {
-                  const isParsing  = !progress || progress.totalCount === 0;
-                  const isDone     = !isParsing && progress.processedCount >= progress.totalCount;
-                  const label      = isDone ? "Completed" : isParsing ? "Parsing…" : "Processing";
+                  const isParsing = !progress || progress.totalCount === 0;
+                  const isDone = !isParsing && progress.processedCount >= progress.totalCount;
+                  const label = isDone ? "Completed" : isParsing ? "Parsing…" : "Processing";
                   return (
-                    <span className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold mt-0.5",
-                      isDone
-                        ? "border-emerald-200 text-emerald-700"
-                        : "border-blue-200 bg-blue-50 text-blue-700",
-                    )}>
-                      {!isDone && <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />}
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold mt-0.5",
+                        isDone
+                          ? "border-emerald-200 text-emerald-700"
+                          : "border-blue-200 bg-blue-50 text-blue-700"
+                      )}
+                    >
+                      {!isDone && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+                      )}
                       {label}
                     </span>
                   );

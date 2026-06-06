@@ -180,9 +180,6 @@ export class VerificationService {
     }
   }
 
-  // Re-enqueue a slice of emails that failed after BullMQ exhausted its retries
-  // for the original batch. Used by VerificationBulkProcessor instead of writing
-  // the emails as UNKNOWN — the goal is to reverify rather than bucket failures.
   async enqueueReverifyBatch(
     emailIds: string[],
     userId: string,
@@ -201,8 +198,6 @@ export class VerificationService {
       reverifyCycle,
     };
     await this.bulkQueue.add('verify.batch', payload, {
-      // Slightly lower priority than first-pass batches so fresh work isn't
-      // starved by long-running reverify tails.
       priority: BULK_BASE_PRIORITY + 500,
       jobId: `bulk-batch-${batchId}`,
       attempts: 3,

@@ -1,8 +1,8 @@
 interface AuthUser {
-  id:        string;
-  name:      string;
-  email:     string;
-  plan:      string;
+  id: string;
+  name: string;
+  email: string;
+  plan: string;
   avatarUrl?: string | null;
   provider?: "LOCAL" | "GOOGLE" | "LINKEDIN";
 }
@@ -20,20 +20,20 @@ export interface LinkedinLoginPayload {
 
 export interface SignupPayload {
   fullName: string;
-  email:    string;
+  email: string;
   password: string;
 }
 
 export interface LoginPayload {
-  email:    string;
+  email: string;
   password: string;
   remember: boolean;
 }
 
 export interface AuthResponse {
-  accessToken:  string;
+  accessToken: string;
   refreshToken: string;
-  user:         AuthUser;
+  user: AuthUser;
 }
 
 export interface RefreshPayload {
@@ -46,13 +46,13 @@ export interface RefreshResponse {
 
 export interface SignupResponse {
   success: boolean;
-  email:   string;
+  email: string;
   message: string;
 }
 
 export interface VerifyEmailPayload {
   email: string;
-  otp:   string;
+  otp: string;
 }
 
 export interface ResendOtpPayload {
@@ -69,12 +69,12 @@ export interface ForgotPasswordPayload {
 }
 
 export interface ResetPasswordPayload {
-  email:       string;
-  otp:         string;
+  email: string;
+  otp: string;
   newPassword: string;
 }
 
 export interface ApiError {
-  status:  number;
+  status: number;
   message: string;
 }

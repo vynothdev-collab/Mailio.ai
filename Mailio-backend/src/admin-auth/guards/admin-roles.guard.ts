@@ -19,8 +19,6 @@ export class AdminRolesGuard implements CanActivate {
     );
     if (!required || required.length === 0) return true;
 
-    // Admin Passport strategy attaches the Admin entity to `request.user`
-    // (see `CurrentAdmin` decorator).
     const admin = context.switchToHttp().getRequest<{ user?: Admin }>().user;
     if (!admin) {
       throw new ForbiddenException('Admin authentication required');

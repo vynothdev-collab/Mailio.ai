@@ -13,11 +13,7 @@ import { Enterprise } from '../enterprises/entities/enterprise.entity';
 import { EmailList } from '../email-lists/entities/email-list.entity';
 import { Email } from '../emails/entities/email.entity';
 import { VerificationResult } from '../common/types/verification-result.enum';
-import {
-  AuthProvider,
-  User,
-  UserRole,
-} from '../users/entities/user.entity';
+import { AuthProvider, User, UserRole } from '../users/entities/user.entity';
 import { MailService } from '../mail/mail.service';
 import { EnterpriseCreditsService } from '../enterprise-credits/enterprise-credits.service';
 import { CreateEnterpriseUserDto } from './dto/create-enterprise-user.dto';
@@ -41,11 +37,6 @@ export class EnterpriseScopeService {
     private readonly enterpriseCredits: EnterpriseCreditsService,
   ) {}
 
-  /**
-   * Resolves the enterprise the calling admin belongs to and verifies it's
-   * still active. Throws Forbidden if the admin is somehow without an
-   * enterprise (data integrity issue).
-   */
   private async resolveEnterprise(admin: User): Promise<Enterprise> {
     if (!admin.enterpriseId) {
       throw new ForbiddenException(
@@ -63,8 +54,6 @@ export class EnterpriseScopeService {
     }
     return enterprise;
   }
-
-  // ---------- User management ----------
 
   async createUser(admin: User, dto: CreateEnterpriseUserDto) {
     const enterprise = await this.resolveEnterprise(admin);
@@ -91,7 +80,6 @@ export class EnterpriseScopeService {
       }),
     );
 
-    // Optionally allocate an initial credit limit to the new user.
     if (dto.creditAllocation && dto.creditAllocation > 0) {
       await this.enterpriseCredits.allocateToUser(
         enterprise.id,
@@ -101,10 +89,9 @@ export class EnterpriseScopeService {
       );
     }
 
-    const loginUrl =
-      process.env.FRONTEND_URL
-        ? `${process.env.FRONTEND_URL}/auth/login`
-        : 'https://emailanswers.ai/auth/login';
+    const loginUrl = process.env.FRONTEND_URL
+      ? `${process.env.FRONTEND_URL}/auth/login`
+      : 'https://emailanswers.ai/auth/login';
 
     void this.mail.sendEnterpriseUserCredentialsEmail(
       created.email,
@@ -114,7 +101,6 @@ export class EnterpriseScopeService {
       loginUrl,
     );
 
-    // Re-fetch to include the credit limit that may have been set above.
     const fresh = await this.usersRepo.findOne({ where: { id: created.id } });
     return this.serializeUser(fresh ?? created);
   }
@@ -150,7 +136,9 @@ export class EnterpriseScopeService {
     if (user.id === admin.id)
       throw new BadRequestException('You cannot add yourself.');
     if (user.enterpriseId === enterprise.id)
-      throw new ConflictException('User is already a member of your enterprise.');
+      throw new ConflictException(
+        'User is already a member of your enterprise.',
+      );
     if (user.enterpriseId && user.enterpriseId !== enterprise.id)
       throw new BadRequestException('User belongs to a different enterprise.');
 
@@ -158,10 +146,9 @@ export class EnterpriseScopeService {
     user.role = UserRole.ENTERPRISE_USER;
     const saved = await this.usersRepo.save(user);
 
-    const loginUrl =
-      process.env.FRONTEND_URL
-        ? `${process.env.FRONTEND_URL}/auth/login`
-        : 'https://emailanswers.ai/auth/login';
+    const loginUrl = process.env.FRONTEND_URL
+      ? `${process.env.FRONTEND_URL}/auth/login`
+      : 'https://emailanswers.ai/auth/login';
 
     void this.mail.sendEnterpriseUserAddedEmail(
       saved.email,
@@ -179,7 +166,8 @@ export class EnterpriseScopeService {
     const user = await this.usersRepo.findOne({
       where: { id: userId, enterpriseId: enterprise.id },
     });
-    if (!user) throw new NotFoundException('User not found in your enterprise.');
+    if (!user)
+      throw new NotFoundException('User not found in your enterprise.');
     if (user.id === admin.id)
       throw new BadRequestException('You cannot delete yourself.');
 
@@ -194,7 +182,8 @@ export class EnterpriseScopeService {
     const user = await this.usersRepo.findOne({
       where: { id: userId, enterpriseId: enterprise.id },
     });
-    if (!user) throw new NotFoundException('User not found in your enterprise.');
+    if (!user)
+      throw new NotFoundException('User not found in your enterprise.');
     if (user.id === admin.id)
       throw new BadRequestException('You cannot change your own status.');
 
@@ -213,7 +202,8 @@ export class EnterpriseScopeService {
     const user = await this.usersRepo.findOne({
       where: { id: userId, enterpriseId: enterprise.id },
     });
-    if (!user) throw new NotFoundException('User not found in your enterprise.');
+    if (!user)
+      throw new NotFoundException('User not found in your enterprise.');
 
     if (dto.email && dto.email.toLowerCase() !== user.email) {
       const conflict = await this.usersRepo.findOne({
@@ -239,7 +229,8 @@ export class EnterpriseScopeService {
     const user = await this.usersRepo.findOne({
       where: { id: userId, enterpriseId: enterprise.id },
     });
-    if (!user) throw new NotFoundException('User not found in your enterprise.');
+    if (!user)
+      throw new NotFoundException('User not found in your enterprise.');
 
     user.passwordHash = await bcrypt.hash(dto.password, 10);
     await this.usersRepo.save(user);
@@ -252,17 +243,18 @@ export class EnterpriseScopeService {
     const user = await this.usersRepo.findOne({
       where: { id: userId, enterpriseId: enterprise.id },
     });
-    if (!user) throw new NotFoundException('User not found in your enterprise.');
+    if (!user)
+      throw new NotFoundException('User not found in your enterprise.');
     if (user.id === admin.id)
-      throw new BadRequestException('You cannot remove yourself from the enterprise.');
+      throw new BadRequestException(
+        'You cannot remove yourself from the enterprise.',
+      );
 
     user.enterpriseId = null;
     user.role = UserRole.USER;
     await this.usersRepo.save(user);
     return { success: true };
   }
-
-  // ---------- Enterprise overview (dashboard) ----------
 
   async getOverview(admin: User) {
     const enterprise = await this.resolveEnterprise(admin);
@@ -294,10 +286,7 @@ export class EnterpriseScopeService {
           `COUNT(*) FILTER (WHERE l.status = 'COMPLETED')`,
           'completedJobs',
         )
-        .addSelect(
-          `COUNT(*) FILTER (WHERE l.status = 'FAILED')`,
-          'failedJobs',
-        )
+        .addSelect(`COUNT(*) FILTER (WHERE l.status = 'FAILED')`, 'failedJobs')
         .addSelect(`COALESCE(SUM(l.total_count), 0)`, 'totalEmailsInJobs')
         .where('u.enterprise_id = :eid', { eid: enterprise.id })
         .andWhere('l.is_deleted = false')
@@ -375,8 +364,6 @@ export class EnterpriseScopeService {
     };
   }
 
-  // ---------- Read-only credit ledger for this enterprise ----------
-
   async getLedger(admin: User, page = 1, limit = 50) {
     const enterprise = await this.resolveEnterprise(admin);
 
@@ -408,15 +395,12 @@ export class EnterpriseScopeService {
     };
   }
 
-  // ---------- Read-only files (lists) scoped to the enterprise ----------
-
   async listFiles(admin: User, page = 1, limit = 25) {
     const enterprise = await this.resolveEnterprise(admin);
 
     const p = Math.max(page, 1);
     const l = Math.min(Math.max(limit, 1), 100);
 
-    // Use a single query joining users to constrain by enterprise.
     const qb = this.listsRepo
       .createQueryBuilder('l')
       .leftJoinAndMapOne('l.user', User, 'u', 'u.id = l.userId')
@@ -463,7 +447,8 @@ export class EnterpriseScopeService {
       emailVerified: u.emailVerified,
       creditLimit,
       creditsUsed,
-      creditsRemaining: creditLimit !== null ? Math.max(0, creditLimit - creditsUsed) : null,
+      creditsRemaining:
+        creditLimit !== null ? Math.max(0, creditLimit - creditsUsed) : null,
       creditExpiresAt: u.creditExpiresAt ?? null,
       createdAt: u.createdAt,
       updatedAt: u.updatedAt,

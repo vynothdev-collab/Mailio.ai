@@ -10,7 +10,8 @@ export function ProTipCard() {
           <span className="text-sm font-semibold text-amber-800">Pro Tip</span>
         </div>
         <p className="text-xs text-amber-700 leading-relaxed">
-          Need to verify hundreds or thousands of emails at once? Use Bulk Verify to upload a CSV or TXT file and get results in minutes.
+          Need to verify hundreds or thousands of emails at once? Use Bulk Verify to upload a CSV or
+          TXT file and get results in minutes.
         </p>
       </CardContent>
     </Card>

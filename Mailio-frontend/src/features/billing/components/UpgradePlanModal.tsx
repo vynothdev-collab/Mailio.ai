@@ -15,17 +15,17 @@ import { cn } from "@/src/lib/utils";
 import { billingService, type BillingPlan } from "@/src/services/billingService";
 
 interface Props {
-  open:         boolean;
-  onClose:      () => void;
-  plans:        BillingPlan[];
+  open: boolean;
+  onClose: () => void;
+  plans: BillingPlan[];
   activePlanId: string | null;
-  onActivated:  (planId: string) => void;
+  onActivated: (planId: string) => void;
 }
 
 type Step = "select" | "confirm";
 
 export function UpgradePlanModal({ open, onClose, plans, activePlanId, onActivated }: Props) {
-  const [step, setStep]       = useState<Step>("select");
+  const [step, setStep] = useState<Step>("select");
   const [selected, setSelected] = useState<BillingPlan | null>(null);
   const [confirming, setConfirming] = useState(false);
 
@@ -41,7 +41,10 @@ export function UpgradePlanModal({ open, onClose, plans, activePlanId, onActivat
       await billingService.activatePlan(selected.id);
       onActivated(selected.id);
       onClose();
-      setTimeout(() => { setStep("select"); setSelected(null); }, 300);
+      setTimeout(() => {
+        setStep("select");
+        setSelected(null);
+      }, 300);
       toast.success(`${selected.name} activated!`, {
         description: `${selected.credits.toLocaleString()} credits have been added to your account.`,
       });
@@ -60,7 +63,10 @@ export function UpgradePlanModal({ open, onClose, plans, activePlanId, onActivat
   function handleOpenChange(v: boolean) {
     if (!v) {
       onClose();
-      setTimeout(() => { setStep("select"); setSelected(null); }, 300);
+      setTimeout(() => {
+        setStep("select");
+        setSelected(null);
+      }, 300);
     }
   }
 
@@ -74,13 +80,13 @@ export function UpgradePlanModal({ open, onClose, plans, activePlanId, onActivat
           <>
             <DialogHeader>
               <DialogTitle>Choose a Plan</DialogTitle>
-              <DialogDescription>
-                Select a plan to add credits to your account.
-              </DialogDescription>
+              <DialogDescription>Select a plan to add credits to your account.</DialogDescription>
             </DialogHeader>
 
             {plans.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">No plans available at this time.</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                No plans available at this time.
+              </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {plans.map((plan, idx) => {
@@ -92,7 +98,9 @@ export function UpgradePlanModal({ open, onClose, plans, activePlanId, onActivat
                       key={plan.id}
                       className={cn(
                         "relative flex flex-col rounded-xl border p-4",
-                        isHighlighted ? "border-primary/50 bg-primary/3 shadow-sm" : "border-border bg-card",
+                        isHighlighted
+                          ? "border-primary/50 bg-primary/3 shadow-sm"
+                          : "border-border bg-card",
                         isCurrent && "ring-2 ring-primary/20"
                       )}
                     >
@@ -104,20 +112,31 @@ export function UpgradePlanModal({ open, onClose, plans, activePlanId, onActivat
                       )}
 
                       <div className="flex items-center gap-1.5 mb-1">
-                        <Zap size={13} className={isHighlighted ? "text-primary" : "text-muted-foreground"} />
+                        <Zap
+                          size={13}
+                          className={isHighlighted ? "text-primary" : "text-muted-foreground"}
+                        />
                         <span className="text-sm font-semibold">{plan.name}</span>
                       </div>
 
                       <div className="mb-3">
                         <div className="flex items-end gap-0.5">
-                          <span className="text-2xl font-bold tabular-nums">{plan.currency}{plan.price.toLocaleString()}</span>
+                          <span className="text-2xl font-bold tabular-nums">
+                            {plan.currency}
+                            {plan.price.toLocaleString()}
+                          </span>
                         </div>
-                        <p className="text-xs text-muted-foreground">{plan.credits.toLocaleString()} credits · {plan.validityDays}d validity</p>
+                        <p className="text-xs text-muted-foreground">
+                          {plan.credits.toLocaleString()} credits · {plan.validityDays}d validity
+                        </p>
                       </div>
 
                       <ul className="space-y-1.5 flex-1 mb-4">
                         {(plan.features ?? []).map((f) => (
-                          <li key={f} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                          <li
+                            key={f}
+                            className="flex items-start gap-1.5 text-xs text-muted-foreground"
+                          >
                             <Check size={11} className="shrink-0 text-emerald-500 mt-0.5" />
                             {f}
                           </li>
@@ -145,9 +164,7 @@ export function UpgradePlanModal({ open, onClose, plans, activePlanId, onActivat
           <>
             <DialogHeader>
               <DialogTitle>Confirm Plan Activation</DialogTitle>
-              <DialogDescription>
-                Review your selection before activating.
-              </DialogDescription>
+              <DialogDescription>Review your selection before activating.</DialogDescription>
             </DialogHeader>
 
             <div className="rounded-xl border border-border bg-muted/30 divide-y divide-border overflow-hidden">
@@ -158,19 +175,28 @@ export function UpgradePlanModal({ open, onClose, plans, activePlanId, onActivat
                   </div>
                   <div>
                     <p className="text-sm font-semibold">{selected?.name}</p>
-                    <p className="text-xs text-muted-foreground">{selected?.credits.toLocaleString()} credits</p>
+                    <p className="text-xs text-muted-foreground">
+                      {selected?.credits.toLocaleString()} credits
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold tabular-nums">{selected?.currency}{selected?.price.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">{selected?.validityDays}d validity</p>
+                  <p className="text-sm font-bold tabular-nums">
+                    {selected?.currency}
+                    {selected?.price.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {selected?.validityDays}d validity
+                  </p>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3">
               <span className="text-sm font-semibold">Credits you will receive</span>
-              <span className="text-lg font-bold tabular-nums">{selected?.credits.toLocaleString()}</span>
+              <span className="text-lg font-bold tabular-nums">
+                {selected?.credits.toLocaleString()}
+              </span>
             </div>
 
             <div className="flex flex-col-reverse sm:flex-row gap-2 pt-1">

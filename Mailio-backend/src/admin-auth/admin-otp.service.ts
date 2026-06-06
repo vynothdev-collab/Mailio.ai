@@ -34,16 +34,6 @@ export class AdminOtpService {
     const windowStart = new Date(
       Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000,
     );
-    // const recentCount = await this.otpRepo.count({
-    //   where: { email: admin.email, createdAt: MoreThan(windowStart) },
-    // });
-
-    // if (recentCount >= RATE_LIMIT_COUNT) {
-    //   throw new HttpException(
-    //     'Too many OTP requests. Please try again later.',
-    //     HttpStatus.TOO_MANY_REQUESTS,
-    //   );
-    // }
 
     const otp = this.generateOtp();
     this.logger.log(`[DEV] Admin OTP for ${admin.email} — code: ${otp}`);

@@ -32,7 +32,9 @@ function HeaderSkeleton() {
 
 function CardBlock({ className = "" }: { className?: string }) {
   return (
-    <div className={`rounded-2xl border border-[#DCE6F3] bg-white p-3 space-y-3 sm:p-4 lg:p-5 ${className}`}>
+    <div
+      className={`rounded-2xl border border-[#DCE6F3] bg-white p-3 space-y-3 sm:p-4 lg:p-5 ${className}`}
+    >
       <div className="flex items-center justify-between">
         <Skeleton className="h-5 w-40" />
         <Skeleton className="h-6 w-20 rounded-full" />
@@ -91,7 +93,9 @@ export function BulkVerifyContentSkeleton() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, i) => <MiniStatSkeleton key={i} />)}
+        {Array.from({ length: 5 }).map((_, i) => (
+          <MiniStatSkeleton key={i} />
+        ))}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -190,7 +194,7 @@ export function SettingsSkeleton() {
   return (
     <div className="space-y-3 sm:space-y-4">
       <ProfileSkeleton />
-      {/* Password & Security card */}
+      {}
       <div className="rounded-2xl border border-[#DCE6F3] bg-white shadow-sm overflow-hidden">
         <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-[#DCE6F3] space-y-1">
           <Skeleton className="h-4 w-40" />
@@ -216,7 +220,9 @@ export function DashboardContentSkeleton() {
   return (
     <div className="space-y-4 md:space-y-5">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-5">
-        {Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)}
+        {Array.from({ length: 4 }).map((_, i) => (
+          <StatCardSkeleton key={i} />
+        ))}
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">

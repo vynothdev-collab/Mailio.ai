@@ -12,25 +12,18 @@ import type {
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 export const bulkVerifyService = {
-  async upload(
-    file: File,
-    onProgress?: (pct: number) => void,
-  ): Promise<BulkUploadResponse> {
+  async upload(file: File, onProgress?: (pct: number) => void): Promise<BulkUploadResponse> {
     const form = new FormData();
     form.append("file", file);
 
-    const { data } = await api.post<BulkUploadResponse>(
-      "/verify/bulk/upload",
-      form,
-      {
-        headers: { "Content-Type": "multipart/form-data" },
-        onUploadProgress: (e) => {
-          if (onProgress && e.total) {
-            onProgress(Math.round((e.loaded * 100) / e.total));
-          }
-        },
+    const { data } = await api.post<BulkUploadResponse>("/verify/bulk/upload", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (e) => {
+        if (onProgress && e.total) {
+          onProgress(Math.round((e.loaded * 100) / e.total));
+        }
       },
-    );
+    });
     return data;
   },
 
@@ -43,7 +36,7 @@ export const bulkVerifyService = {
     page = 1,
     limit = 10,
     status?: string,
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<BulkJobsResponse> {
     const { data } = await api.get<BulkJobsResponse>("/verify/bulk/jobs", {
       params: { page, limit, status },
@@ -74,7 +67,7 @@ export const bulkVerifyService = {
 
   async getResultRows(
     jobId: string,
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<{ email: string; user: string; domain: string; status: string }[]> {
     const { data } = await api.get<
       { email: string; user: string; domain: string; status: string }[]
@@ -87,21 +80,21 @@ export const bulkVerifyService = {
 
   async getJobMeta(
     jobId: string,
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<{
-    id:               string;
-    name:             string;
+    id: string;
+    name: string;
     originalFilename: string | null;
-    status:           "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
-    totalCount:       number;
-    processedCount:   number;
-    validCount:       number;
-    invalidCount:     number;
-    catchallCount:    number;
-    unknownCount:     number;
-    disposableCount:  number;
-    createdAt:        string;
-    updatedAt:        string;
+    status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+    totalCount: number;
+    processedCount: number;
+    validCount: number;
+    invalidCount: number;
+    catchallCount: number;
+    unknownCount: number;
+    disposableCount: number;
+    createdAt: string;
+    updatedAt: string;
   }> {
     const { data } = await api.get(`/email-lists/${jobId}`, { signal });
     return data;
@@ -112,17 +105,17 @@ export const bulkVerifyService = {
     page: number,
     limit: number,
     result?: "VALID" | "INVALID" | "CATCHALL" | "UNKNOWN",
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<{
     items: {
-      id:                 string;
-      address:            string;
+      id: string;
+      address: string;
       verificationResult: "VALID" | "INVALID" | "CATCHALL" | "UNKNOWN" | null;
-      score:              number | null;
-      processedAt:        string | null;
+      score: number | null;
+      processedAt: string | null;
     }[];
     total: number;
-    page:  number;
+    page: number;
     limit: number;
   }> {
     const { data } = await api.get(`/email-lists/${jobId}/emails`, {
@@ -145,12 +138,12 @@ export const bulkVerifyService = {
     jobId: string,
     format: "csv" | "json" = "csv",
     type: "verified" | "full" = "full",
-    fallbackName?: string,
+    fallbackName?: string
   ): Promise<void> {
     const stripped = fallbackName?.replace(/\.[^.]+$/, "") ?? `bulk-${jobId}`;
     await downloadFile(
       `/verify/bulk/${jobId}/download?format=${format}&type=${type}`,
-      `${stripped}.${format}`,
+      `${stripped}.${format}`
     );
   },
 };

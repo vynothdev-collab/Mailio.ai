@@ -18,13 +18,17 @@ function formatDate(iso: string): string {
     : d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 }
 
-function ProfileForm({ user, onSaved, onLogout }: {
+function ProfileForm({
+  user,
+  onSaved,
+  onLogout,
+}: {
   user: UserProfile;
   onSaved: () => Promise<unknown>;
   onLogout: () => Promise<void>;
 }) {
-  const [name,       setName]       = useState(user.name);
-  const [saving,     setSaving]     = useState(false);
+  const [name, setName] = useState(user.name);
+  const [saving, setSaving] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   const isDirty = name.trim() !== user.name;
@@ -45,12 +49,16 @@ function ProfileForm({ user, onSaved, onLogout }: {
 
   async function handleLogout() {
     setLoggingOut(true);
-    try { await onLogout(); } finally { setLoggingOut(false); }
+    try {
+      await onLogout();
+    } finally {
+      setLoggingOut(false);
+    }
   }
 
   return (
     <div className="space-y-5">
-      {/* Avatar + image upload */}
+      {}
       <ProfileImageUpload
         name={user.name}
         email={user.email}
@@ -59,7 +67,7 @@ function ProfileForm({ user, onSaved, onLogout }: {
         onUpdated={onSaved}
       />
 
-      {/* Fields */}
+      {}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
@@ -86,16 +94,18 @@ function ProfileForm({ user, onSaved, onLogout }: {
         </div>
       </div>
 
-      {/* Member Since info row */}
+      {}
       <div className="flex items-center gap-2.5 rounded-lg border border-[#DCE6F3] bg-[#F4F8FF]/60 px-3 py-2.5">
         <CalendarDays size={14} className="shrink-0 text-muted-foreground" />
         <div className="flex flex-col xs:flex-row xs:items-center gap-0.5 xs:gap-2 min-w-0">
           <span className="text-xs text-muted-foreground whitespace-nowrap">Member since</span>
-          <span className="text-xs sm:text-sm font-medium text-[#111827] truncate">{formatDate(user.createdAt)}</span>
+          <span className="text-xs sm:text-sm font-medium text-[#111827] truncate">
+            {formatDate(user.createdAt)}
+          </span>
         </div>
       </div>
 
-      {/* Actions */}
+      {}
       <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-1 border-t border-[#DCE6F3]">
         <Button
           variant="outline"
@@ -104,9 +114,15 @@ function ProfileForm({ user, onSaved, onLogout }: {
           disabled={loggingOut}
           className="w-full sm:w-auto gap-2 text-xs sm:text-sm text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 disabled:opacity-50"
         >
-          {loggingOut
-            ? <><Loader2 size={13} className="animate-spin" /> Signing out…</>
-            : <><LogOut size={13} /> Sign Out</>}
+          {loggingOut ? (
+            <>
+              <Loader2 size={13} className="animate-spin" /> Signing out…
+            </>
+          ) : (
+            <>
+              <LogOut size={13} /> Sign Out
+            </>
+          )}
         </Button>
 
         <Button
@@ -114,7 +130,13 @@ function ProfileForm({ user, onSaved, onLogout }: {
           disabled={!isDirty || saving}
           className="w-full sm:w-auto gradient-brand border-0 text-white hover:opacity-90 text-xs sm:text-sm disabled:opacity-40"
         >
-          {saving ? <><Loader2 size={13} className="animate-spin" /> Saving…</> : "Save Changes"}
+          {saving ? (
+            <>
+              <Loader2 size={13} className="animate-spin" /> Saving…
+            </>
+          ) : (
+            "Save Changes"
+          )}
         </Button>
       </div>
     </div>
@@ -126,10 +148,12 @@ export function ProfileDetailsCard() {
 
   return (
     <div className="rounded-2xl border border-[#DCE6F3] bg-white shadow-sm overflow-hidden">
-      {/* Card header */}
+      {}
       <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-[#DCE6F3]">
         <h2 className="text-sm sm:text-base font-semibold text-[#111827]">Profile Details</h2>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Your personal information tied to this account.</p>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+          Your personal information tied to this account.
+        </p>
       </div>
 
       <div className="px-4 sm:px-6 py-4 sm:py-5">

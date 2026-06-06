@@ -74,8 +74,6 @@ export class AdminUsersService {
       }
       enterpriseId = enterprise.id;
     } else if (dto.enterpriseId) {
-      // Hard reject — silently dropping the field would let callers think a
-      // SUPER_ADMIN was attached to an enterprise when it wasn't.
       throw new BadRequestException(
         `enterpriseId must not be set for role=${dto.role}. Only ENTERPRISE_USER and ENTERPRISE_ADMIN can belong to an enterprise.`,
       );
@@ -224,13 +222,18 @@ export class AdminUsersService {
     }
 
     const updates: Partial<User> = {};
-    if (dto.name)  updates.name  = dto.name.trim();
+    if (dto.name) updates.name = dto.name.trim();
     if (dto.email) updates.email = dto.email.toLowerCase();
     await this.userRepo.update(id, updates);
     return { success: true };
   }
 
-  async addCredits(id: string, amount: number, reason: string, adminId: string) {
+  async addCredits(
+    id: string,
+    amount: number,
+    reason: string,
+    adminId: string,
+  ) {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found.');
     await this.credits.allocateToUser(
@@ -250,7 +253,10 @@ export class AdminUsersService {
     return { success: true };
   }
 
-  async changePassword(id: string, newPassword: string): Promise<{ success: boolean }> {
+  async changePassword(
+    id: string,
+    newPassword: string,
+  ): Promise<{ success: boolean }> {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found.');
     const passwordHash = await bcrypt.hash(newPassword, 10);
@@ -261,7 +267,7 @@ export class AdminUsersService {
   async resetPassword(id: string): Promise<{ tempPassword: string }> {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found.');
-    if (user.provider !== 'LOCAL' as any) {
+    if (user.provider !== ('LOCAL' as any)) {
       throw new BadRequestException(
         'Cannot reset password for OAuth accounts.',
       );
@@ -280,8 +286,7 @@ export class AdminUsersService {
   }
 
   private generateTempPassword(): string {
-    const chars =
-      'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$';
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$';
     return Array.from({ length: 12 }, () =>
       chars.charAt(Math.floor(Math.random() * chars.length)),
     ).join('');

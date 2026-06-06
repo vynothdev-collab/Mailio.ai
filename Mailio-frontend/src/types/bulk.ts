@@ -1,94 +1,94 @@
-export type BulkJobStatus   = "pending" | "processing" | "completed" | "failed";
+export type BulkJobStatus = "pending" | "processing" | "completed" | "failed";
 type BulkParseStatus = "PENDING" | "PARSING" | "PARSED" | "FAILED";
 
 export interface BulkUploadResponse {
-  jobId:       string;
-  fileName:    string;
+  jobId: string;
+  fileName: string;
   parseStatus: BulkParseStatus;
-  status:      BulkJobStatus | string;
+  status: BulkJobStatus | string;
 }
 
 export interface BulkActiveJobDto {
-  jobId:          string;
-  fileName:       string;
-  status:         BulkJobStatus;
-  progress:       number;
+  jobId: string;
+  fileName: string;
+  status: BulkJobStatus;
+  progress: number;
   processedCount: number;
-  totalCount:     number;
-  etaSeconds:     number;
-  startedAt:      string | null;
-  valid:          number;
-  invalid:        number;
-  catchall:          number;
-  disposable:     number;
+  totalCount: number;
+  etaSeconds: number;
+  startedAt: string | null;
+  valid: number;
+  invalid: number;
+  catchall: number;
+  disposable: number;
 }
 
 export interface BulkJobDto {
-  jobId:          string;
-  fileName:       string;
-  status:         BulkJobStatus;
-  totalEmails:    number;
+  jobId: string;
+  fileName: string;
+  status: BulkJobStatus;
+  totalEmails: number;
   processedCount: number;
-  valid:          number;
-  invalid:        number;
-  catchall:          number;
-  disposable:     number;
-  createdAt:      string;
-  completedAt:    string | null;
+  valid: number;
+  invalid: number;
+  catchall: number;
+  disposable: number;
+  createdAt: string;
+  completedAt: string | null;
 }
 
 export interface BulkJobsResponse {
-  data:  BulkJobDto[];
+  data: BulkJobDto[];
   total: number;
-  page:  number;
+  page: number;
   limit: number;
 }
 
 export interface BulkStatsDto {
-  filesToday:        number;
-  currentJobEmails:  number;
-  completedJobs:     number;
-  apiUsage:          number;
-  avgResponseMs:     number;
-  successCount?:     number;
-  invalidCount?:     number;
-  catchallCount?:    number;
+  filesToday: number;
+  currentJobEmails: number;
+  completedJobs: number;
+  apiUsage: number;
+  avgResponseMs: number;
+  successCount?: number;
+  invalidCount?: number;
+  catchallCount?: number;
   changes: {
-    filesToday:    string;
+    filesToday: string;
     completedJobs: string;
     avgResponseMs: string;
   };
 }
 
 export interface BulkProgressDto {
-  progress:       number;
+  progress: number;
   processedCount: number;
-  totalCount:     number;
-  etaSeconds:     number;
-  valid:          number;
-  invalid:        number;
-  catchall:       number;
-  disposable:     number;
-  parseStatus:    "PENDING" | "PARSING" | "PARSED" | "FAILED" | null;
-  status:         string | null;
-  parseError:     string | null;
+  totalCount: number;
+  etaSeconds: number;
+  valid: number;
+  invalid: number;
+  catchall: number;
+  disposable: number;
+  parseStatus: "PENDING" | "PARSING" | "PARSED" | "FAILED" | null;
+  status: string | null;
+  parseError: string | null;
 }
 
 export interface BulkBreakdownDto {
   data: {
-    name:       string;
-    value:      number;
+    name: string;
+    value: number;
     percentage: number;
-    color:      string;
+    color: string;
   }[];
   total: number;
 }
 
 export interface ProgressEvent {
-  listId:    string;
+  listId: string;
   processed: number;
-  total:     number;
-  pct:       number;
+  total: number;
+  pct: number;
 }
 
 export interface ListStatusChangeEvent {

@@ -177,7 +177,9 @@ export class MailService implements OnModuleInit {
     loginUrl: string,
   ): Promise<void> {
     if (!this.configured) {
-      this.logger.warn('Mail not configured — skipping enterprise user welcome email.');
+      this.logger.warn(
+        'Mail not configured — skipping enterprise user welcome email.',
+      );
       return;
     }
     const subject = `You have been added to ${enterpriseName} on Mailio`;
@@ -190,7 +192,11 @@ export class MailService implements OnModuleInit {
       `For security, please change your password after your first sign-in.\n\n` +
       `If you did not expect this email, please contact your enterprise admin.`;
     const html = this.renderEnterpriseUserCredentialsHtml(
-      name, to, password, enterpriseName, loginUrl,
+      name,
+      to,
+      password,
+      enterpriseName,
+      loginUrl,
     );
     try {
       await sgMail.send({
@@ -201,10 +207,15 @@ export class MailService implements OnModuleInit {
         html,
       });
     } catch (err) {
-      const sgErr = err as { message?: string; code?: number; response?: { body?: unknown } };
-      const detail = sgErr?.response?.body !== undefined
-        ? JSON.stringify(sgErr.response.body)
-        : (sgErr?.message ?? 'Unknown error');
+      const sgErr = err as {
+        message?: string;
+        code?: number;
+        response?: { body?: unknown };
+      };
+      const detail =
+        sgErr?.response?.body !== undefined
+          ? JSON.stringify(sgErr.response.body)
+          : (sgErr?.message ?? 'Unknown error');
       this.logger.error(
         `SendGrid enterprise user credentials send failed (code=${sgErr?.code ?? 'n/a'}) to ${to}: ${detail}`,
       );
@@ -218,7 +229,9 @@ export class MailService implements OnModuleInit {
     loginUrl: string,
   ): Promise<void> {
     if (!this.configured) {
-      this.logger.warn('Mail not configured — skipping enterprise user added email.');
+      this.logger.warn(
+        'Mail not configured — skipping enterprise user added email.',
+      );
       return;
     }
     const subject = `You have been added to ${enterpriseName} on Mailio`;
@@ -227,7 +240,11 @@ export class MailService implements OnModuleInit {
       `You have been added to the enterprise account for ${enterpriseName} on Mailio.\n` +
       `Sign in with your existing credentials at: ${loginUrl}\n\n` +
       `If you did not expect this email, please contact your enterprise admin.`;
-    const html = this.renderEnterpriseUserAddedHtml(name, enterpriseName, loginUrl);
+    const html = this.renderEnterpriseUserAddedHtml(
+      name,
+      enterpriseName,
+      loginUrl,
+    );
     try {
       await sgMail.send({
         to,
@@ -237,10 +254,15 @@ export class MailService implements OnModuleInit {
         html,
       });
     } catch (err) {
-      const sgErr = err as { message?: string; code?: number; response?: { body?: unknown } };
-      const detail = sgErr?.response?.body !== undefined
-        ? JSON.stringify(sgErr.response.body)
-        : (sgErr?.message ?? 'Unknown error');
+      const sgErr = err as {
+        message?: string;
+        code?: number;
+        response?: { body?: unknown };
+      };
+      const detail =
+        sgErr?.response?.body !== undefined
+          ? JSON.stringify(sgErr.response.body)
+          : (sgErr?.message ?? 'Unknown error');
       this.logger.error(
         `SendGrid enterprise user added send failed (code=${sgErr?.code ?? 'n/a'}) to ${to}: ${detail}`,
       );

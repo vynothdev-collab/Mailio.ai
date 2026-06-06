@@ -53,7 +53,11 @@ export interface ReportsDistribution {
     credits: number;
     pct: number;
   }>;
-  signupsTrend: Array<{ date: string; singleUsers: number; enterprises: number }>;
+  signupsTrend: Array<{
+    date: string;
+    singleUsers: number;
+    enterprises: number;
+  }>;
   signupsTotals: {
     singleUsers: number;
     singleUsersDeltaPct: number;
@@ -62,24 +66,6 @@ export interface ReportsDistribution {
   };
 }
 
-/**
- * Reports & Analytics aggregator.
- *
- * Endpoint design — three focused endpoints called in parallel from the
- * frontend (one per visual zone):
- *
- *   GET /admin/reports/summary        → top KPI cards (above the fold, fastest)
- *   GET /admin/reports/verifications  → verification trend + status breakdown
- *   GET /admin/reports/distribution   → credits-by-plan + signups trend
- *
- * Per-endpoint optimizations:
- *   - Each endpoint runs its own internal queries in parallel via Promise.all.
- *   - Each query is aggregate-only SQL (no SELECT *).
- *   - Current and previous-period totals are computed in the same statement
- *     with FILTER (WHERE …) so deltas don't double the scan.
- *   - 30s in-memory cache keyed by (endpoint, tab, from, to) so dashboard
- *     refreshes don't hammer the DB.
- */
 @Injectable()
 export class AdminReportsService {
   private readonly logger = new Logger(AdminReportsService.name);
@@ -90,8 +76,6 @@ export class AdminReportsService {
   private static readonly CACHE_TTL_MS = 30 * 1000;
 
   constructor(@InjectDataSource() private readonly ds: DataSource) {}
-
-  // ── Endpoint 1: KPI summary ───────────────────────────────────────────────
 
   async getSummary(
     tab: AudienceTab,
@@ -140,13 +124,11 @@ export class AdminReportsService {
             deltaPct: this.deltaPct(revenue.now, revenue.prev),
             currency: revenue.currency,
           },
-          offerRedemptions: { value: 0, deltaPct: 0 }, // offers entity not built yet
+          offerRedemptions: { value: 0, deltaPct: 0 },
         },
       };
     });
   }
-
-  // ── Endpoint 2: verification trend + breakdown ────────────────────────────
 
   async getVerifications(
     tab: AudienceTab,
@@ -173,8 +155,6 @@ export class AdminReportsService {
       };
     });
   }
-
-  // ── Endpoint 3: credits-by-plan + signups trend ───────────────────────────
 
   async getDistribution(
     tab: AudienceTab,
@@ -208,9 +188,6 @@ export class AdminReportsService {
     });
   }
 
-  // ─── Query helpers ────────────────────────────────────────────────────────
-
-  /** Verification totals for current AND previous range, in one statement. */
   private async queryVerificationStatTotals(
     range: DateRange,
     prev: DateRange,
@@ -458,8 +435,6 @@ export class AdminReportsService {
     }));
   }
 
-  // ─── Internals ────────────────────────────────────────────────────────────
-
   private audienceJoinClause(tab: AudienceTab): AudienceJoin {
     if (tab === 'enterprise') {
       return {
@@ -521,7 +496,6 @@ export class AdminReportsService {
     return dt.toISOString().slice(0, 10);
   }
 
-  /** Memoize per (key, range) for 30 seconds. */
   private async memo<T>(
     key: string,
     range: DateRange,

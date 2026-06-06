@@ -26,7 +26,6 @@ export class TicketMessage {
   @Column({ name: 'ticket_id', type: 'uuid' })
   ticketId!: string;
 
-  /** Either a users.id or admins.id depending on senderRole. */
   @Column({ name: 'sender_id', type: 'uuid' })
   senderId!: string;
 

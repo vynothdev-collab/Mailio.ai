@@ -1,10 +1,7 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AdminJwtGuard } from '../admin-auth/guards/admin-jwt.guard';
-import {
-  AdminDashboardService,
-  OverviewTab,
-} from './admin-dashboard.service';
+import { AdminDashboardService, OverviewTab } from './admin-dashboard.service';
 
 @ApiTags('admin-dashboard')
 @ApiBearerAuth()

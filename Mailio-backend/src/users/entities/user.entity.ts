@@ -42,7 +42,12 @@ export class User {
   @Column({ type: 'varchar', length: 255, unique: true })
   email: string;
 
-  @Column({ name: 'password_hash', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'password_hash',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   passwordHash: string | null;
 
   @Column({ type: 'varchar', length: 255 })
@@ -63,23 +68,15 @@ export class User {
   @Column({ name: 'created_by_user_id', type: 'uuid', nullable: true })
   createdByUserId!: string | null;
 
-  // Per-user credit balance. Used only for role=USER. Enterprise members
-  // consume from Enterprise.creditBalance instead.
   @Column({ name: 'credit_balance', type: 'bigint', default: 0 })
   creditBalance!: string;
 
   @Column({ name: 'credits_used', type: 'bigint', default: 0 })
   creditsUsed!: string;
 
-  /**
-   * For ENTERPRISE_USER: the max credits the enterprise admin has allocated
-   * to this user. NULL means no limit has been set (user can't consume until
-   * an allocation is set). Not used for other roles.
-   */
   @Column({ name: 'credit_limit', type: 'bigint', nullable: true })
   creditLimit!: string | null;
 
-  /** Expiry date for this user's credits. NULL means no explicit expiry. */
   @Column({ name: 'credit_expires_at', type: 'timestamptz', nullable: true })
   creditExpiresAt!: Date | null;
 

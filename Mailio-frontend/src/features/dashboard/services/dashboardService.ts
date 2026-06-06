@@ -1,16 +1,8 @@
 import { dashboardService as apiDashboardService } from "@/src/services/dashboardService";
-import type {
-  DashboardChartResponse,
-  DashboardStatsResponse,
-} from "@/src/types/dashboard";
+import type { DashboardChartResponse, DashboardStatsResponse } from "@/src/types/dashboard";
 import type { BulkActiveJobDto } from "@/src/types/bulk";
 import type { ApiError } from "@/src/types/auth";
-import type {
-  ActiveVerification,
-  ChartDataPoint,
-  DashboardData,
-  StatItem,
-} from "../types";
+import type { ActiveVerification, ChartDataPoint, DashboardData, StatItem } from "../types";
 import { MOCK_RECENT_VERIFICATIONS } from "../mock/verifications";
 
 function formatInt(n: number): string {
@@ -31,44 +23,44 @@ function mapStats(res: DashboardStatsResponse): StatItem[] {
   const c = res.changes ?? {};
   return [
     {
-      id:           "total-verified",
-      label:        "Total Verified",
-      value:        formatInt(res.totalVerified ?? 0),
-      change:       parseChange(c.totalVerified),
+      id: "total-verified",
+      label: "Total Verified",
+      value: formatInt(res.totalVerified ?? 0),
+      change: parseChange(c.totalVerified),
       changePeriod: "vs last 7 days",
-      iconName:     "Mail",
-      iconColor:    "text-blue-600",
-      iconBgColor:  "bg-blue-50",
+      iconName: "Mail",
+      iconColor: "text-blue-600",
+      iconBgColor: "bg-blue-50",
     },
     {
-      id:           "valid-rate",
-      label:        "Valid Rate",
-      value:        formatPercent(res.validRate ?? 0),
-      change:       parseChange(c.validRate),
+      id: "valid-rate",
+      label: "Valid Rate",
+      value: formatPercent(res.validRate ?? 0),
+      change: parseChange(c.validRate),
       changePeriod: "deliverable inboxes",
-      iconName:     "ShieldCheck",
-      iconColor:    "text-emerald-600",
-      iconBgColor:  "bg-emerald-50",
+      iconName: "ShieldCheck",
+      iconColor: "text-emerald-600",
+      iconBgColor: "bg-emerald-50",
     },
     {
-      id:           "invalid-rate",
-      label:        "Invalid Rate",
-      value:        formatPercent(res.invalidRate ?? 0),
-      change:       parseChange(c.catchallEmails),
+      id: "invalid-rate",
+      label: "Invalid Rate",
+      value: formatPercent(res.invalidRate ?? 0),
+      change: parseChange(c.catchallEmails),
       changePeriod: "hard bounces blocked",
-      iconName:     "AlertTriangle",
-      iconColor:    "text-red-500",
-      iconBgColor:  "bg-red-50",
+      iconName: "AlertTriangle",
+      iconColor: "text-red-500",
+      iconBgColor: "bg-red-50",
     },
     {
-      id:           "catchall-rate",
-      label:        "Catchall Rate",
-      value:        formatPercent(res.catchallRate ?? 0),
-      change:       parseChange(c.catchallRate),
+      id: "catchall-rate",
+      label: "Catchall Rate",
+      value: formatPercent(res.catchallRate ?? 0),
+      change: parseChange(c.catchallRate),
       changePeriod: "hard bounces blocked",
-      iconName:     "AlertTriangle",
-      iconColor:    "text-amber-600",
-      iconBgColor:  "bg-amber-50",
+      iconName: "AlertTriangle",
+      iconColor: "text-amber-600",
+      iconBgColor: "bg-amber-50",
     },
   ];
 }
@@ -79,35 +71,33 @@ function mapChart(res: DashboardChartResponse): ChartDataPoint[] {
   return res.data
     .filter((p) => VISIBLE_BUCKETS.has(p.name))
     .map((p) => ({
-      name:       p.name,
-      value:      p.value,
+      name: p.name,
+      value: p.value,
       percentage: `${Math.round(p.percentage)}%`,
-      color:      p.color,
+      color: p.color,
     }));
 }
 
 function mapActiveJob(job: BulkActiveJobDto | null): ActiveVerification | null {
   if (!job) return null;
   return {
-    fileName:       job.fileName,
-    progress:       job.progress,
+    fileName: job.fileName,
+    progress: job.progress,
     processedCount: job.processedCount,
-    totalCount:     job.totalCount,
-    etaSeconds:     job.etaSeconds,
-    startedAt:      job.startedAt
-      ? new Date(job.startedAt).toLocaleString()
-      : "—",
-    valid:          job.valid,
-    invalid:        job.invalid,
-    catchall:          job.catchall,
-    disposable:     job.disposable,
+    totalCount: job.totalCount,
+    etaSeconds: job.etaSeconds,
+    startedAt: job.startedAt ? new Date(job.startedAt).toLocaleString() : "—",
+    valid: job.valid,
+    invalid: job.invalid,
+    catchall: job.catchall,
+    disposable: job.disposable,
   };
 }
 
 export async function fetchDashboardData(signal?: AbortSignal): Promise<DashboardData> {
-  let stats:              StatItem[];
-  let chartData:          ChartDataPoint[];
-  let chartTotal:         number;
+  let stats: StatItem[];
+  let chartData: ChartDataPoint[];
+  let chartTotal: number;
   let activeVerification: ActiveVerification | null = null;
 
   try {
@@ -116,9 +106,9 @@ export async function fetchDashboardData(signal?: AbortSignal): Promise<Dashboar
       apiDashboardService.getDashboardChart("30d", signal),
       apiDashboardService.getActiveJob(signal).catch(() => null),
     ]);
-    chartData          = mapChart(chartRes);
-    chartTotal         = statsRes.totalVerified ?? chartData.reduce((sum, p) => sum + p.value, 0);
-    stats              = mapStats(statsRes);
+    chartData = mapChart(chartRes);
+    chartTotal = statsRes.totalVerified ?? chartData.reduce((sum, p) => sum + p.value, 0);
+    stats = mapStats(statsRes);
     activeVerification = mapActiveJob(activeRes);
   } catch (err) {
     const apiErr = err as ApiError;

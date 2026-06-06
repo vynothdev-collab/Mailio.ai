@@ -14,7 +14,6 @@ import { AdminDto } from './dto/admin-dto';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { Admin, AdminRole } from './entities/admin.entity';
 
-// Dummy hash used for constant-time comparison when admin email not found
 const DUMMY_HASH =
   '$2b$10$abcdefghijklmnopqrstuvuDummyHashForTimingAttackPrevention';
 
@@ -31,7 +30,6 @@ export class AdminAuthService {
   async login(email: string, password: string): Promise<{ message: string }> {
     const admin = await this.adminRepo.findOne({ where: { email } });
 
-    // Always run bcrypt.compare to prevent timing attacks on non-existent emails
     const hashToCompare = admin?.passwordHash ?? DUMMY_HASH;
     const valid = await bcrypt.compare(password, hashToCompare);
 
@@ -72,7 +70,6 @@ export class AdminAuthService {
   async resendOtp(email: string): Promise<{ message: string }> {
     const admin = await this.adminRepo.findOne({ where: { email } });
 
-    // Safe response even for unknown emails to prevent enumeration
     if (!admin || !admin.isActive) {
       return {
         message: 'If that email is registered, a new code has been sent.',

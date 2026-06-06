@@ -33,10 +33,6 @@ export class BillingPlansController {
     return this.service.getActivePlans(user.role);
   }
 
-  /**
-   * BACKWARD-COMPATIBLE: existing clients hit /activate.
-   * Routes to the subscription system (validity or topup based on plan category).
-   */
   @Post('plans/:planId/activate')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -49,7 +45,6 @@ export class BillingPlansController {
     return this.service.activatePlan(user, planId);
   }
 
-  /** New explicit endpoint for purchasing a validity-based plan. */
   @Post('plans/:planId/purchase')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -73,7 +68,6 @@ export class BillingPlansController {
     return { success: true, subscription: sub };
   }
 
-  /** New explicit endpoint for purchasing a topup plan. */
   @Post('plans/:planId/topup')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

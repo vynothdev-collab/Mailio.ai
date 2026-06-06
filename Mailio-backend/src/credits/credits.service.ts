@@ -48,7 +48,7 @@ interface CreditAccountSnapshot {
 interface MutationOptions {
   type: CreditTransactionType;
   reason: CreditTransactionReason;
-  delta: number; // signed; negative = debit, positive = credit
+  delta: number;
   referenceType?: string | null;
   referenceId?: string | null;
   description?: string | null;
@@ -56,15 +56,6 @@ interface MutationOptions {
   createdByUserId?: string | null;
 }
 
-/**
- * Central credit accounting. All balance mutations go through this service
- * inside a SERIALIZABLE row lock so concurrent verifications cannot oversell.
- *
- * Account resolution:
- *   - Enterprise members (ENTERPRISE_USER, ENTERPRISE_ADMIN) consume from
- *     the shared enterprise balance.
- *   - All other users (USER, SUPER_ADMIN) consume from their own balance.
- */
 @Injectable()
 export class CreditsService {
   private readonly logger = new Logger(CreditsService.name);
@@ -76,7 +67,6 @@ export class CreditsService {
     private readonly subscriptions: SubscriptionsService,
   ) {}
 
-  /** Resolves the credit account the user draws from, without locking. */
   async getEffectiveAccount(user: User): Promise<CreditAccountSnapshot> {
     if (this.usesEnterpriseBalance(user)) {
       if (!user.enterpriseId) {
@@ -110,7 +100,6 @@ export class CreditsService {
   async ensureSufficient(user: User, required: number): Promise<void> {
     if (required <= 0) return;
 
-    // Enterprise users are additionally capped by their individual credit_limit.
     if (user.role === UserRole.ENTERPRISE_USER && user.creditLimit !== null) {
       const limit = Number(user.creditLimit);
       const used = Number(user.creditsUsed ?? 0);
@@ -125,8 +114,6 @@ export class CreditsService {
       throw new InsufficientCreditsException(required, account.balance);
     }
 
-    // Expiry guard — expired credits should not be usable. The expiry cron
-    // normally zeroes the balance, but this catches the gap before the next tick.
     await this.assertNotExpired(account.type, account.id);
   }
 
@@ -147,12 +134,6 @@ export class CreditsService {
     }
   }
 
-  // ---------- Verification credit flows ----------
-
-  /**
-   * Deduct exactly 1 credit for a synchronous single verification.
-   * Throws InsufficientCreditsException if the caller has no credits left.
-   */
   async deductForSingleVerify(
     user: User,
     referenceId: string,
@@ -168,12 +149,6 @@ export class CreditsService {
     });
   }
 
-  /**
-   * Reserve N credits up-front for a bulk job. Reservation is just a debit
-   * on the account balance with a RESERVATION transaction row — it is the
-   * caller's responsibility to issue REFUND transactions for unused credits
-   * once the job reaches a terminal state.
-   */
   async reserveForBulk(
     user: User,
     listId: string,
@@ -193,12 +168,6 @@ export class CreditsService {
     });
   }
 
-  /**
-   * Refund N credits back to the original account that funded a bulk job.
-   * Use for emails that failed for system/provider reasons and should not
-   * be charged. Refund is bounded by the actually reserved amount, which
-   * the caller must track on the email_list row.
-   */
   async refundBulk(
     accountType: CreditAccountType,
     accountId: string,
@@ -221,12 +190,6 @@ export class CreditsService {
     });
   }
 
-  /**
-   * Reserve N credits for a bulk job by looking up the list owner. Returns
-   * `null` if the user does not exist (caller treats as a hard failure).
-   * Also bumps `email_lists.credits_reserved` by N. Used by the retry path
-   * where we only have a userId, not a full User entity.
-   */
   async reserveForBulkByOwnerId(
     listId: string,
     ownerUserId: string,
@@ -260,16 +223,6 @@ export class CreditsService {
     return result;
   }
 
-  /**
-   * Refund N credits to the account that funded the given bulk list, by
-   * resolving the list owner's effective account. The caller MUST gate this
-   * on an idempotency signal (e.g., `markFailed` returning `transitioned=true`)
-   * — this method does not deduplicate by itself.
-   *
-   * Also bumps `email_lists.credits_refunded` for reconciliation. This counter
-   * is denormalized; the ledger (`credit_transactions`) remains the source of
-   * truth.
-   */
   async refundBulkByListOwner(
     listId: string,
     ownerUserId: string,
@@ -306,7 +259,6 @@ export class CreditsService {
         { userId: ownerUserId },
       );
 
-      // Bump the per-list refunded counter. Best-effort; ledger is authoritative.
       try {
         await this.dataSource.query(
           `UPDATE email_lists
@@ -332,8 +284,6 @@ export class CreditsService {
       throw e;
     }
   }
-
-  // ---------- Super Admin allocation ----------
 
   async allocateToUser(
     targetUserId: string,
@@ -371,20 +321,10 @@ export class CreditsService {
     });
   }
 
-  // ---------- Internal: locked mutation ----------
-
   private usesEnterpriseBalance(user: User): boolean {
-    // Only ENTERPRISE_USER and ENTERPRISE_ADMIN draw from the shared
-    // enterprise balance. USER and SUPER_ADMIN always use their own balance,
-    // even if `enterpriseId` is set on the row (which validation prevents).
     return ENTERPRISE_ROLES.includes(user.role);
   }
 
-  /**
-   * Apply a mutation to the account the user draws from.
-   * For enterprise members consuming credits, also bumps their personal
-   * `credits_used` counter so per-user tracking stays accurate.
-   */
   private async mutate(
     user: User,
     opts: MutationOptions,
@@ -394,7 +334,6 @@ export class CreditsService {
         throw new ForbiddenException('Enterprise account is missing.');
       }
 
-      // Enforce per-user credit limit for ENTERPRISE_USER before touching the pool.
       if (
         user.role === UserRole.ENTERPRISE_USER &&
         user.creditLimit !== null &&
@@ -417,7 +356,6 @@ export class CreditsService {
         opts,
       );
 
-      // Track per-user consumption so Enterprise Admin can see per-user usage.
       const usedDelta = this.usedDeltaFor(opts);
       if (usedDelta !== 0) {
         await this.dataSource.query(
@@ -434,10 +372,6 @@ export class CreditsService {
     return this.mutateByAccount(CreditAccountType.USER, user.id, opts);
   }
 
-  /**
-   * Atomically (a) lock the account row, (b) verify sufficient funds for
-   * debits, (c) update the balance, (d) write an immutable ledger entry.
-   */
   private async mutateByAccount(
     accountType: CreditAccountType,
     accountId: string,
@@ -481,12 +415,6 @@ export class CreditsService {
       });
       await em.save(tx);
 
-      // ATOMIC: subscription counter update commits with the live balance.
-      // If this throws, the live-balance change is rolled back too, so we
-      // never end up with `users.credit_balance` and `subscriptions.remaining_credits`
-      // out of sync. Locks: user/enterprise row already held FOR UPDATE; we
-      // then acquire row locks on the affected subscription rows. Lock order
-      // is deterministic (account → subs) so no deadlocks.
       if (
         opts.delta < 0 &&
         (opts.type === CreditTransactionType.DEDUCTION ||
@@ -498,10 +426,7 @@ export class CreditsService {
           Math.abs(opts.delta),
           em,
         );
-      } else if (
-        opts.delta > 0 &&
-        opts.type === CreditTransactionType.REFUND
-      ) {
+      } else if (opts.delta > 0 && opts.type === CreditTransactionType.REFUND) {
         await this.subscriptions.recordRefund(
           accountType,
           accountId,
@@ -543,8 +468,6 @@ export class CreditsService {
     const table =
       accountType === CreditAccountType.ENTERPRISE ? 'enterprises' : 'users';
 
-    // Track lifetime credits_used as a running positive total of all debits.
-    // Refunds reduce credits_used; allocations don't affect it.
     const usedDelta = this.usedDeltaFor(opts);
 
     await em.query(
@@ -557,12 +480,6 @@ export class CreditsService {
     );
   }
 
-  /**
-   * Converts the pending RESERVATION transaction for a bulk list to a DEDUCTION
-   * once the job reaches a terminal (COMPLETED) state. This is a best-effort
-   * update — callers must wrap in try/catch so a failure here does not block
-   * the job from being marked done.
-   */
   async finalizeReservation(listId: string): Promise<void> {
     await this.dataSource.query(
       `UPDATE credit_transactions
@@ -582,9 +499,9 @@ export class CreditsService {
     switch (opts.type) {
       case CreditTransactionType.DEDUCTION:
       case CreditTransactionType.RESERVATION:
-        return -opts.delta; // delta is negative; usedDelta positive
+        return -opts.delta;
       case CreditTransactionType.REFUND:
-        return -opts.delta; // delta positive; usedDelta negative
+        return -opts.delta;
       case CreditTransactionType.ALLOCATION:
       case CreditTransactionType.ADJUSTMENT:
       default:

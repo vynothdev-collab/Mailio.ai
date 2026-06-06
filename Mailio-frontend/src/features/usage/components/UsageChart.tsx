@@ -2,20 +2,28 @@
 
 import { memo } from "react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
 } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { UsageChartPoint } from "@/src/types/usage";
 
 interface Props {
-  data:    UsageChartPoint[];
+  data: UsageChartPoint[];
   loading: boolean;
 }
 
 function CustomTooltip({
-  active, payload, label,
+  active,
+  payload,
+  label,
 }: {
   active?: boolean;
   payload?: { name: string; value: number; color: string }[];
@@ -27,7 +35,10 @@ function CustomTooltip({
       <p className="font-semibold text-slate-700 mb-1">{label}</p>
       {payload.map((p) => (
         <p key={p.name} style={{ color: p.color }} className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full inline-block" style={{ backgroundColor: p.color }} />
+          <span
+            className="h-2 w-2 rounded-full inline-block"
+            style={{ backgroundColor: p.color }}
+          />
           {p.name}: <span className="font-semibold ml-0.5">{p.value.toLocaleString()}</span>
         </p>
       ))}
@@ -71,7 +82,7 @@ export const UsageChart = memo(function UsageChart({ data, loading }: Props) {
                   wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
                 />
                 <Bar dataKey="single" name="Single" fill="#3b82f6" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="bulk"   name="Bulk"   fill="#d946ef" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="bulk" name="Bulk" fill="#d946ef" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}

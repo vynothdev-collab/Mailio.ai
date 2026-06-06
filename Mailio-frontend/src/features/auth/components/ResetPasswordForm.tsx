@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type KeyboardEvent,
+} from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -15,7 +22,7 @@ import type { ApiError } from "@/src/types/auth";
 const OTP_LENGTH = 6;
 
 interface PasswordFormData {
-  newPassword:     string;
+  newPassword: string;
   confirmPassword: string;
 }
 
@@ -24,7 +31,6 @@ export function ResetPasswordForm() {
   const params = useSearchParams();
   const email = params.get("email") ?? "";
 
-  // ── Step 1: OTP entry ──────────────────────────────────────────────────────
   const [step, setStep] = useState<"otp" | "password">("otp");
   const [verifiedOtp, setVerifiedOtp] = useState("");
 
@@ -57,12 +63,15 @@ export function ResetPasswordForm() {
     inputsRef.current[0]?.focus();
     if (!email) return;
     let cancelled = false;
-    authService.getOtpStatus(email, "PASSWORD_RESET")
+    authService
+      .getOtpStatus(email, "PASSWORD_RESET")
       .then(({ remainingSeconds }) => {
         if (cancelled) return;
         if (remainingSeconds > 0) startTimer(remainingSeconds);
       })
-      .catch(() => { if (!cancelled) startTimer(60); });
+      .catch(() => {
+        if (!cancelled) startTimer(60);
+      });
     return () => {
       cancelled = true;
       if (timerRef.current !== null) window.clearInterval(timerRef.current);
@@ -70,13 +79,20 @@ export function ResetPasswordForm() {
   }, []);
 
   const setDigitAt = (index: number, value: string) => {
-    setDigits((prev) => { const next = [...prev]; next[index] = value; return next; });
+    setDigits((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
   };
 
   const handleChange = (index: number, raw: string) => {
     setOtpError("");
     const value = raw.replace(/\D/g, "");
-    if (!value) { setDigitAt(index, ""); return; }
+    if (!value) {
+      setDigitAt(index, "");
+      return;
+    }
     if (value.length === 1) {
       setDigitAt(index, value);
       inputsRef.current[index + 1]?.focus();
@@ -85,7 +101,9 @@ export function ResetPasswordForm() {
     const chars = value.slice(0, OTP_LENGTH - index).split("");
     setDigits((prev) => {
       const next = [...prev];
-      chars.forEach((c, i) => { next[index + i] = c; });
+      chars.forEach((c, i) => {
+        next[index + i] = c;
+      });
       return next;
     });
     inputsRef.current[Math.min(index + chars.length, OTP_LENGTH - 1)]?.focus();
@@ -108,17 +126,28 @@ export function ResetPasswordForm() {
     if (!text) return;
     e.preventDefault();
     const chars = text.split("");
-    setDigits(() => { const next = Array(OTP_LENGTH).fill(""); chars.forEach((c, i) => { next[i] = c; }); return next; });
+    setDigits(() => {
+      const next = Array(OTP_LENGTH).fill("");
+      chars.forEach((c, i) => {
+        next[i] = c;
+      });
+      return next;
+    });
     inputsRef.current[Math.min(chars.length, OTP_LENGTH - 1)]?.focus();
   };
 
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) { toast.error("Missing email. Please start again."); return; }
-    if (!otpComplete) { setOtpError("Enter the 6-digit code."); return; }
+    if (!email) {
+      toast.error("Missing email. Please start again.");
+      return;
+    }
+    if (!otpComplete) {
+      setOtpError("Enter the 6-digit code.");
+      return;
+    }
     setOtpSubmitting(true);
     try {
-      // Optimistically move to next step; actual verify happens on final submit
       setVerifiedOtp(otp);
       setStep("password");
     } finally {
@@ -144,7 +173,6 @@ export function ResetPasswordForm() {
     }
   };
 
-  // ── Step 2: new password ───────────────────────────────────────────────────
   const [pwLoading, setPwLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -168,7 +196,7 @@ export function ResetPasswordForm() {
       const apiErr = err as ApiError;
       const msg = apiErr?.message ?? "Reset failed. The code may have expired.";
       toast.error(msg);
-      // If OTP was wrong/expired, go back to OTP step
+
       setStep("otp");
       setDigits(Array(OTP_LENGTH).fill(""));
       setVerifiedOtp("");
@@ -196,7 +224,6 @@ export function ResetPasswordForm() {
     );
   }
 
-  // ── OTP step ───────────────────────────────────────────────────────────────
   if (step === "otp") {
     return (
       <div className="space-y-5 sm:space-y-7">
@@ -223,7 +250,9 @@ export function ResetPasswordForm() {
               {digits.map((d, i) => (
                 <input
                   key={i}
-                  ref={(el) => { inputsRef.current[i] = el; }}
+                  ref={(el) => {
+                    inputsRef.current[i] = el;
+                  }}
                   type="text"
                   inputMode="numeric"
                   autoComplete={i === 0 ? "one-time-code" : "off"}
@@ -248,7 +277,11 @@ export function ResetPasswordForm() {
                 disabled={cooldown > 0 || resending}
                 className="text-xs font-medium text-[#2563eb] hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline sm:text-sm"
               >
-                {resending ? "Sending…" : cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
+                {resending
+                  ? "Sending…"
+                  : cooldown > 0
+                    ? `Resend code in ${cooldown}s`
+                    : "Resend code"}
               </button>
             </div>
           </div>
@@ -259,7 +292,9 @@ export function ResetPasswordForm() {
             className="h-11 w-full rounded-lg bg-[#162D3A] text-sm text-white hover:bg-[#0e1f29] disabled:opacity-60 sm:h-12 sm:text-base"
           >
             {otpSubmitting ? (
-              <><Loader2 size={16} className="animate-spin" /> Verifying…</>
+              <>
+                <Loader2 size={16} className="animate-spin" /> Verifying…
+              </>
             ) : (
               "Continue"
             )}
@@ -275,7 +310,6 @@ export function ResetPasswordForm() {
     );
   }
 
-  // ── New password step ──────────────────────────────────────────────────────
   return (
     <div className="space-y-5 sm:space-y-7">
       <div className="space-y-1.5 sm:space-y-2">
@@ -356,7 +390,9 @@ export function ResetPasswordForm() {
           className="h-11 w-full rounded-lg bg-[#162D3A] text-sm text-white hover:bg-[#0e1f29] disabled:opacity-60 sm:h-12 sm:text-base"
         >
           {pwLoading ? (
-            <><Loader2 size={16} className="animate-spin" /> Resetting…</>
+            <>
+              <Loader2 size={16} className="animate-spin" /> Resetting…
+            </>
           ) : (
             "Reset password"
           )}

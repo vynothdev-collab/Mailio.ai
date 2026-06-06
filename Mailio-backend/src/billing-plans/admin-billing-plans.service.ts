@@ -102,7 +102,6 @@ export class AdminBillingPlansService {
     return this.repo.save(plan);
   }
 
-  /** Soft-deletes by setting deleted_at; preserves history. */
   async delete(id: string): Promise<{ success: boolean }> {
     const plan = await this.repo.findOne({ where: { id } });
     if (!plan) throw new NotFoundException('Plan not found or already deleted');

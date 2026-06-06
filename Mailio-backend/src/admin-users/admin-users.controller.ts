@@ -75,7 +75,10 @@ export class AdminUsersController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List users with search and filters (role, enterprise, plan, status)' })
+  @ApiOperation({
+    summary:
+      'List users with search and filters (role, enterprise, plan, status)',
+  })
   findAll(
     @Query('search') search?: string,
     @Query('plan') plan?: string,

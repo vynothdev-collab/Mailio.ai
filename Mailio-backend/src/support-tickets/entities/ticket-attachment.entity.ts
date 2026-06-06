@@ -31,11 +31,9 @@ export class TicketAttachment {
   @Column({ name: 'uploaded_by_type', type: 'varchar', length: 32 })
   uploadedByType!: AttachmentUploaderType;
 
-  /** Sanitised file name we store (basis for S3 key suffix). */
   @Column({ name: 'file_name', type: 'varchar', length: 255 })
   fileName!: string;
 
-  /** What the user uploaded — used for Content-Disposition on downloads. */
   @Column({ name: 'original_name', type: 'varchar', length: 255 })
   originalName!: string;
 
@@ -51,7 +49,6 @@ export class TicketAttachment {
   @Column({ name: 's3_key', type: 'text' })
   s3Key!: string;
 
-  /** Cached static URL (only useful when bucket is public-read). */
   @Column({ name: 's3_url', type: 'text', nullable: true })
   s3Url!: string | null;
 

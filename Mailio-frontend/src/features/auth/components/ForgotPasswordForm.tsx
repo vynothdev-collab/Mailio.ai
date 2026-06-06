@@ -65,9 +65,7 @@ export function ForgotPasswordForm() {
               pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email." },
             })}
           />
-          {errors.email && (
-            <p className="text-xs text-destructive">{errors.email.message}</p>
-          )}
+          {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
         </div>
 
         <Button
@@ -76,7 +74,9 @@ export function ForgotPasswordForm() {
           className="h-11 w-full rounded-lg bg-[#162D3A] text-sm text-white hover:bg-[#0e1f29] disabled:opacity-60 sm:h-12 sm:text-base"
         >
           {loading ? (
-            <><Loader2 size={16} className="animate-spin" /> Sending…</>
+            <>
+              <Loader2 size={16} className="animate-spin" /> Sending…
+            </>
           ) : (
             "Send reset code"
           )}

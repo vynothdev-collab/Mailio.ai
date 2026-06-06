@@ -3,30 +3,30 @@ import { downloadFile } from "@/src/lib/download";
 import type { VerificationResponse } from "@/src/types/verification";
 
 export interface SingleRecentItem {
-  id:         string;
-  email:      string;
-  status:     "valid" | "invalid" | "catchall" | "unknown";
-  catchall:   "low" | "medium" | "high" | "unknown";
+  id: string;
+  email: string;
+  status: "valid" | "invalid" | "catchall" | "unknown";
+  catchall: "low" | "medium" | "high" | "unknown";
   verifiedAt: string;
 }
 
 interface SingleRecentResponse {
-  data:  SingleRecentItem[];
+  data: SingleRecentItem[];
   total: number;
-  page:  number;
+  page: number;
   limit: number;
 }
 
 export interface SingleStatsDto {
-  todayCount:    number;
-  successRate:   number;
-  apiUsage:      number;
+  todayCount: number;
+  successRate: number;
+  apiUsage: number;
   avgResponseMs: number;
-  invalidRate?:  number;
+  invalidRate?: number;
   catchallRate?: number;
   changes: {
-    todayCount:    string;
-    successRate:   string;
+    todayCount: string;
+    successRate: string;
     avgResponseMs: string;
   };
 }
@@ -37,11 +37,7 @@ export const verificationService = {
     return data;
   },
 
-  async getRecent(
-    page = 1,
-    limit = 50,
-    signal?: AbortSignal,
-  ): Promise<SingleRecentResponse> {
+  async getRecent(page = 1, limit = 50, signal?: AbortSignal): Promise<SingleRecentResponse> {
     const { data } = await api.get<SingleRecentResponse>("/verify/single/recent", {
       params: { page, limit },
       signal,

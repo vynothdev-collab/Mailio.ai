@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import {
-  Mail, CheckCircle2, XCircle, AlertTriangle, Loader2, X,
-} from "lucide-react";
+import { Mail, CheckCircle2, XCircle, AlertTriangle, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,25 +12,65 @@ import { verificationService } from "@/src/services/verificationService";
 import type { ApiError } from "@/src/types/auth";
 import type { VerificationResponse } from "@/src/types/verification";
 
-interface FormData { email: string }
+interface FormData {
+  email: string;
+}
 
 interface Props {
   onVerified?: () => void;
 }
 
-const STATUS_STYLES: Record<string, { bg: string; border: string; text: string; Icon: React.ElementType; label: string }> = {
-  valid:      { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700",       Icon: CheckCircle2,  label: "Valid"      },
-  invalid:    { bg: "bg-red-50",     border: "border-red-200",     text: "text-red-700",           Icon: XCircle,       label: "Invalid"    },
-  catchall:      { bg: "bg-amber-50",   border: "border-amber-200",   text: "text-amber-700",         Icon: AlertTriangle, label: "Catchall"      },
-  disposable: { bg: "bg-violet-50",  border: "border-violet-200",  text: "text-violet-700",        Icon: AlertTriangle, label: "Disposable" },
-  unknown:    { bg: "bg-muted",      border: "border-border",      text: "text-muted-foreground",  Icon: AlertTriangle, label: "Unknown"    },
+const STATUS_STYLES: Record<
+  string,
+  { bg: string; border: string; text: string; Icon: React.ElementType; label: string }
+> = {
+  valid: {
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    text: "text-emerald-700",
+    Icon: CheckCircle2,
+    label: "Valid",
+  },
+  invalid: {
+    bg: "bg-red-50",
+    border: "border-red-200",
+    text: "text-red-700",
+    Icon: XCircle,
+    label: "Invalid",
+  },
+  catchall: {
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    text: "text-amber-700",
+    Icon: AlertTriangle,
+    label: "Catchall",
+  },
+  disposable: {
+    bg: "bg-violet-50",
+    border: "border-violet-200",
+    text: "text-violet-700",
+    Icon: AlertTriangle,
+    label: "Disposable",
+  },
+  unknown: {
+    bg: "bg-muted",
+    border: "border-border",
+    text: "text-muted-foreground",
+    Icon: AlertTriangle,
+    label: "Unknown",
+  },
 };
 
 function formatVerifiedAt(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? iso
-    : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    : d.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 }
 
 function LastVerificationPanel({
@@ -44,13 +82,7 @@ function LastVerificationPanel({
 }) {
   const cfg = STATUS_STYLES[result.status] ?? STATUS_STYLES.unknown;
   return (
-    <div
-      className={cn(
-        "mt-4 rounded-xl border p-3 space-y-2",
-        cfg.bg, cfg.border,
-      )}
-      role="status"
-    >
+    <div className={cn("mt-4 rounded-xl border p-3 space-y-2", cfg.bg, cfg.border)} role="status">
       <div className="flex items-start gap-2">
         <cfg.Icon size={16} className={cn("shrink-0 mt-0.5", cfg.text)} />
         <div className="min-w-0 flex-1">
@@ -66,10 +98,13 @@ function LastVerificationPanel({
             </button>
           </div>
           <div className="mt-0.5 flex items-center gap-2 flex-wrap">
-            <span className={cn(
-              "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-              cfg.text, cfg.border,
-            )}>
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+                cfg.text,
+                cfg.border
+              )}
+            >
               {cfg.label}
             </span>
           </div>
@@ -85,9 +120,13 @@ function LastVerificationPanel({
 
 export function SingleVerifyCard({ onVerified }: Props) {
   const [verifying, setVerifying] = useState(false);
-  const [result,    setResult]    = useState<VerificationResponse | null>(null);
+  const [result, setResult] = useState<VerificationResponse | null>(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormData>();
 
   const onSubmit = async ({ email }: FormData) => {
     setVerifying(true);
@@ -121,7 +160,10 @@ export function SingleVerifyCard({ onVerified }: Props) {
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-3">
           <div className="relative">
-            <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <Mail
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+            />
             <Input
               type="email"
               placeholder="name@company.com"
@@ -129,14 +171,15 @@ export function SingleVerifyCard({ onVerified }: Props) {
               className="pl-9 h-10 text-sm md:text-base placeholder:text-xs md:placeholder:text-sm"
               {...register("email", {
                 required: "Email is required.",
-                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email address." },
+                pattern: {
+                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: "Enter a valid email address.",
+                },
               })}
             />
           </div>
 
-          {errors.email && (
-            <p className="text-xs text-destructive">{errors.email.message}</p>
-          )}
+          {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
 
           <Button
             type="submit"
@@ -145,12 +188,26 @@ export function SingleVerifyCard({ onVerified }: Props) {
             className="w-full rounded-full border-0 bg-[#0F5BFF] text-white hover:bg-[#0A4BD9] disabled:bg-[#7EA6FF] disabled:opacity-100 h-11"
           >
             {verifying ? (
-              <><Loader2 size={15} className="animate-spin" /> Verifying…</>
+              <>
+                <Loader2 size={15} className="animate-spin" /> Verifying…
+              </>
             ) : (
               <>
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                  <path d="M12.8334 1.16675L8.75002 12.8334L6.41669 7.58341L1.16669 5.25008L12.8334 1.16675Z" stroke="white" strokeWidth="1.28333" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M12.8334 1.16675L6.41669 7.58341" stroke="white" strokeWidth="1.28333" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path
+                    d="M12.8334 1.16675L8.75002 12.8334L6.41669 7.58341L1.16669 5.25008L12.8334 1.16675Z"
+                    stroke="white"
+                    strokeWidth="1.28333"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M12.8334 1.16675L6.41669 7.58341"
+                    stroke="white"
+                    strokeWidth="1.28333"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
                 Verify Now
               </>
@@ -162,9 +219,7 @@ export function SingleVerifyCard({ onVerified }: Props) {
           We check syntax, domain, mailbox &amp; catch-all in &lt; 1.5s
         </p>
 
-        {result && (
-          <LastVerificationPanel result={result} onDismiss={() => setResult(null)} />
-        )}
+        {result && <LastVerificationPanel result={result} onDismiss={() => setResult(null)} />}
       </CardContent>
     </Card>
   );

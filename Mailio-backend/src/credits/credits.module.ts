@@ -8,7 +8,7 @@ import { CreditsService } from './credits.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([CreditTransaction, Enterprise]),
-    SubscriptionsModule, // for subscription-aware deduction tracking
+    SubscriptionsModule,
   ],
   providers: [CreditsService],
   exports: [CreditsService, TypeOrmModule],

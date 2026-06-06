@@ -36,13 +36,15 @@ export function DangerZoneCard() {
           <div>
             <p className="text-sm font-semibold">Delete Account</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Permanently delete your account and all associated data — verifications, API keys, and billing history. This cannot be undone.
+              Permanently delete your account and all associated data — verifications, API keys, and
+              billing history. This cannot be undone.
             </p>
           </div>
 
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">
-              Type <span className="font-mono font-semibold text-foreground">{CONFIRM_PHRASE}</span> to confirm
+              Type <span className="font-mono font-semibold text-foreground">{CONFIRM_PHRASE}</span>{" "}
+              to confirm
             </label>
             <Input
               value={value}

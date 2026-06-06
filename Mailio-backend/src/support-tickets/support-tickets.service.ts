@@ -28,8 +28,6 @@ import {
   TicketMessageSenderRole,
 } from './entities/ticket-message.entity';
 
-// ─── Attachment policy ──────────────────────────────────────────────────────
-
 const ALLOWED_IMAGE_MIMES = new Set([
   'image/jpeg',
   'image/jpg',
@@ -42,7 +40,7 @@ const ALLOWED_VIDEO_MIMES = new Set([
   'video/quicktime',
 ]);
 
-const MAX_TOTAL_BYTES = 5 * 1024 * 1024; // 5 MB combined per ticket request
+const MAX_TOTAL_BYTES = 5 * 1024 * 1024;
 const MAX_FILES_PER_REQUEST = 5;
 
 const UPLOADER_BY_USER_ROLE: Record<UserRole, AttachmentUploaderType | null> = {
@@ -59,7 +57,6 @@ function attachmentFileType(mime: string): AttachmentFileType | null {
 }
 
 function sanitiseFileName(name: string): string {
-  // Drop any path segments and strip characters that aren't safe in S3 keys.
   const base = name.replace(/\\/g, '/').split('/').pop() ?? 'file';
   return (
     base
@@ -81,7 +78,6 @@ export interface AttachmentDto {
   createdAt: string;
 }
 
-/** Map ticket type → default priority. Super-admin may override later. */
 const PRIORITY_BY_TYPE: Record<TicketType, TicketPriority> = {
   [TicketType.PAYMENT]: TicketPriority.HIGH,
   [TicketType.CREDITS]: TicketPriority.HIGH,
@@ -97,14 +93,9 @@ const CREATOR_ROLE_BY_USER: Record<UserRole, TicketCreatorRole | null> = {
   [UserRole.USER]: TicketCreatorRole.USER,
   [UserRole.ENTERPRISE_USER]: TicketCreatorRole.ENTERPRISE_USER,
   [UserRole.ENTERPRISE_ADMIN]: TicketCreatorRole.ENTERPRISE_ADMIN,
-  [UserRole.SUPER_ADMIN]: null, // super admins use the admin reply path, not "create ticket"
+  [UserRole.SUPER_ADMIN]: null,
 };
 
-/**
- * Core support-tickets logic used by both the user-facing controller and the
- * super-admin controller. Permissions are enforced here so we can't accidentally
- * leak data via a wrong route.
- */
 @Injectable()
 export class SupportTicketsService {
   private readonly logger = new Logger(SupportTicketsService.name);
@@ -120,8 +111,6 @@ export class SupportTicketsService {
     private readonly storage: S3StorageService,
   ) {}
 
-  // ─── Creation ───────────────────────────────────────────────────────────────
-
   async createTicket(
     user: User,
     dto: CreateTicketDto,
@@ -134,11 +123,8 @@ export class SupportTicketsService {
       );
     }
 
-    // Validate the attachment batch up front so we never persist a ticket
-    // with files that the storage layer will later reject.
     this.assertAttachmentsValid(files);
 
-    // Snapshot enterprise name once so it survives enterprise deletion.
     const enterpriseName = user.enterpriseId
       ? await this.lookupEnterpriseName(user.enterpriseId)
       : null;
@@ -160,7 +146,6 @@ export class SupportTicketsService {
         userRole: creatorRole,
         enterpriseId: user.enterpriseId ?? null,
 
-        // Snapshot — never updated. Survives user/enterprise deletion.
         createdByName: user.name,
         createdByEmail: user.email,
         createdByRole: creatorRole,
@@ -168,7 +153,6 @@ export class SupportTicketsService {
 
         assignedAdminId: null,
 
-        // First activity = ticket creation message.
         lastMessageAt: now,
         lastMessageByRole: senderRole,
         adminUnreadCount: 1,
@@ -180,8 +164,6 @@ export class SupportTicketsService {
       });
       const persisted = await em.save(ticket);
 
-      // First thread message mirrors the ticket content for conversation history.
-      // UI deduplicates it (shows `content` as "Original Issue" and slices from msg[1:]).
       await em.save(
         em.create(TicketMessage, {
           ticketId: persisted.id,
@@ -196,13 +178,6 @@ export class SupportTicketsService {
       return persisted;
     });
 
-    // Upload attachments outside the DB transaction. S3 is slow I/O — we
-    // don't want to hold a row lock open for it.
-    //
-    // STRICT: if the user supplied attachments and any upload or DB save
-    // fails, the entire ticket creation must fail. We soft-delete the
-    // freshly-created ticket so it never appears in the user's list and
-    // any rows already inserted for it are filtered out by deletedAt IS NULL.
     if (files.length > 0) {
       try {
         await this.persistAttachments(
@@ -219,12 +194,6 @@ export class SupportTicketsService {
     return saved;
   }
 
-  /**
-   * Best-effort cleanup of a half-created ticket: soft-delete the ticket row,
-   * the first thread message, and any attachment rows already persisted.
-   * S3 objects for those attachments are removed by `persistAttachments`
-   * itself before this is called.
-   */
   private async rollbackTicket(ticketId: string): Promise<void> {
     try {
       await Promise.all([
@@ -238,8 +207,6 @@ export class SupportTicketsService {
       );
     }
   }
-
-  // ─── Attachments ────────────────────────────────────────────────────────────
 
   private assertAttachmentsValid(files: Express.Multer.File[]): void {
     if (!files || files.length === 0) return;
@@ -264,11 +231,6 @@ export class SupportTicketsService {
     }
   }
 
-  /**
-   * Upload each file to S3 + insert one row per attachment. On any failure
-   * inside the loop, best-effort delete every S3 object we already wrote so
-   * we don't leak storage; the ticket itself remains.
-   */
   private async persistAttachments(
     ticketId: string,
     files: Express.Multer.File[],
@@ -280,7 +242,7 @@ export class SupportTicketsService {
     try {
       for (const file of files) {
         const fileType = attachmentFileType(file.mimetype);
-        if (!fileType) continue; // already validated, defensive
+        if (!fileType) continue;
         const safeName = sanitiseFileName(file.originalname);
         const key = `tickets/${ticketId}/attachments/${Date.now()}-${safeName}`;
 
@@ -315,9 +277,7 @@ export class SupportTicketsService {
       await Promise.allSettled(
         uploadedKeys.map((k) => this.storage.deleteFile(k)),
       );
-      // Preserve the actual cause so the caller can act on it (storage
-      // misconfiguration, AWS denial, network error, etc.) instead of a
-      // generic message that hides every real problem.
+
       throw err instanceof BadRequestException
         ? err
         : new BadRequestException(
@@ -326,7 +286,6 @@ export class SupportTicketsService {
     }
   }
 
-  /** Load live (non-deleted) attachments for a ticket. */
   private async listAttachmentsForTicket(
     ticketId: string,
   ): Promise<TicketAttachment[]> {
@@ -336,7 +295,6 @@ export class SupportTicketsService {
     });
   }
 
-  /** Materialise attachment entities into DTOs with signed URLs. */
   async mapAttachmentsToDto(
     attachments: TicketAttachment[],
   ): Promise<AttachmentDto[]> {
@@ -349,7 +307,7 @@ export class SupportTicketsService {
         fileType: a.fileType,
         sizeBytes: Number(a.sizeBytes),
         viewUrl: this.storage.isPublicRead()
-          ? a.s3Url ?? this.storage.publicUrl(a.s3Key)
+          ? (a.s3Url ?? this.storage.publicUrl(a.s3Key))
           : await this.storage.getSignedViewUrl(a.s3Key),
         downloadUrl: await this.storage.getSignedDownloadUrl(
           a.s3Key,
@@ -365,7 +323,6 @@ export class SupportTicketsService {
     ticketId: string,
     attachmentId: string,
   ): Promise<{ success: true }> {
-    // Reuse the existing access check so enterprise admins follow the same rules.
     await this.getTicketForUser(user, ticketId);
     const attachment = await this.attachmentRepo.findOne({
       where: { id: attachmentId, ticketId, deletedAt: IsNull() },
@@ -394,13 +351,6 @@ export class SupportTicketsService {
     return { success: true };
   }
 
-  // ─── User-side queries ──────────────────────────────────────────────────────
-
-  /**
-   * Paginated list of the caller's own tickets with optional filters.
-   * Server-side pagination + filtering — the user UI doesn't have to load
-   * everything at once.
-   */
   async listMyTickets(user: User, filters: MyTicketFilters = {}) {
     const qb = this.ticketRepo
       .createQueryBuilder('t')
@@ -414,9 +364,12 @@ export class SupportTicketsService {
       qb.andWhere('t.type = :type', { type: filters.type });
     }
     if (filters.search) {
-      qb.andWhere(`(t.ticket_number ILIKE :q OR t.title ILIKE :q OR t.subject ILIKE :q)`, {
-        q: `%${filters.search}%`,
-      });
+      qb.andWhere(
+        `(t.ticket_number ILIKE :q OR t.title ILIKE :q OR t.subject ILIKE :q)`,
+        {
+          q: `%${filters.search}%`,
+        },
+      );
     }
 
     qb.orderBy('t.created_at', 'DESC');
@@ -429,13 +382,6 @@ export class SupportTicketsService {
     return { data, total, page, limit };
   }
 
-  /**
-   * Return one ticket + its message thread, enforcing the access rules:
-   *   - Creator can read their own ticket.
-   *   - Enterprise admin can read tickets raised inside their enterprise.
-   *   - Super admins go through the admin controller (which calls
-   *     `getTicketForAdmin` below) and skip this check entirely.
-   */
   async getTicketForUser(user: User, ticketId: string) {
     const ticket = await this.ticketRepo.findOne({
       where: { id: ticketId, deletedAt: IsNull() },
@@ -451,9 +397,6 @@ export class SupportTicketsService {
       throw new ForbiddenException('You do not have access to this ticket.');
     }
 
-    // Owner opening the ticket → clear their unread badge.
-    // Enterprise admins viewing someone else's ticket should NOT clear that
-    // owner's unread, so we only reset when the viewer is the owner.
     if (isOwner && ticket.userUnreadCount > 0) {
       ticket.userUnreadCount = 0;
       try {
@@ -505,7 +448,7 @@ export class SupportTicketsService {
         }),
       );
       const now = new Date();
-      // User replied → admin has one more unread; user has 0 unread now.
+
       await em.query(
         `UPDATE tickets
             SET status               = $1,
@@ -530,15 +473,12 @@ export class SupportTicketsService {
           UPLOADER_BY_USER_ROLE[user.role] ?? 'user',
         );
       } catch (err) {
-        // Soft-delete the reply message so the user can re-send.
         await this.msgRepo.softDelete(msg.id);
         throw err;
       }
     }
     return msg;
   }
-
-  // ─── Admin-side queries ─────────────────────────────────────────────────────
 
   async listForAdmin(filters: AdminTicketFilters) {
     const qb = this.ticketRepo
@@ -564,8 +504,7 @@ export class SupportTicketsService {
         't.last_admin_viewed_at        AS "lastAdminViewedAt"',
         't.created_at                  AS "createdAt"',
         't.updated_at                  AS "updatedAt"',
-        // Prefer live user fields; fall back to snapshot so deleted users still
-        // appear correctly in the admin list.
+
         'u.id                                       AS "user.id"',
         'COALESCE(u.name,  t.created_by_name)       AS "user.name"',
         'COALESCE(u.email, t.created_by_email)      AS "user.email"',
@@ -576,9 +515,6 @@ export class SupportTicketsService {
 
     this.applyAdminFilters(qb, filters);
 
-    // ── Sort ──────────────────────────────────────────────────────────────
-    // Default sort: ticket creation time, newest first. The admin can switch
-    // to priority / unread-first via the Sort menu.
     switch (filters.sortBy) {
       case 'oldest':
         qb.orderBy('t.created_at', 'ASC');
@@ -609,7 +545,7 @@ export class SupportTicketsService {
           'DESC',
         ).addOrderBy('t.created_at', 'DESC');
         break;
-      default: // smart → newest first
+      default:
         qb.orderBy('t.created_at', 'DESC');
     }
 
@@ -630,10 +566,6 @@ export class SupportTicketsService {
     };
   }
 
-  /**
-   * Shared WHERE-clause builder used by both listForAdmin and adminCount so
-   * the count always matches the page query.
-   */
   private applyAdminFilters(
     qb: ReturnType<Repository<Ticket>['createQueryBuilder']>,
     filters: AdminTicketFilters,
@@ -689,7 +621,7 @@ export class SupportTicketsService {
       needsReply: +(rows?.needs_reply ?? 0),
       inProgress: +(rows?.in_progress ?? 0),
       waitingForUser: +(rows?.waiting_user ?? 0),
-      // Kept for compat with existing admin UI that referenced waitingForAdmin.
+
       waitingForAdmin: +(rows?.needs_reply ?? 0),
       resolved: +(rows?.resolved ?? 0),
       closed: +(rows?.closed ?? 0),
@@ -704,8 +636,6 @@ export class SupportTicketsService {
     });
     if (!ticket) throw new NotFoundException('Ticket not found.');
 
-    // Mark as opened/viewed by admin. Resets the admin unread badge.
-    // Best-effort: errors don't block the read path.
     const now = new Date();
     if (!ticket.firstAdminOpenedAt) {
       ticket.firstAdminOpenedAt = now;
@@ -724,10 +654,6 @@ export class SupportTicketsService {
       );
     }
 
-    // Pull creator + enterprise + messages in parallel.
-    // Creator lookup may return [] if the user has been deleted — in that
-    // case we synthesize a creator object from the snapshot columns so the
-    // admin still sees who originally raised the ticket.
     const [creator, enterprise, messages, attachments] = await Promise.all([
       ticket.createdByUserId
         ? this.dataSource.query<UserSlim[]>(
@@ -770,7 +696,6 @@ export class SupportTicketsService {
           }
         : null);
 
-    // Hydrate sender names for the thread.
     const senderIds = Array.from(new Set(messages.map((m) => m.senderId)));
     const [userSenders, adminSenders] = await Promise.all([
       senderIds.length
@@ -875,8 +800,7 @@ export class SupportTicketsService {
     if (status === TicketStatus.CLOSED && !ticket.closedAt) {
       patch.closedAt = new Date();
     }
-    // Reopen path: moving from CLOSED → OPEN/IN_PROGRESS clears closedAt
-    // (and resolvedAt, since the ticket is no longer resolved).
+
     const reopening =
       ticket.status === TicketStatus.CLOSED &&
       (status === TicketStatus.OPEN || status === TicketStatus.IN_PROGRESS);
@@ -903,8 +827,6 @@ export class SupportTicketsService {
     });
     if (!ticket) throw new NotFoundException('Ticket not found.');
 
-    // Validate that the target id is an active admin — never let a ticket be
-    // assigned to a random user id.
     const adminRows = await this.dataSource.query<{ id: string }[]>(
       `SELECT id FROM admins WHERE id = $1 AND is_active = TRUE AND deleted_at IS NULL`,
       [assignedAdminId],
@@ -927,8 +849,6 @@ export class SupportTicketsService {
     await this.ticketRepo.softRemove(ticket);
     return { success: true };
   }
-
-  // ─── Helpers ────────────────────────────────────────────────────────────────
 
   private async lookupEnterpriseName(
     enterpriseId: string,
@@ -972,7 +892,6 @@ export class SupportTicketsService {
   }
 
   private shapeAdminRow = (r: AdminTicketRow) => {
-    // Derived flags help the UI without forcing it to know status semantics.
     const isUnreadForAdmin = r.adminUnreadCount > 0;
     const isNewForAdmin =
       !r.firstAdminOpenedAt && r.status === TicketStatus.OPEN;
@@ -997,12 +916,12 @@ export class SupportTicketsService {
       lastAdminViewedAt: r.lastAdminViewedAt,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
-      // Convenience flat fields used by the helpdesk list rows.
+
       requesterDisplayName: r['user.name'],
       requesterEmail: r['user.email'],
       requesterRole: r.userRole,
       enterpriseName: r['enterprise.name'],
-      // Derived
+
       isUnreadForAdmin,
       isNewForAdmin,
       needsAdminReply,
@@ -1016,7 +935,6 @@ export class SupportTicketsService {
     };
   };
 
-  /** Reference used by enterprise admin lookups elsewhere (keeps the In import live). */
   protected readonly _refUsed = In;
 }
 
@@ -1087,8 +1005,7 @@ export interface UserSlim {
   role: UserRole;
   enterpriseId: string | null;
   createdAt: Date;
-  /** True when this object is synthesized from the ticket snapshot
-   * because the underlying user row was deleted. */
+
   deleted?: boolean;
 }
 

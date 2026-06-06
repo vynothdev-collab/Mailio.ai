@@ -4,16 +4,16 @@ export interface StatItem {
   id: string;
   label: string;
   value: string;
-  change: number;        
+  change: number;
   changePeriod: string;
-  iconName: string;      
-  iconColor: string;     
-  iconBgColor: string;   
+  iconName: string;
+  iconColor: string;
+  iconBgColor: string;
 }
 
 export interface ActiveVerification {
   fileName: string;
-  progress: number;       
+  progress: number;
   processedCount: number;
   totalCount: number;
   etaSeconds: number;

@@ -4,7 +4,6 @@ export class CreateApiKeysTable1736000000001 implements MigrationInterface {
   name = 'CreateApiKeysTable1736000000001';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-
     await queryRunner.query(`
       DO $$ BEGIN
         CREATE TYPE "api_key_status" AS ENUM ('ACTIVE', 'COOLDOWN', 'DISABLED');

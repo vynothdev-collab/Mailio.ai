@@ -56,10 +56,10 @@ export function ProfileForm() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
-            { label: "Full Name",  key: "fullName" as const,  placeholder: "Your full name"  },
-            { label: "Email",      key: "email"    as const,  placeholder: "you@company.com" },
-            { label: "Job Title",  key: "jobTitle" as const,  placeholder: "e.g. Head of Growth" },
-            { label: "Company",    key: "company"  as const,  placeholder: "Your company"    },
+            { label: "Full Name", key: "fullName" as const, placeholder: "Your full name" },
+            { label: "Email", key: "email" as const, placeholder: "you@company.com" },
+            { label: "Job Title", key: "jobTitle" as const, placeholder: "e.g. Head of Growth" },
+            { label: "Company", key: "company" as const, placeholder: "Your company" },
           ].map(({ label, key, placeholder }) => (
             <div key={key}>
               <label className="text-xs text-muted-foreground mb-1 block">{label}</label>

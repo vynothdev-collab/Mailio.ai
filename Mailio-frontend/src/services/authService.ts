@@ -17,7 +17,7 @@ import type {
 } from "@/src/types/auth";
 
 function persistSession(data: AuthResponse): void {
-  setItem(STORAGE_KEYS.accessToken,  data.accessToken);
+  setItem(STORAGE_KEYS.accessToken, data.accessToken);
   setItem(STORAGE_KEYS.refreshToken, data.refreshToken);
 }
 
@@ -28,22 +28,29 @@ export const authService = {
   },
 
   async verifyEmail(payload: VerifyEmailPayload): Promise<MessageResponse> {
-    const { data } = await api.post<MessageResponse>("/auth/verify-email", payload, { _skipAuth: true });
+    const { data } = await api.post<MessageResponse>("/auth/verify-email", payload, {
+      _skipAuth: true,
+    });
     return data;
   },
 
   async resendVerificationOtp(payload: ResendOtpPayload): Promise<MessageResponse> {
-    const { data } = await api.post<MessageResponse>("/auth/resend-verification-otp", payload, { _skipAuth: true });
+    const { data } = await api.post<MessageResponse>("/auth/resend-verification-otp", payload, {
+      _skipAuth: true,
+    });
     return data;
   },
 
-  async getOtpStatus(email: string, purpose?: string): Promise<{ remainingSeconds: number; sendCount: number }> {
+  async getOtpStatus(
+    email: string,
+    purpose?: string
+  ): Promise<{ remainingSeconds: number; sendCount: number }> {
     const qs = purpose
       ? `email=${encodeURIComponent(email)}&purpose=${encodeURIComponent(purpose)}`
       : `email=${encodeURIComponent(email)}`;
     const { data } = await api.get<{ remainingSeconds: number; sendCount: number }>(
       `/auth/otp-status?${qs}`,
-      { _skipAuth: true },
+      { _skipAuth: true }
     );
     return data;
   },
@@ -61,11 +68,9 @@ export const authService = {
   },
 
   async linkedinLogin(payload: LinkedinLoginPayload): Promise<AuthResponse> {
-    const { data } = await api.post<AuthResponse>(
-      "/auth/linkedin/callback",
-      payload,
-      { _skipAuth: true },
-    );
+    const { data } = await api.post<AuthResponse>("/auth/linkedin/callback", payload, {
+      _skipAuth: true,
+    });
     persistSession(data);
     return data;
   },
@@ -77,7 +82,7 @@ export const authService = {
     const { data } = await api.post<RefreshResponse>(
       "/auth/refresh",
       { refreshToken } satisfies RefreshPayload,
-      { _skipAuth: true },
+      { _skipAuth: true }
     );
 
     setItem(STORAGE_KEYS.accessToken, data.accessToken);
@@ -85,17 +90,23 @@ export const authService = {
   },
 
   async forgotPassword(payload: ForgotPasswordPayload): Promise<MessageResponse> {
-    const { data } = await api.post<MessageResponse>("/auth/forgot-password", payload, { _skipAuth: true });
+    const { data } = await api.post<MessageResponse>("/auth/forgot-password", payload, {
+      _skipAuth: true,
+    });
     return data;
   },
 
   async resendPasswordResetOtp(payload: ForgotPasswordPayload): Promise<MessageResponse> {
-    const { data } = await api.post<MessageResponse>("/auth/resend-password-reset-otp", payload, { _skipAuth: true });
+    const { data } = await api.post<MessageResponse>("/auth/resend-password-reset-otp", payload, {
+      _skipAuth: true,
+    });
     return data;
   },
 
   async resetPassword(payload: ResetPasswordPayload): Promise<MessageResponse> {
-    const { data } = await api.post<MessageResponse>("/auth/reset-password", payload, { _skipAuth: true });
+    const { data } = await api.post<MessageResponse>("/auth/reset-password", payload, {
+      _skipAuth: true,
+    });
     return data;
   },
 

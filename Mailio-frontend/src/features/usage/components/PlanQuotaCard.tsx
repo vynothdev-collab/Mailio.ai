@@ -7,7 +7,7 @@ import { formatNumber, cn } from "@/src/lib/utils";
 import type { UsageQuotaDto } from "@/src/types/usage";
 
 interface Props {
-  quota:   UsageQuotaDto | null;
+  quota: UsageQuotaDto | null;
   loading: boolean;
 }
 
@@ -24,11 +24,11 @@ export function PlanQuotaCard({ quota, loading }: Props) {
     );
   }
 
-  const balance    = quota.creditBalance ?? quota.remaining ?? 0;
-  const used       = quota.creditsUsed   ?? quota.used      ?? 0;
-  const total      = balance + used;
-  const pct        = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
-  const isWarning  = pct >= 80;
+  const balance = quota.creditBalance ?? quota.remaining ?? 0;
+  const used = quota.creditsUsed ?? quota.used ?? 0;
+  const total = balance + used;
+  const pct = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
+  const isWarning = pct >= 80;
   const isCritical = pct >= 95;
   const isEnterprise = quota.accountLabel === "Enterprise";
 
@@ -49,7 +49,10 @@ export function PlanQuotaCard({ quota, loading }: Props) {
               </p>
             </div>
           </div>
-          <Button size="sm" className="gradient-brand border-0 text-white hover:opacity-90 text-xs h-8">
+          <Button
+            size="sm"
+            className="gradient-brand border-0 text-white hover:opacity-90 text-xs h-8"
+          >
             Get Credits
           </Button>
         </div>
@@ -72,18 +75,25 @@ export function PlanQuotaCard({ quota, loading }: Props) {
                 size="md"
                 fillClassName={cn(
                   "h-full rounded-full transition-all duration-500",
-                  isCritical ? "bg-red-500" : isWarning ? "bg-amber-500" : "gradient-brand",
+                  isCritical ? "bg-red-500" : isWarning ? "bg-amber-500" : "gradient-brand"
                 )}
               />
               <div className="flex items-center justify-between text-xs">
-                <span className={cn(
-                  "font-medium",
-                  isCritical ? "text-red-600" : isWarning ? "text-amber-600" : "text-muted-foreground",
-                )}>
+                <span
+                  className={cn(
+                    "font-medium",
+                    isCritical
+                      ? "text-red-600"
+                      : isWarning
+                        ? "text-amber-600"
+                        : "text-muted-foreground"
+                  )}
+                >
                   {pct}% consumed
                 </span>
                 <span className="text-muted-foreground">
-                  <span className="font-semibold text-foreground">{formatNumber(balance)}</span> available
+                  <span className="font-semibold text-foreground">{formatNumber(balance)}</span>{" "}
+                  available
                 </span>
               </div>
             </>

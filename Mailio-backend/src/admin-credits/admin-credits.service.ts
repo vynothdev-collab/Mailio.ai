@@ -77,9 +77,7 @@ export class AdminCreditsService {
       where: { id: enterpriseId, deletedAt: IsNull() },
     });
     if (!enterprise) {
-      throw new NotFoundException(
-        'Enterprise not found or has been deleted.',
-      );
+      throw new NotFoundException('Enterprise not found or has been deleted.');
     }
     if (!enterprise.isActive) {
       throw new BadRequestException(
@@ -156,7 +154,7 @@ export class AdminCreditsService {
           .select('COALESCE(SUM(e.creditBalance), 0)', 'balance')
           .where('e.isActive = true AND e.deletedAt IS NULL')
           .getRawOne<{ balance: string }>(),
-        // Sum debits from immutable ledger — unaffected by plan renewals.
+
         this.txRepo
           .createQueryBuilder('t')
           .select('COALESCE(SUM(-t.delta), 0)', 'used')

@@ -44,7 +44,6 @@ const MONITORED_QUEUES = [
 })
 export class AdminModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    
     consumer
       .apply(basicAuthMiddleware)
       .forRoutes(

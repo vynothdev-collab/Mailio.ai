@@ -15,7 +15,6 @@ import { CSV_PARSE_QUEUE } from './csv-parse.types';
     BullModule.registerQueue({
       name: CSV_PARSE_QUEUE,
       defaultJobOptions: {
-        
         attempts: parseInt(process.env.CSV_PARSE_MAX_RETRIES ?? '2', 10),
         backoff: { type: 'exponential', delay: 5000 },
         removeOnComplete: { age: 86400, count: 500 },

@@ -56,8 +56,7 @@ function BrandPanel() {
           Smarter Workflows.
         </h1>
         <p className="mt-5 text-base leading-relaxed text-white/85">
-          Automate responses, manage project and grow your business - all in
-          one place
+          Automate responses, manage project and grow your business - all in one place
         </p>
       </div>
 

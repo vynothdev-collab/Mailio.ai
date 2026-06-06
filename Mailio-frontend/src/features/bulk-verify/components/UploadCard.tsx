@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  UploadCloud, FileText, X, Trash2, CheckCircle2, Loader2,
-} from "lucide-react";
+import { UploadCloud, FileText, X, Trash2, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,26 +12,31 @@ import { useAuth } from "@/src/hooks/useAuth";
 import { getCreditErrorMessage } from "@/src/utils/creditError";
 import type { BulkProgressDto, BulkUploadResponse } from "@/src/types/bulk";
 
-const ACCEPTED_EXTS   = [".csv", ".txt"] as const;
-const MAX_SIZE_MB     = 50;
+const ACCEPTED_EXTS = [".csv", ".txt"] as const;
+const MAX_SIZE_MB = 50;
 const MAX_EMAIL_COUNT = 100_000;
 
 interface Props {
-  onUploaded:          (result: BulkUploadResponse) => void;
-  onUploadingChange?:  (uploading: boolean) => void;
-  disabled?:           boolean;
-  disabledReason?:     string;
+  onUploaded: (result: BulkUploadResponse) => void;
+  onUploadingChange?: (uploading: boolean) => void;
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
-export function UploadCard({ onUploaded, onUploadingChange, disabled = false, disabledReason }: Props) {
+export function UploadCard({
+  onUploaded,
+  onUploadingChange,
+  disabled = false,
+  disabledReason,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [file,       setFile]       = useState<File | null>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [uploading,  setUploading]  = useState(false);
-  const [counting,   setCounting]   = useState(false);
-  const [uploadPct,  setUploadPct]  = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [counting, setCounting] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
   const [lastUpload, setLastUpload] = useState<BulkUploadResponse | null>(null);
-  const [progress,   setProgress]   = useState<BulkProgressDto | null>(null);
+  const [progress, setProgress] = useState<BulkProgressDto | null>(null);
   const { user, refresh } = useAuth();
 
   useEffect(() => {
@@ -45,18 +48,15 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
         const p = await bulkVerifyService.getProgress(lastUpload.jobId);
         if (cancelled) return;
 
-        const isFailed =
-          p.parseStatus === 'FAILED' ||
-          p.status?.toUpperCase() === 'FAILED';
+        const isFailed = p.parseStatus === "FAILED" || p.status?.toUpperCase() === "FAILED";
 
         if (isFailed) {
           window.clearInterval(timer);
           setLastUpload(null);
           setProgress(null);
-          toast.error(
-            p.parseError ?? 'Verification job failed. Please try again.',
-            { duration: 8000 },
-          );
+          toast.error(p.parseError ?? "Verification job failed. Please try again.", {
+            duration: 8000,
+          });
           onUploaded(lastUpload);
           return;
         }
@@ -66,44 +66,47 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
           window.clearInterval(timer);
           onUploaded(lastUpload);
         }
-      } catch { /* ignore */ }
+      } catch {}
     };
 
     void tick();
     const timer = window.setInterval(tick, 2000);
-    return () => { cancelled = true; window.clearInterval(timer); };
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [lastUpload?.jobId]);
 
   const validate = (f: File): string | null => {
     const ext = `.${f.name.split(".").pop()?.toLowerCase() ?? ""}`;
     if (!ACCEPTED_EXTS.includes(ext as ".csv" | ".txt"))
       return "Invalid file format. Only .csv and .txt files are supported.";
-    if (f.size > MAX_SIZE_MB * 1024 * 1024)
-      return `File too large. Max ${MAX_SIZE_MB} MB.`;
+    if (f.size > MAX_SIZE_MB * 1024 * 1024) return `File too large. Max ${MAX_SIZE_MB} MB.`;
     if (f.size === 0) return "File is empty.";
     return null;
   };
 
   const handleSelect = useCallback(async (f: File) => {
     const err = validate(f);
-    if (err) { toast.error(err); return; }
+    if (err) {
+      toast.error(err);
+      return;
+    }
 
     setCounting(true);
     try {
       const text = await f.text();
       const emailCount = text
         .split(/\r?\n/)
-        .filter((line) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(line.trim().toLowerCase()))
-        .length;
+        .filter((line) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(line.trim().toLowerCase())).length;
       if (emailCount > MAX_EMAIL_COUNT) {
         toast.error(
-          `File contains ${emailCount.toLocaleString()} emails. Maximum allowed is ${MAX_EMAIL_COUNT.toLocaleString()} per upload. Please split your list into smaller files.`,
+          `File contains ${emailCount.toLocaleString()} emails. Maximum allowed is ${MAX_EMAIL_COUNT.toLocaleString()} per upload. Please split your list into smaller files.`
         );
         if (inputRef.current) inputRef.current.value = "";
         return;
       }
     } catch {
-      // If we can't read the file, let the server validate
     } finally {
       setCounting(false);
     }
@@ -111,17 +114,23 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
     setFile(f);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const f = e.dataTransfer.files[0];
-    if (f) void handleSelect(f);
-  }, [handleSelect]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const f = e.dataTransfer.files[0];
+      if (f) void handleSelect(f);
+    },
+    [handleSelect]
+  );
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) void handleSelect(f);
-  }, [handleSelect]);
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const f = e.target.files?.[0];
+      if (f) void handleSelect(f);
+    },
+    [handleSelect]
+  );
 
   const reset = () => {
     setFile(null);
@@ -141,8 +150,7 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
       setLastUpload(result);
       reset();
       onUploaded(result);
-      // Reservation happens server-side once parsing completes; refresh to
-      // reflect the new balance for the caller.
+
       void refresh();
     } catch (err) {
       const creditMsg = getCreditErrorMessage(err, user);
@@ -174,15 +182,33 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
             className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#DCE6F3] bg-[#F4F8FF] px-3 py-1.5 text-xs font-semibold text-[#0F5BFF] hover:bg-[#E6EEFB] transition-colors"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M12.25 8.75V11.0833C12.25 11.3928 12.1271 11.6895 11.9083 11.9083C11.6895 12.1271 11.3928 12.25 11.0833 12.25H2.91667C2.60725 12.25 2.3105 12.1271 2.09171 11.9083C1.87292 11.6895 1.75 11.3928 1.75 11.0833V8.75" stroke="#0F5BFF" strokeWidth="1.28333" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M4.08325 5.83325L6.99992 8.74992L9.91659 5.83325" stroke="#0F5BFF" strokeWidth="1.28333" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M7 8.75V1.75" stroke="#0F5BFF" strokeWidth="1.28333" strokeLinecap="round" strokeLinejoin="round"/>
+              <path
+                d="M12.25 8.75V11.0833C12.25 11.3928 12.1271 11.6895 11.9083 11.9083C11.6895 12.1271 11.3928 12.25 11.0833 12.25H2.91667C2.60725 12.25 2.3105 12.1271 2.09171 11.9083C1.87292 11.6895 1.75 11.3928 1.75 11.0833V8.75"
+                stroke="#0F5BFF"
+                strokeWidth="1.28333"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M4.08325 5.83325L6.99992 8.74992L9.91659 5.83325"
+                stroke="#0F5BFF"
+                strokeWidth="1.28333"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M7 8.75V1.75"
+                stroke="#0F5BFF"
+                strokeWidth="1.28333"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
             Download Template
           </a>
         </div>
 
-        {/* Post-upload live progress card */}
+        {}
         {lastUpload && (
           <div
             className="rounded-xl border-2 border-blue-500 p-3 transition-colors shadow-[0_0_0_3px_rgba(59,130,246,0.12),0_8px_22px_-8px_rgba(59,130,246,0.35)]"
@@ -197,7 +223,10 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
                   </p>
                   <button
                     type="button"
-                    onClick={() => { setLastUpload(null); setProgress(null); }}
+                    onClick={() => {
+                      setLastUpload(null);
+                      setProgress(null);
+                    }}
                     aria-label="Dismiss"
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
@@ -206,27 +235,29 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
                 </div>
                 {(() => {
                   const isParsing = !progress || progress.totalCount === 0;
-                  const isDone    = !isParsing && progress.processedCount >= progress.totalCount;
-                  const label     = isDone ? "Completed" : isParsing ? "Parsing…" : "Processing";
+                  const isDone = !isParsing && progress.processedCount >= progress.totalCount;
+                  const label = isDone ? "Completed" : isParsing ? "Parsing…" : "Processing";
                   return (
-                    <span className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold mt-0.5",
-                      isDone
-                        ? "border-emerald-200 text-emerald-700"
-                        : "border-blue-200 bg-blue-50 text-blue-700",
-                    )}>
-                      {!isDone && <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />}
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold mt-0.5",
+                        isDone
+                          ? "border-emerald-200 text-emerald-700"
+                          : "border-blue-200 bg-blue-50 text-blue-700"
+                      )}
+                    >
+                      {!isDone && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+                      )}
                       {label}
                     </span>
                   );
                 })()}
                 {(() => {
-                  const total     = progress?.totalCount ?? 0;
+                  const total = progress?.totalCount ?? 0;
                   const processed = progress?.processedCount ?? 0;
-                  const pct       = total > 0
-                    ? Math.min(100, Math.round((processed / total) * 100))
-                    : 0;
-                  const isDone    = pct >= 100;
+                  const pct = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
+                  const isDone = pct >= 100;
                   return (
                     <div className="mt-2 flex items-center gap-3">
                       <div className="flex-1 h-2 rounded-full bg-blue-100 overflow-hidden">
@@ -234,7 +265,7 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
                           className={cn(
                             "h-full rounded-full bg-blue-500 transition-all",
                             !isDone &&
-                              "bg-[linear-gradient(45deg,rgba(255,255,255,0.25)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.25)_50%,rgba(255,255,255,0.25)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[stripes_1s_linear_infinite]",
+                              "bg-[linear-gradient(45deg,rgba(255,255,255,0.25)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.25)_50%,rgba(255,255,255,0.25)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[stripes_1s_linear_infinite]"
                           )}
                           style={{
                             width: `${pct}%`,
@@ -253,7 +284,7 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
           </div>
         )}
 
-        {/* Drop zone */}
+        {}
         <label
           aria-disabled={disabled}
           className={cn(
@@ -262,7 +293,7 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
               ? "border-[#DCE6F3] bg-[#F4F8FF] opacity-60 cursor-not-allowed"
               : isDragging
                 ? "border-[#0F5BFF] bg-[#F4F8FF] cursor-pointer"
-                : "border-[#DCE6F3] bg-[#F4F8FF] hover:border-[#0F5BFF]/40 cursor-pointer",
+                : "border-[#DCE6F3] bg-[#F4F8FF] hover:border-[#0F5BFF]/40 cursor-pointer"
           )}
           onDragOver={(e) => {
             e.preventDefault();
@@ -271,7 +302,10 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
           }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={(e) => {
-            if (disabled) { e.preventDefault(); return; }
+            if (disabled) {
+              e.preventDefault();
+              return;
+            }
             handleDrop(e);
           }}
         >
@@ -295,7 +329,11 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
                 {!uploading && (
                   <button
                     type="button"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); reset(); }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      reset();
+                    }}
                     aria-label="Remove file"
                     className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
                   >
@@ -307,8 +345,12 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
             </>
           ) : (
             <>
-              <span className="mt-2 text-base font-semibold text-[#111827]">Drag &amp; drop your file here</span>
-              <span className="text-xs text-muted-foreground">CSV or TXT up to {MAX_SIZE_MB}MB</span>
+              <span className="mt-2 text-base font-semibold text-[#111827]">
+                Drag &amp; drop your file here
+              </span>
+              <span className="text-xs text-muted-foreground">
+                CSV or TXT up to {MAX_SIZE_MB}MB
+              </span>
               <span className="mt-2 inline-flex items-center justify-center rounded-full bg-[#0F5BFF] px-5 py-2 text-xs font-semibold text-white hover:bg-[#0a48cc] transition-colors">
                 Choose file
               </span>
@@ -319,14 +361,20 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
         <div className="flex items-start gap-2 rounded-xl border border-[#DCE6F3] bg-[#F4F8FF] px-3 py-2.5 text-xs text-[#161514]">
           <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#0F5BFF]">
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-              <path d="M5 6.667V5M5 3.333h.004" stroke="white" strokeWidth="1" strokeLinecap="round"/>
-              <circle cx="5" cy="5" r="4" stroke="white" strokeWidth="0.8"/>
+              <path
+                d="M5 6.667V5M5 3.333h.004"
+                stroke="white"
+                strokeWidth="1"
+                strokeLinecap="round"
+              />
+              <circle cx="5" cy="5" r="4" stroke="white" strokeWidth="0.8" />
             </svg>
           </div>
-          Only email addresses are supported. Duplicates will be automatically removed. Maximum {MAX_EMAIL_COUNT.toLocaleString()} emails per upload.
+          Only email addresses are supported. Duplicates will be automatically removed. Maximum{" "}
+          {MAX_EMAIL_COUNT.toLocaleString()} emails per upload.
         </div>
 
-        {/* Upload progress */}
+        {}
         {uploading && (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -334,29 +382,39 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
               <span>{uploadPct}%</span>
             </div>
             <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-              <div className="h-full bg-primary transition-all" style={{ width: `${uploadPct}%` }} />
+              <div
+                className="h-full bg-primary transition-all"
+                style={{ width: `${uploadPct}%` }}
+              />
             </div>
           </div>
         )}
 
         {disabled && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
-            {disabledReason ?? "A verification is currently in progress. Please wait for it to finish before uploading another file."}
+            {disabledReason ??
+              "A verification is currently in progress. Please wait for it to finish before uploading another file."}
           </div>
         )}
 
-        {/* Upload button */}
+        {}
         <Button
           type="button"
           onClick={startUpload}
           disabled={!file || uploading || counting || disabled}
           className="w-full gradient-brand border-0 text-white hover:opacity-90 h-11"
         >
-          {counting
-            ? <><Loader2 size={14} className="animate-spin" /> Checking file…</>
-            : uploading
-              ? <><Loader2 size={14} className="animate-spin" /> Uploading…</>
-              : "Upload & Verify"}
+          {counting ? (
+            <>
+              <Loader2 size={14} className="animate-spin" /> Checking file…
+            </>
+          ) : uploading ? (
+            <>
+              <Loader2 size={14} className="animate-spin" /> Uploading…
+            </>
+          ) : (
+            "Upload & Verify"
+          )}
         </Button>
 
         <TemplateGuide />
@@ -369,7 +427,13 @@ export function UploadCard({ onUploaded, onUploadingChange, disabled = false, di
 function GreenCheck() {
   return (
     <svg width="14" height="14" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-      <path d="M8.33341 2.5L3.75008 7.08333L1.66675 5" stroke="#14A055" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/>
+      <path
+        d="M8.33341 2.5L3.75008 7.08333L1.66675 5"
+        stroke="#14A055"
+        strokeWidth="1.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -393,19 +457,22 @@ function TemplateGuide() {
     <div className="mt-4 border-t border-[#DCE6F3] pt-5">
       <h3 className="text-base font-bold text-[#111827]">How the template should look</h3>
       <p className="mt-1 text-xs text-muted-foreground">
-        Your file must contain only one column: <span className="font-semibold text-[#111827]">Email</span>
+        Your file must contain only one column:{" "}
+        <span className="font-semibold text-[#111827]">Email</span>
       </p>
 
       <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2">
         <div className="overflow-hidden rounded-xl border border-[#DCE6F3] font-mono text-xs">
-          <div className="border-b border-[#DCE6F3] bg-[#F4F8FF] px-3 py-1.5 text-center font-semibold text-[#8B847A]">A</div>
+          <div className="border-b border-[#DCE6F3] bg-[#F4F8FF] px-3 py-1.5 text-center font-semibold text-[#8B847A]">
+            A
+          </div>
           {sampleRows.map((row, i) => (
             <div
               key={row.num}
               className={cn(
                 "flex items-center gap-3 px-3 py-1.5",
                 i < sampleRows.length - 1 && "border-b border-[#DCE6F3]",
-                i === 0 && "font-semibold text-[#111827]",
+                i === 0 && "font-semibold text-[#111827]"
               )}
             >
               <span className="w-4 text-right text-[#8B847A]">{row.num}</span>
@@ -419,7 +486,9 @@ function TemplateGuide() {
           <ul className="mt-2 space-y-2.5">
             {rules.map((rule) => (
               <li key={rule} className="flex items-start gap-2 text-xs text-[#161514]">
-                <span className="mt-0.5 shrink-0"><GreenCheck /></span>
+                <span className="mt-0.5 shrink-0">
+                  <GreenCheck />
+                </span>
                 <span>{rule}</span>
               </li>
             ))}
@@ -435,8 +504,20 @@ function PrivacyBanner() {
     <div className="mt-4 flex items-start gap-3 rounded-xl border border-[#E0D4FC] bg-[#F4EEFE] px-4 py-3">
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M8.00008 14.6666C8.00008 14.6666 13.3334 11.9999 13.3334 7.99992V3.33325L8.00008 1.33325L2.66675 3.33325V7.99992C2.66675 11.9999 8.00008 14.6666 8.00008 14.6666Z" stroke="#7C3AED" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M6 8.00008L7.33333 9.33341L10 6.66675" stroke="#7C3AED" strokeWidth="1.33333" strokeLinecap="round" strokeLinejoin="round"/>
+          <path
+            d="M8.00008 14.6666C8.00008 14.6666 13.3334 11.9999 13.3334 7.99992V3.33325L8.00008 1.33325L2.66675 3.33325V7.99992C2.66675 11.9999 8.00008 14.6666 8.00008 14.6666Z"
+            stroke="#7C3AED"
+            strokeWidth="1.33333"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M6 8.00008L7.33333 9.33341L10 6.66675"
+            stroke="#7C3AED"
+            strokeWidth="1.33333"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </div>
       <div>

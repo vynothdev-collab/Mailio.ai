@@ -91,8 +91,6 @@ export class AdminDashboardService {
     return data;
   }
 
-  // ---------- SINGLE USERS ----------
-
   private async singleOverview(r: Range) {
     const [
       userKpis,
@@ -120,10 +118,7 @@ export class AdminDashboardService {
         creditsUsed: credits.used,
         creditsRemaining: credits.remaining,
         deltas: {
-          registeredUsers: pctDelta(
-            userKpis.newCurrent,
-            userKpis.newPrev,
-          ),
+          registeredUsers: pctDelta(userKpis.newCurrent, userKpis.newPrev),
           activeUsers: pctDelta(userKpis.newCurrent, userKpis.newPrev),
           todaysSignups: pctDelta(
             userKpis.todaySignups,
@@ -189,13 +184,7 @@ export class AdminDashboardService {
         COUNT(*) FILTER (WHERE role = 'USER' AND created_at BETWEEN $3 AND $4)    AS new_current,
         COUNT(*) FILTER (WHERE role = 'USER' AND created_at BETWEEN $5 AND $3)    AS new_prev
        FROM users`,
-      [
-        this.startOfToday(),
-        this.startOfYesterday(),
-        r.from,
-        r.to,
-        r.prevFrom,
-      ],
+      [this.startOfToday(), this.startOfYesterday(), r.from, r.to, r.prevFrom],
     );
     const x = rows[0] ?? {};
     return {
@@ -209,9 +198,7 @@ export class AdminDashboardService {
   }
 
   private async singleVerificationAgg(r: Range) {
-    const rows = await this.ds.query<
-      Array<Record<string, string>>
-    >(
+    const rows = await this.ds.query<Array<Record<string, string>>>(
       `SELECT
         COUNT(*)                                                          AS total,
         COUNT(*) FILTER (WHERE e.verification_result = 'VALID')           AS valid,
@@ -395,8 +382,6 @@ export class AdminDashboardService {
     );
     return rows;
   }
-
-  // ---------- ENTERPRISE ----------
 
   private async enterpriseOverview(r: Range) {
     const [
@@ -649,8 +634,6 @@ export class AdminDashboardService {
       status: r.is_active ? 'Active' : 'Inactive',
     }));
   }
-
-  // ---------- helpers ----------
 
   private startOfToday(): Date {
     const d = new Date();

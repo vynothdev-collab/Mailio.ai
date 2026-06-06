@@ -16,9 +16,7 @@ import {
   BillingPlanType,
   PlanCategory,
 } from '../billing-plans/entities/billing-plan.entity';
-import {
-  SubscriptionsService,
-} from '../subscriptions/subscriptions.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { SubscriptionStatus } from '../subscriptions/entities/subscription.entity';
 import { AuthProvider, User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
@@ -207,14 +205,11 @@ export class AuthService {
     return this.issueSession(user, remember);
   }
 
-  /**
-   * Fire-and-forget: assign the default PRO plan to a new user if they have no
-   * active subscription yet. Errors are logged but never surfaced to the caller.
-   */
   private tryAssignDefaultPlan(userId: string): void {
     (async () => {
       try {
-        const existing = await this.subscriptions.getCurrentSubscriptionForUser(userId);
+        const existing =
+          await this.subscriptions.getCurrentSubscriptionForUser(userId);
         if (existing.activeBase || existing.queued.length > 0) return;
 
         const plan = await this.planRepo.findOne({
@@ -230,7 +225,9 @@ export class AuthService {
 
         await this.subscriptions.purchaseValidityPlanForUser(userId, plan.id);
       } catch (err) {
-        this.logger.warn(`tryAssignDefaultPlan(${userId}): ${(err as Error).message}`);
+        this.logger.warn(
+          `tryAssignDefaultPlan(${userId}): ${(err as Error).message}`,
+        );
       }
     })();
   }

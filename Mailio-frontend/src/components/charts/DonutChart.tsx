@@ -6,23 +6,17 @@ import { formatNumber } from "@/src/lib/utils";
 import type { ChartDataPoint } from "@/src/features/dashboard/types";
 
 interface DonutChartProps {
-  data:  ChartDataPoint[];
+  data: ChartDataPoint[];
   total: number;
 }
 
 interface TooltipPayload {
-  name:  string;
+  name: string;
   value: number;
   payload: ChartDataPoint;
 }
 
-function CustomTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: TooltipPayload[];
-}) {
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
   if (!active || !payload?.length) return null;
   const item = payload[0];
   return (

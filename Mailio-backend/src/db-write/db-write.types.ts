@@ -26,8 +26,8 @@ export interface DbWriteSuccessJob {
   freeProvider: boolean;
   apiRawResponse: Record<string, unknown>;
   durationMs: number;
-  processedAt: string; 
-  
+  processedAt: string;
+
   emailAddress: string;
 }
 

@@ -3,13 +3,13 @@
 import { useCallback, useState } from "react";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { DashboardContentSkeleton } from "@/src/components/shared/Skeleton";
-import { StatsGrid }                  from "./StatsGrid";
-import { BulkVerifyCard }             from "./BulkVerifyCard";
-import { SingleVerifyCard }           from "./SingleVerifyCard";
-import { ResultsOverview }            from "./ResultsOverview";
-import { RecentVerificationsTable }   from "./RecentVerificationsTable";
-import { PageHeader }                 from "@/src/components/layout/PageHeader";
-import { AlertCircle, RefreshCw }     from "lucide-react";
+import { StatsGrid } from "./StatsGrid";
+import { BulkVerifyCard } from "./BulkVerifyCard";
+import { SingleVerifyCard } from "./SingleVerifyCard";
+import { ResultsOverview } from "./ResultsOverview";
+import { RecentVerificationsTable } from "./RecentVerificationsTable";
+import { PageHeader } from "@/src/components/layout/PageHeader";
+import { AlertCircle, RefreshCw } from "lucide-react";
 
 function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
@@ -28,7 +28,6 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => voi
     </div>
   );
 }
-
 
 export function DashboardView() {
   const { data, loading, refreshing, error, refresh, silentReload } = useDashboardData();

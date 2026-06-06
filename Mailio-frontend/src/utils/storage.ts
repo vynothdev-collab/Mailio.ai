@@ -1,9 +1,9 @@
 import type { UserProfile } from "@/src/types/user";
 
 export const STORAGE_KEYS = {
-  accessToken:  "mailio.accessToken",
+  accessToken: "mailio.accessToken",
   refreshToken: "mailio.refreshToken",
-  userProfile:  "mailio.userProfile",
+  userProfile: "mailio.userProfile",
 } as const;
 
 function safeStore(): Storage | null {

@@ -10,10 +10,26 @@ import { MOCK_NOTIFICATION_PREFS } from "../mock";
 import type { NotificationPrefs } from "../types";
 
 const TOGGLES: { key: keyof NotificationPrefs; label: string; sub: string }[] = [
-  { key: "bulkJobComplete", label: "Bulk job complete",      sub: "Notify me when a bulk verification job finishes."       },
-  { key: "quotaAt80",       label: "Quota at 80%",           sub: "Alert me when I've used 80% of my monthly quota."       },
-  { key: "quotaAt95",       label: "Quota at 95%",           sub: "Alert me when I'm close to hitting my monthly limit."   },
-  { key: "weeklySummary",   label: "Weekly usage summary",   sub: "Receive a weekly email with my verification stats."     },
+  {
+    key: "bulkJobComplete",
+    label: "Bulk job complete",
+    sub: "Notify me when a bulk verification job finishes.",
+  },
+  {
+    key: "quotaAt80",
+    label: "Quota at 80%",
+    sub: "Alert me when I've used 80% of my monthly quota.",
+  },
+  {
+    key: "quotaAt95",
+    label: "Quota at 95%",
+    sub: "Alert me when I'm close to hitting my monthly limit.",
+  },
+  {
+    key: "weeklySummary",
+    label: "Weekly usage summary",
+    sub: "Receive a weekly email with my verification stats.",
+  },
 ];
 
 export function NotificationsCard() {
@@ -42,7 +58,10 @@ export function NotificationsCard() {
 
         <div className="divide-y divide-border rounded-xl border border-border overflow-hidden">
           {TOGGLES.map(({ key, label, sub }) => (
-            <div key={key} className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-muted/20 transition-colors">
+            <div
+              key={key}
+              className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-muted/20 transition-colors"
+            >
               <div>
                 <p className="text-sm font-medium">{label}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
@@ -56,10 +75,12 @@ export function NotificationsCard() {
                   prefs[key] ? "bg-primary" : "bg-muted"
                 )}
               >
-                <span className={cn(
-                  "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200",
-                  prefs[key] ? "translate-x-4" : "translate-x-0"
-                )} />
+                <span
+                  className={cn(
+                    "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200",
+                    prefs[key] ? "translate-x-4" : "translate-x-0"
+                  )}
+                />
               </button>
             </div>
           ))}

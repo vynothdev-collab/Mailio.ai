@@ -8,7 +8,10 @@ import { MOCK_PAYMENT_METHOD } from "../mock";
 import { PaymentMethodsModal } from "./PaymentMethodsModal";
 
 const BRAND_LABEL: Record<string, string> = {
-  visa: "Visa", mastercard: "Mastercard", amex: "Amex", other: "Card",
+  visa: "Visa",
+  mastercard: "Mastercard",
+  amex: "Amex",
+  other: "Card",
 };
 
 export function PaymentMethodCard() {
@@ -29,7 +32,9 @@ export function PaymentMethodCard() {
             <CreditCard size={20} className="text-muted-foreground" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold">{BRAND_LABEL[brand]} •••• {last4}</p>
+            <p className="text-sm font-semibold">
+              {BRAND_LABEL[brand]} •••• {last4}
+            </p>
             <p className="text-xs text-muted-foreground mt-0.5">Expires {exp}</p>
           </div>
           <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium">

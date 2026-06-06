@@ -48,7 +48,9 @@ export class AdminAuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Admin login — validates credentials and sends OTP' })
+  @ApiOperation({
+    summary: 'Admin login — validates credentials and sends OTP',
+  })
   login(@Body() dto: AdminLoginDto) {
     return this.adminAuthService.login(dto.email, dto.password);
   }

@@ -5,7 +5,14 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Bell, ChevronDown, HelpCircle, Loader2, LogOut, RefreshCw, User,
+  ArrowLeft,
+  Bell,
+  ChevronDown,
+  HelpCircle,
+  Loader2,
+  LogOut,
+  RefreshCw,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/src/lib/utils";
@@ -75,7 +82,10 @@ function AvatarMenu() {
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0F5BFF] text-[11px] font-bold text-white">
           {initials}
         </span>
-        <ChevronDown size={13} className={cn("text-muted-foreground transition-transform", open && "rotate-180")} />
+        <ChevronDown
+          size={13}
+          className={cn("text-muted-foreground transition-transform", open && "rotate-180")}
+        />
       </button>
 
       {open && (
@@ -100,7 +110,15 @@ function AvatarMenu() {
               disabled={loggingOut}
               className="flex w-full items-center gap-2.5 px-3 py-2 text-xs text-destructive hover:bg-destructive/10 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loggingOut ? <><Loader2 size={13} className="animate-spin" /> Signing out…</> : <><LogOut size={13} /> Sign out</>}
+              {loggingOut ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" /> Signing out…
+                </>
+              ) : (
+                <>
+                  <LogOut size={13} /> Sign out
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -152,9 +170,7 @@ export function PageHeader({
             {title}
           </h1>
         </div>
-        {subtitle && (
-          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
-        )}
+        {subtitle && <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{subtitle}</p>}
       </div>
       <div className="order-1 flex shrink-0 items-center gap-2 lg:order-2 lg:justify-end">
         {mobileMenu && (
@@ -176,7 +192,7 @@ export function PageHeader({
             <span className="hidden sm:inline">Refresh</span>
           </Button>
         )}
-        {/* <NotificationButton /> */}
+        {}
         <AvatarMenu />
       </div>
     </div>

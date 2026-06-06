@@ -76,8 +76,10 @@ export class LinkedinAuthService {
     }
 
     const fallbackName =
-      [profile.given_name, profile.family_name].filter(Boolean).join(' ').trim() ||
-      profile.email.split('@')[0];
+      [profile.given_name, profile.family_name]
+        .filter(Boolean)
+        .join(' ')
+        .trim() || profile.email.split('@')[0];
 
     return {
       providerId: profile.sub,
@@ -114,7 +116,9 @@ export class LinkedinAuthService {
         ),
       );
       if (!data?.access_token) {
-        throw new UnauthorizedException('LinkedIn did not return an access token');
+        throw new UnauthorizedException(
+          'LinkedIn did not return an access token',
+        );
       }
       return data;
     } catch (err) {

@@ -27,10 +27,10 @@ export interface UserCreditRow {
 
 export interface EnterpriseCreditSummary {
   totalPurchased: number;
-  enterprisePool: number; // current live credit_balance on the enterprise
-  totalAllocated: number; // sum of all enterprise-user creditLimits
-  totalUsed: number; // sum of all enterprise-user creditsUsed
-  adminUsable: number; // enterprisePool - totalAllocated
+  enterprisePool: number;
+  totalAllocated: number;
+  totalUsed: number;
+  adminUsable: number;
   expiresAt: Date | null;
   daysRemaining: number | null;
   users: UserCreditRow[];
@@ -51,8 +51,6 @@ export class EnterpriseCreditsService {
     private readonly creditsService: CreditsService,
     private readonly subscriptions: SubscriptionsService,
   ) {}
-
-  // ── Credit Summary ────────────────────────────────────────────────────────
 
   async getCreditSummary(
     enterpriseId: string,
@@ -109,14 +107,6 @@ export class EnterpriseCreditsService {
     };
   }
 
-  // ── Per-User Allocation ───────────────────────────────────────────────────
-
-  /**
-   * Allocate (or update) credits for a single enterprise user.
-   * Validates:
-   *   1. New amount ≥ already consumed by this user.
-   *   2. Total allocations (including this one) ≤ enterprise credit pool.
-   */
   async allocateToUser(
     enterpriseId: string,
     targetUserId: string,
@@ -146,7 +136,6 @@ export class EnterpriseCreditsService {
       );
     }
 
-    // Sum of allocations for OTHER enterprise users (exclude this user's current limit).
     const otherAllocated = await this.sumOtherAllocations(
       enterpriseId,
       targetUserId,
@@ -170,14 +159,6 @@ export class EnterpriseCreditsService {
     );
   }
 
-  // ── Plan Purchase + Renewal ───────────────────────────────────────────────
-
-  /**
-   * Enterprise Admin purchases a plan. Delegates the heavy lifting to
-   * SubscriptionsService (which handles ACTIVE/QUEUED state and the live
-   * balance) while preserving the existing reallocation modal flow as a
-   * pre-purchase guard when stale user allocations would otherwise be lost.
-   */
   async purchasePlan(
     enterprise: Enterprise,
     plan: BillingPlan,
@@ -196,7 +177,6 @@ export class EnterpriseCreditsService {
   }> {
     void actorId;
 
-    // ── TOPUP — delegate, never triggers reallocation. ───────────────────────
     if (plan.planCategory === PlanCategory.TOPUP) {
       const sub = await this.subscriptions.purchaseTopupForEnterprise(
         enterprise.id,
@@ -212,7 +192,6 @@ export class EnterpriseCreditsService {
       };
     }
 
-    // ── VALIDITY_BASED ───────────────────────────────────────────────────────
     const now = new Date();
     const hasActiveExpiry =
       enterprise.creditExpiresAt !== null && enterprise.creditExpiresAt > now;
@@ -222,8 +201,6 @@ export class EnterpriseCreditsService {
       order: { name: 'ASC' },
     });
 
-    // When there's no active plan and enterprise users exist, always show the
-    // allocation modal so the admin can distribute credits before activating.
     if (!hasActiveExpiry && enterpriseUsers.length > 0) {
       const validityDays = plan.validityDays ?? 30;
       const expiresAt = new Date();
@@ -242,7 +219,6 @@ export class EnterpriseCreditsService {
       };
     }
 
-    // Normal path: subscription service handles ACTIVE vs QUEUED placement.
     const sub = await this.subscriptions.purchaseValidityPlanForEnterprise(
       enterprise.id,
       plan.id,
@@ -257,16 +233,6 @@ export class EnterpriseCreditsService {
     };
   }
 
-  /**
-   * Confirm re-allocation after admin fills the modal.
-   * Validates total allocations ≤ plan credits, then applies.
-   *
-   * Order of operations:
-   *   1. Validate inputs (allocations, user constraints).
-   *   2. purchaseValidityPlanForEnterprise → creates subscription row,
-   *      credits the enterprise balance, sets credit_expires_at, writes ledger.
-   *   3. Apply user credit-limit updates (does NOT touch enterprise balance).
-   */
   async confirmReallocation(
     enterpriseId: string,
     planId: string,
@@ -290,7 +256,6 @@ export class EnterpriseCreditsService {
       );
     }
 
-    // Validate each new allocation ≥ that user's already-consumed credits.
     const userIds = allocations.map((a) => a.userId);
     const users = await this.userRepo.find({
       where: userIds.map((id) => ({ id, enterpriseId })),
@@ -308,11 +273,6 @@ export class EnterpriseCreditsService {
       }
     }
 
-    // Step 1: Apply user credit-limit allocations BEFORE creating the subscription.
-    //   • If this fails the admin retries — no credits have been issued yet, safe.
-    //   • If it succeeds and the subscription creation below fails, limits are set
-    //     but the enterprise has no new credits (harmless — retry will work because
-    //     there is still no ACTIVE subscription to cause a queue collision).
     const validityDays = plan.validityDays ?? 30;
     const tentativeExpiry = new Date();
     tentativeExpiry.setDate(tentativeExpiry.getDate() + validityDays);
@@ -327,15 +287,11 @@ export class EnterpriseCreditsService {
       allocations,
     );
 
-    // Step 2: Create the subscription — credits the enterprise balance atomically,
-    //   sets credit_expires_at, and writes the ledger entry.
     const sub = await this.subscriptions.purchaseValidityPlanForEnterprise(
       enterpriseId,
       planId,
     );
 
-    // Sync user expiry to the exact date computed by the subscription service
-    // (may differ by a few milliseconds from tentativeExpiry).
     if (sub.endDate && sub.endDate.getTime() !== tentativeExpiry.getTime()) {
       await this.dataSource.query(
         `UPDATE users
@@ -355,16 +311,6 @@ export class EnterpriseCreditsService {
     };
   }
 
-  // ── Expiry Reset ──────────────────────────────────────────────────────────
-
-  /**
-   * Legacy safety-net for accounts that pre-date the subscription system.
-   *
-   * Hard guard: SKIPS any enterprise that has ANY row in `subscriptions`.
-   * Those accounts are owned by SubscriptionsService.expireAndActivate*,
-   * which runs first in the cron tick. This prevents double-removal of
-   * credits or wiping an enterprise that has a QUEUED plan ready to activate.
-   */
   async processExpiredCredits(): Promise<void> {
     const now = new Date();
 
@@ -421,12 +367,6 @@ export class EnterpriseCreditsService {
     }
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
-  /**
-   * Stacking an active plan: add to the enterprise pool, extend expiry,
-   * keep existing user allocations, reset usage counters.
-   */
   private async applyStackedRenewal(
     enterpriseId: string,
     newBalance: number,
@@ -472,10 +412,6 @@ export class EnterpriseCreditsService {
     return Number(row[0]?.total ?? 0);
   }
 
-  /**
-   * Update per-user credit limits and reset usage after a reallocation.
-   * Does NOT touch the enterprise credit_balance (subscription service owns that).
-   */
   private async applyUserAllocations(
     enterpriseId: string,
     expiresAt: Date,
@@ -502,7 +438,7 @@ export class EnterpriseCreditsService {
           ],
         );
       }
-      // Also reset ENTERPRISE_ADMIN expiry.
+
       await em.query(
         `UPDATE users
            SET credit_expires_at = $1,
@@ -523,7 +459,6 @@ export class EnterpriseCreditsService {
     allocations?: Array<{ userId: string; amount: number }>,
   ): Promise<void> {
     await this.dataSource.transaction(async (em) => {
-      // Reset enterprise pool to the new plan's credits.
       await em.query(
         `UPDATE enterprises
            SET credit_balance          = $1,
@@ -536,7 +471,6 @@ export class EnterpriseCreditsService {
       );
 
       if (keepExistingLimits) {
-        // Same plan: reset usage but preserve allocation amounts.
         await em.query(
           `UPDATE users
              SET credits_used      = 0,
@@ -547,7 +481,6 @@ export class EnterpriseCreditsService {
           [expiresAt, enterpriseId],
         );
       } else if (allocations && allocations.length > 0) {
-        // Custom re-allocation.
         const allocMap = new Map(allocations.map((a) => [a.userId, a.amount]));
         for (const user of enterpriseUsers) {
           const newLimit = allocMap.has(user.id) ? allocMap.get(user.id) : null;
@@ -567,7 +500,7 @@ export class EnterpriseCreditsService {
             ],
           );
         }
-        // Also update ENTERPRISE_ADMIN expiry.
+
         await em.query(
           `UPDATE users
              SET credit_expires_at = $1,
@@ -577,7 +510,6 @@ export class EnterpriseCreditsService {
           [expiresAt, enterpriseId],
         );
       } else {
-        // No existing allocations: just clear any stale limits and reset usage.
         await em.query(
           `UPDATE users
              SET credit_limit      = NULL,

@@ -11,9 +11,9 @@ import type { ApiError } from "@/src/types/auth";
 import type { UsageLogItem, UsageType } from "@/src/types/usage";
 
 const TYPE_OPTIONS: { label: string; value: UsageType }[] = [
-  { label: "All",    value: "all"    },
+  { label: "All", value: "all" },
   { label: "Single", value: "single" },
-  { label: "Bulk",   value: "bulk"   },
+  { label: "Bulk", value: "bulk" },
 ];
 
 const PAGE_SIZE = 10;
@@ -22,16 +22,22 @@ function formatDate(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? iso
-    : d.toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    : d.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 }
 
 export function UsageLogTable() {
-  const [type,    setType]    = useState<UsageType>("all");
-  const [page,    setPage]    = useState(1);
-  const [rows,    setRows]    = useState<UsageLogItem[]>([]);
-  const [total,   setTotal]   = useState(0);
+  const [type, setType] = useState<UsageType>("all");
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState<UsageLogItem[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -49,15 +55,17 @@ export function UsageLogTable() {
         const apiErr = err as ApiError;
         setError(apiErr?.message ?? "Failed to load usage log.");
       })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
     return () => controller.abort();
   }, [page, type]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const start      = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const end        = Math.min(page * PAGE_SIZE, total);
-  const canPrev    = page > 1 && !loading;
-  const canNext    = page < totalPages && !loading;
+  const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const end = Math.min(page * PAGE_SIZE, total);
+  const canPrev = page > 1 && !loading;
+  const canNext = page < totalPages && !loading;
 
   const handleFilter = (value: UsageType) => {
     setType(value);
@@ -72,7 +80,8 @@ export function UsageLogTable() {
             <div>
               <h2 className="text-sm font-semibold">Usage Log</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Current billing period — {new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+                Current billing period —{" "}
+                {new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}
               </p>
             </div>
             {loading && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
@@ -86,7 +95,7 @@ export function UsageLogTable() {
                   "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                   type === value
                     ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {label}
@@ -100,7 +109,10 @@ export function UsageLogTable() {
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 {["Email / File", "Type", "Credits Used", "Date & Time"].map((h) => (
-                  <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
+                  <th
+                    key={h}
+                    className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap"
+                  >
                     {h}
                   </th>
                 ))}
@@ -110,12 +122,16 @@ export function UsageLogTable() {
               {loading && rows.length === 0 ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <tr key={i} className="border-b border-border last:border-0">
-                    <td colSpan={4} className="px-3 py-2.5"><Skeleton className="h-5 w-full" /></td>
+                    <td colSpan={4} className="px-3 py-2.5">
+                      <Skeleton className="h-5 w-full" />
+                    </td>
                   </tr>
                 ))
               ) : error ? (
                 <tr>
-                  <td colSpan={4} className="px-3 py-6 text-center text-sm text-destructive">{error}</td>
+                  <td colSpan={4} className="px-3 py-6 text-center text-sm text-destructive">
+                    {error}
+                  </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
@@ -129,22 +145,28 @@ export function UsageLogTable() {
                     key={row.id}
                     className={cn(
                       "border-b border-border last:border-0 transition-colors hover:bg-muted/20",
-                      i % 2 === 1 && "bg-muted/10",
+                      i % 2 === 1 && "bg-muted/10"
                     )}
                   >
                     <td className="px-3 py-2.5">
                       <span className="flex items-center gap-2">
-                        {row.type === "single"
-                          ? <Mail size={13} className="shrink-0 text-muted-foreground" />
-                          : <FileText size={13} className="shrink-0 text-muted-foreground" />}
+                        {row.type === "single" ? (
+                          <Mail size={13} className="shrink-0 text-muted-foreground" />
+                        ) : (
+                          <FileText size={13} className="shrink-0 text-muted-foreground" />
+                        )}
                         <span className="font-medium truncate max-w-56">{row.label}</span>
                       </span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className={cn(
-                        "rounded-md px-2 py-0.5 text-xs font-medium",
-                        row.type === "single" ? "bg-blue-50 text-blue-700" : "bg-fuchsia-50 text-fuchsia-700",
-                      )}>
+                      <span
+                        className={cn(
+                          "rounded-md px-2 py-0.5 text-xs font-medium",
+                          row.type === "single"
+                            ? "bg-blue-50 text-blue-700"
+                            : "bg-fuchsia-50 text-fuchsia-700"
+                        )}
+                      >
                         {row.type === "single" ? "Single" : "Bulk"}
                       </span>
                     </td>
@@ -163,10 +185,15 @@ export function UsageLogTable() {
 
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground tabular-nums">
-            {total === 0
-              ? "No records"
-              : <>Showing <span className="font-medium text-foreground">{start}</span>–<span className="font-medium text-foreground">{end}</span> of <span className="font-medium text-foreground">{total}</span></>
-            }
+            {total === 0 ? (
+              "No records"
+            ) : (
+              <>
+                Showing <span className="font-medium text-foreground">{start}</span>–
+                <span className="font-medium text-foreground">{end}</span> of{" "}
+                <span className="font-medium text-foreground">{total}</span>
+              </>
+            )}
           </p>
           <div className="flex items-center gap-1">
             <Button

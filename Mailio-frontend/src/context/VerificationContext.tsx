@@ -1,38 +1,32 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "@/src/hooks/useAuth";
 import type { RecentVerification, VerificationResult } from "@/src/features/single-verify/types";
 
 const MAX_RECORDS = 20;
 
 interface VerificationContextValue {
-  recent:    RecentVerification[];
-  push:      (result: VerificationResult) => void;
-  remove:    (id: string) => void;
-  clear:     () => void;
+  recent: RecentVerification[];
+  push: (result: VerificationResult) => void;
+  remove: (id: string) => void;
+  clear: () => void;
 }
 
 const VerificationContext = createContext<VerificationContextValue | null>(null);
 
 function toRecent(result: VerificationResult): RecentVerification {
   const catchall: RecentVerification["catchall"] =
-    result.status === "valid"     ? "low"
-  : result.status === "catchall"     ||
-    result.status === "unknown"   ? "medium"
-                                  : "high";
+    result.status === "valid"
+      ? "low"
+      : result.status === "catchall" || result.status === "unknown"
+        ? "medium"
+        : "high";
 
   return {
-    id:         result.id ?? `${result.email}-${result.verifiedAt}`,
-    email:      result.email,
-    status:     result.status,
+    id: result.id ?? `${result.email}-${result.verifiedAt}`,
+    email: result.email,
+    status: result.status,
     catchall,
     verifiedAt: result.verifiedAt,
   };
@@ -42,10 +36,7 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const [recent, setRecent] = useState<RecentVerification[]>([]);
-  // Reset the in-memory buffer when the signed-in user changes, without an
-  // effect (React-recommended derived-state pattern). The API is the source
-  // of truth — this buffer only exists for the brief moment between
-  // "just verified" and the next refetch resolving.
+
   const [prevUserId, setPrevUserId] = useState(userId);
   if (prevUserId !== userId) {
     setPrevUserId(userId);
@@ -68,7 +59,7 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<VerificationContextValue>(
     () => ({ recent, push, remove, clear }),
-    [recent, push, remove, clear],
+    [recent, push, remove, clear]
   );
 
   return <VerificationContext.Provider value={value}>{children}</VerificationContext.Provider>;
