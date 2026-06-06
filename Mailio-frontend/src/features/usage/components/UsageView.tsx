@@ -15,6 +15,7 @@ import { UsageBreakdownTiles } from "./UsageBreakdownTiles";
 import { UsageChart } from "./UsageChart";
 import { UsageLogTable } from "./UsageLogTable";
 import { PageHeader } from "@/src/components/layout/PageHeader";
+import { UsageContentSkeleton } from "@/src/components/shared/Skeleton";
 
 const CHART_PERIOD: UsagePeriod = "30d";
 
@@ -25,7 +26,12 @@ export function UsageView() {
   const [loading,    setLoading]    = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleRefresh = () => setRefreshKey((k) => k + 1);
+  const handleRefresh = () => {
+    setQuota(null);
+    setBreakdown(null);
+    setChart([]);
+    setRefreshKey((k) => k + 1);
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -52,25 +58,30 @@ export function UsageView() {
   }, [refreshKey]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       <PageHeader
         title="Usage"
         subtitle="Monitor your email verification usage, quota, and credit consumption."
         onRefresh={handleRefresh}
         refreshing={loading}
       />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-1">
-          <PlanQuotaCard quota={quota} loading={loading} />
-        </div>
-        <div className="lg:col-span-2 flex flex-col justify-center">
-          <UsageBreakdownTiles breakdown={breakdown} loading={loading} />
-        </div>
-      </div>
 
-      <UsageChart data={chart} loading={loading} />
-
-      <UsageLogTable />
+      {loading && !quota ? (
+        <UsageContentSkeleton />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-1">
+              <PlanQuotaCard quota={quota} loading={loading} />
+            </div>
+            <div className="lg:col-span-2 flex flex-col justify-center">
+              <UsageBreakdownTiles breakdown={breakdown} loading={loading} />
+            </div>
+          </div>
+          <UsageChart data={chart} loading={loading} />
+          <UsageLogTable />
+        </>
+      )}
     </div>
   );
 }

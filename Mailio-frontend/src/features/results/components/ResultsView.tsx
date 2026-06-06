@@ -14,6 +14,7 @@ import { ResultsStatsRow } from "./ResultsStatsRow";
 import { ResultsFiltersBar } from "./ResultsFiltersBar";
 import { ResultsTable } from "./ResultsTable";
 import { PageHeader } from "@/src/components/layout/PageHeader";
+import { ResultsContentSkeleton } from "@/src/components/shared/Skeleton";
 
 const DEFAULT_FILTERS: ResultsFilters = {
   query:    "",
@@ -47,6 +48,7 @@ export function ResultsView() {
     setFilters((prev) => ({ ...prev, ...p }));
 
   const handleRefresh = () => {
+    setResponse(null);
     setFilters(DEFAULT_FILTERS);
     setRefreshKey((k) => k + 1);
   };
@@ -80,27 +82,33 @@ export function ResultsView() {
   const stats   = response?.stats ?? EMPTY_STATS;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       <PageHeader
         title="Results"
         subtitle="View all single and bulk email verification results."
         onRefresh={handleRefresh}
         refreshing={loading}
       />
-      <ResultsStatsRow stats={stats} loading={loading && !response} />
 
-      <Card>
-        <CardContent className="pt-3 space-y-3">
-          <ResultsFiltersBar filters={filters} onChange={patch} />
-          <ResultsTable
-            records={records}
-            filters={filters}
-            total={total}
-            loading={loading}
-            onChange={patch}
-          />
-        </CardContent>
-      </Card>
+      {loading && !response ? (
+        <ResultsContentSkeleton />
+      ) : (
+        <>
+          <ResultsStatsRow stats={stats} loading={false} />
+          <Card>
+            <CardContent className="pt-2 sm:pt-3 p-2 sm:p-6 space-y-2 sm:space-y-3">
+              <ResultsFiltersBar filters={filters} onChange={patch} />
+              <ResultsTable
+                records={records}
+                filters={filters}
+                total={total}
+                loading={loading}
+                onChange={patch}
+              />
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

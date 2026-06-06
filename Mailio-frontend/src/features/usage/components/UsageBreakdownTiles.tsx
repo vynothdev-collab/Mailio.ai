@@ -11,9 +11,19 @@ interface Props {
 export function UsageBreakdownTiles({ breakdown, loading }: Props) {
   if (loading || !breakdown) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
         {Array.from({ length: 2 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 rounded-xl" />
+          <div key={i} className="flex items-start gap-2 sm:gap-3 rounded-xl border border-border bg-card p-3 sm:p-4">
+            <Skeleton className="h-7 w-7 sm:h-9 sm:w-9 shrink-0 rounded-lg" />
+            <div className="min-w-0 flex-1 space-y-1 sm:space-y-1.5">
+              <Skeleton className="h-2.5 w-28 sm:h-3 sm:w-32" />
+              <Skeleton className="h-5 w-16 sm:h-6 sm:w-20" />
+              <div className="space-y-1 pt-0.5">
+                <Skeleton className="h-1.5 w-full rounded-full" />
+                <Skeleton className="h-2 w-20 sm:h-2.5 sm:w-24" />
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     );
@@ -43,20 +53,21 @@ export function UsageBreakdownTiles({ breakdown, loading }: Props) {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
       {tiles.map(({ label, value, pct, Icon, iconColor, iconBgColor, barColor }) => (
-        <div key={label} className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
-          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconBgColor}`}>
-            <Icon size={16} className={iconColor} />
+        <div key={label} className="flex items-start gap-2 sm:gap-3 rounded-xl border border-border bg-card p-3 sm:p-4">
+          <div className={`flex h-7 w-7 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg ${iconBgColor}`}>
+            <Icon size={13} className={`${iconColor} sm:hidden`} />
+            <Icon size={16} className={`${iconColor} hidden sm:block`} />
           </div>
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <p className="text-xs text-muted-foreground leading-tight">{label}</p>
-            <p className="text-xl font-bold tabular-nums leading-tight">{formatNumber(value)}</p>
+          <div className="min-w-0 flex-1 space-y-1 sm:space-y-1.5">
+            <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight">{label}</p>
+            <p className="text-lg sm:text-xl font-bold tabular-nums leading-tight">{formatNumber(value)}</p>
             <div className="space-y-1">
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div className="h-1 sm:h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
               </div>
-              <p className="text-[11px] text-muted-foreground">{pct}% of total usage</p>
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground">{pct}% of total</p>
             </div>
           </div>
         </div>

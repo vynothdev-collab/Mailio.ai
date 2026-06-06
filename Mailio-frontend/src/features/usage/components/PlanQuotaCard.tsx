@@ -26,10 +26,29 @@ export function PlanQuotaCard({ quota, loading }: Props) {
   if (loading || !quota) {
     return (
       <Card>
-        <CardContent className="pt-3 space-y-3">
-          <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-9 w-full" />
+        <CardContent className="pt-3 space-y-3 sm:space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg" />
+              <div className="space-y-1">
+                <Skeleton className="h-3.5 w-16 sm:h-4 sm:w-20" />
+                <Skeleton className="h-2.5 w-24 sm:h-3 sm:w-28" />
+              </div>
+            </div>
+            <Skeleton className="h-7 w-20 sm:h-8 sm:w-24 rounded-lg" />
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-end justify-between">
+              <Skeleton className="h-7 w-16 sm:h-8 sm:w-20" />
+              <Skeleton className="h-3.5 w-24 sm:h-4 sm:w-28" />
+            </div>
+            <Skeleton className="h-2 w-full sm:h-2.5 rounded-full" />
+            <div className="flex justify-between">
+              <Skeleton className="h-2.5 w-12 sm:h-3 sm:w-14" />
+              <Skeleton className="h-2.5 w-20 sm:h-3 sm:w-24" />
+            </div>
+          </div>
+          <Skeleton className="h-7 w-full sm:h-8 rounded-lg" />
         </CardContent>
       </Card>
     );
@@ -42,26 +61,27 @@ export function PlanQuotaCard({ quota, loading }: Props) {
 
   return (
     <Card>
-      <CardContent className="pt-3 space-y-4">
+      <CardContent className="pt-3 space-y-3 sm:space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-              <Zap size={15} className="text-primary" />
+            <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-primary/10">
+              <Zap size={13} className="text-primary sm:hidden" />
+              <Zap size={15} className="text-primary hidden sm:block" />
             </div>
             <div>
-              <p className="text-sm font-semibold">{formatPlanLabel(quota.plan)}</p>
-              <p className="text-xs text-muted-foreground">Current billing period</p>
+              <p className="text-xs sm:text-sm font-semibold">{formatPlanLabel(quota.plan)}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Current billing period</p>
             </div>
           </div>
-          <Button size="sm" className="gradient-brand border-0 text-white hover:opacity-90 text-xs h-8">
+          <Button size="sm" className="gradient-brand border-0 text-white hover:opacity-90 text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3">
             Upgrade Plan
           </Button>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1 sm:space-y-1.5">
           <div className="flex items-end justify-between">
-            <span className="text-2xl font-bold tabular-nums">{formatNumber(quota.used)}</span>
-            <span className="text-sm text-muted-foreground tabular-nums">
+            <span className="text-xl sm:text-2xl font-bold tabular-nums">{formatNumber(quota.used)}</span>
+            <span className="text-[10px] sm:text-sm text-muted-foreground tabular-nums">
               of {formatNumber(quota.limit)} emails
             </span>
           </div>
@@ -73,7 +93,7 @@ export function PlanQuotaCard({ quota, loading }: Props) {
               isCritical ? "bg-red-500" : isWarning ? "bg-amber-500" : "gradient-brand",
             )}
           />
-          <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center justify-between text-[10px] sm:text-xs">
             <span className={cn(
               "font-medium",
               isCritical ? "text-red-600" : isWarning ? "text-amber-600" : "text-muted-foreground",
@@ -86,9 +106,10 @@ export function PlanQuotaCard({ quota, loading }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          <CalendarClock size={13} />
-          Quota resets on <span className="font-semibold text-foreground ml-0.5">{formatDate(quota.resetDate)}</span>
+        <div className="flex items-center gap-1.5 rounded-lg bg-muted/40 px-2.5 py-1.5 sm:px-3 sm:py-2 text-[10px] sm:text-xs text-muted-foreground">
+          <CalendarClock size={11} className="sm:hidden" />
+          <CalendarClock size={13} className="hidden sm:block" />
+          Resets on <span className="font-semibold text-foreground ml-0.5">{formatDate(quota.resetDate)}</span>
         </div>
       </CardContent>
     </Card>
