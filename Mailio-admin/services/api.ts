@@ -35,15 +35,22 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
   const accessToken = getCookie(COOKIE_NAMES.ACCESS_TOKEN);
 
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  const baseHeaders: Record<string, string> = isFormData
+    ? {} // let the browser set multipart/form-data + boundary
+    : { "Content-Type": "application/json" };
+
   const config: RequestInit = {
     method,
     credentials: "omit",
     headers: {
-      "Content-Type": "application/json",
+      ...baseHeaders,
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...headers,
     },
-    ...(body ? { body: JSON.stringify(body) } : {}),
+    ...(body
+      ? { body: isFormData ? (body as FormData) : JSON.stringify(body) }
+      : {}),
   };
 
   const response = await fetch(`${BASE_URL}${endpoint}`, config);

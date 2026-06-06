@@ -22,6 +22,7 @@ import {
   type TicketStatus,
   type TicketType,
 } from "@/services/tickets.service";
+import { TicketAttachmentInput } from "./TicketAttachmentInput";
 import { TicketAttachments } from "./TicketAttachments";
 
 // ─── Display maps ────────────────────────────────────────────────────────────
@@ -129,6 +130,7 @@ export default function TicketsPage() {
   const [detailError,   setDetailError]   = useState<string | null>(null);
 
   const [reply,   setReply]   = useState("");
+  const [replyAttachments, setReplyAttachments] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
 
   // Confirm dialog state — used for any destructive action (delete, etc).
@@ -226,11 +228,13 @@ export default function TicketsPage() {
     if (!text || !detail) return;
     setSending(true);
     try {
-      await adminTicketsService.reply(detail.ticket.id, text);
+      await adminTicketsService.reply(detail.ticket.id, text, replyAttachments);
       setReply("");
+      setReplyAttachments([]);
       await syncAfterMutation();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to send reply.");
+      const apiMsg = (e as { message?: string } | null)?.message;
+      toast.error(apiMsg || (e instanceof Error ? e.message : "Failed to send reply."));
     } finally {
       setSending(false);
     }
@@ -465,6 +469,8 @@ export default function TicketsPage() {
               detail={detail}
               reply={reply}
               setReply={setReply}
+              replyAttachments={replyAttachments}
+              setReplyAttachments={setReplyAttachments}
               sending={sending}
               onSend={sendReply}
               onClose={() => setSelectedId(null)}
@@ -784,12 +790,15 @@ function Drawer({ children, onClose }: { children: React.ReactNode; onClose: () 
 }
 
 function TicketDetailView({
-  detail, reply, setReply, sending, onSend, onClose, onReload,
+  detail, reply, setReply, replyAttachments, setReplyAttachments,
+  sending, onSend, onClose, onReload,
   onChangeStatus, onChangePriority, onDelete,
 }: {
   detail: AdminTicketDetail;
   reply: string;
   setReply: (s: string) => void;
+  replyAttachments: File[];
+  setReplyAttachments: (f: File[]) => void;
   sending: boolean;
   onSend: () => void;
   onClose: () => void;
@@ -985,13 +994,20 @@ function TicketDetailView({
             ))}
           </div>
           <div className="flex items-end gap-2">
-            <textarea
-              value={reply}
-              onChange={(e) => setReply(e.target.value)}
-              rows={3}
-              placeholder="Type your reply…"
-              className="flex-1 rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 resize-none"
-            />
+            <TicketAttachmentInput
+              files={replyAttachments}
+              onFilesChange={setReplyAttachments}
+              disabled={sending}
+              className="flex-1"
+            >
+              <textarea
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                rows={3}
+                placeholder="Type your reply… (drag, paste, or use + to attach)"
+                className="w-full rounded-t-xl bg-transparent px-3 py-2.5 text-sm focus:outline-none resize-none"
+              />
+            </TicketAttachmentInput>
             <button
               type="button"
               onClick={onSend}

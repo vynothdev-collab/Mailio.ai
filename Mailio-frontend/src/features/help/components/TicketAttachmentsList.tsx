@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Download, Film, Paperclip, X } from "lucide-react";
 import type { TicketAttachment } from "@/src/services/ticketsService";
-import { fmtSize } from "./TicketAttachmentUpload";
+import { formatFileSize as fmtSize } from "./ticket-attachments-utils";
 
 interface Props {
   attachments: TicketAttachment[];

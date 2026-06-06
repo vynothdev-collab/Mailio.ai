@@ -154,8 +154,17 @@ export const adminTicketsService = {
 
   detail: (id: string) => apiService.get<AdminTicketDetail>(`/admin/tickets/${id}`),
 
-  reply: (id: string, message: string) =>
-    apiService.post<TicketMessage>(`/admin/tickets/${id}/reply`, { message }),
+  reply: (id: string, message: string, attachments: File[] = []) => {
+    if (attachments.length === 0) {
+      return apiService.post<TicketMessage>(`/admin/tickets/${id}/reply`, {
+        message,
+      });
+    }
+    const form = new FormData();
+    form.append("message", message);
+    attachments.forEach((f) => form.append("attachments", f));
+    return apiService.post<TicketMessage>(`/admin/tickets/${id}/reply`, form);
+  },
 
   updateStatus: (id: string, status: TicketStatus) =>
     apiService.patch<AdminTicketRow>(`/admin/tickets/${id}/status`, { status }),

@@ -145,7 +145,7 @@ export class SupportTicketsService {
 
     const senderRole = this.senderRoleForUser(user);
 
-    return this.dataSource.transaction(async (em) => {
+    const saved = await this.dataSource.transaction(async (em) => {
       const number = await this.nextTicketNumber(em);
       const now = new Date();
       const ticket = em.create(Ticket, {
@@ -178,40 +178,45 @@ export class SupportTicketsService {
         resolvedAt: null,
         closedAt: null,
       });
-      const saved = await em.save(ticket);
+      const persisted = await em.save(ticket);
 
       // First thread message mirrors the ticket content for conversation history.
       // UI deduplicates it (shows `content` as "Original Issue" and slices from msg[1:]).
       await em.save(
         em.create(TicketMessage, {
-          ticketId: saved.id,
+          ticketId: persisted.id,
           senderId: user.id,
           senderRole,
           message: dto.content,
         }),
       );
       this.logger.log(
-        `Ticket ${saved.ticketNumber} created by ${user.role}=${user.id} type=${dto.type} priority=${saved.priority}`,
+        `Ticket ${persisted.ticketNumber} created by ${user.role}=${user.id} type=${dto.type} priority=${persisted.priority}`,
       );
-      return saved;
-    }).then(async (saved) => {
-      // Upload attachments outside the DB transaction. S3 is slow I/O — we
-      // don't want to hold a row lock open for it.
-      //
-      // STRICT: if the user supplied attachments and any upload or DB save
-      // fails, the entire ticket creation must fail. We soft-delete the
-      // freshly-created ticket so it never appears in the user's list and
-      // any rows already inserted for it are filtered out by deletedAt IS NULL.
-      if (files.length > 0) {
-        try {
-          await this.persistAttachments(saved.id, files, user);
-        } catch (err) {
-          await this.rollbackTicket(saved.id);
-          throw err;
-        }
-      }
-      return saved;
+      return persisted;
     });
+
+    // Upload attachments outside the DB transaction. S3 is slow I/O — we
+    // don't want to hold a row lock open for it.
+    //
+    // STRICT: if the user supplied attachments and any upload or DB save
+    // fails, the entire ticket creation must fail. We soft-delete the
+    // freshly-created ticket so it never appears in the user's list and
+    // any rows already inserted for it are filtered out by deletedAt IS NULL.
+    if (files.length > 0) {
+      try {
+        await this.persistAttachments(
+          saved.id,
+          files,
+          user.id,
+          UPLOADER_BY_USER_ROLE[user.role] ?? 'user',
+        );
+      } catch (err) {
+        await this.rollbackTicket(saved.id);
+        throw err;
+      }
+    }
+    return saved;
   }
 
   /**
@@ -267,10 +272,9 @@ export class SupportTicketsService {
   private async persistAttachments(
     ticketId: string,
     files: Express.Multer.File[],
-    uploader: User,
+    uploaderId: string,
+    uploaderType: AttachmentUploaderType,
   ): Promise<void> {
-    const uploaderType =
-      UPLOADER_BY_USER_ROLE[uploader.role] ?? 'user';
     const uploadedKeys: string[] = [];
 
     try {
@@ -290,7 +294,7 @@ export class SupportTicketsService {
         await this.attachmentRepo.save(
           this.attachmentRepo.create({
             ticketId,
-            uploadedById: uploader.id,
+            uploadedById: uploaderId,
             uploadedByType: uploaderType,
             fileName: safeName,
             originalName: file.originalname,
@@ -472,7 +476,12 @@ export class SupportTicketsService {
     return { ticket, messages, attachments: attachmentDtos };
   }
 
-  async replyAsUser(user: User, ticketId: string, dto: ReplyTicketDto) {
+  async replyAsUser(
+    user: User,
+    ticketId: string,
+    dto: ReplyTicketDto,
+    files: Express.Multer.File[] = [],
+  ) {
     const { ticket } = await this.getTicketForUser(user, ticketId);
     if (
       ticket.status === TicketStatus.CLOSED ||
@@ -483,9 +492,11 @@ export class SupportTicketsService {
       );
     }
 
+    this.assertAttachmentsValid(files);
+
     const senderRole = this.senderRoleForUser(user);
-    return this.dataSource.transaction(async (em) => {
-      const msg = await em.save(
+    const msg = await this.dataSource.transaction(async (em) => {
+      const saved = await em.save(
         em.create(TicketMessage, {
           ticketId: ticket.id,
           senderId: user.id,
@@ -507,8 +518,24 @@ export class SupportTicketsService {
           WHERE id = $4`,
         [TicketStatus.WAITING_FOR_ADMIN, now, senderRole, ticket.id],
       );
-      return msg;
+      return saved;
     });
+
+    if (files.length > 0) {
+      try {
+        await this.persistAttachments(
+          ticket.id,
+          files,
+          user.id,
+          UPLOADER_BY_USER_ROLE[user.role] ?? 'user',
+        );
+      } catch (err) {
+        // Soft-delete the reply message so the user can re-send.
+        await this.msgRepo.softDelete(msg.id);
+        throw err;
+      }
+    }
+    return msg;
   }
 
   // ─── Admin-side queries ─────────────────────────────────────────────────────
@@ -782,18 +809,21 @@ export class SupportTicketsService {
     isSuper: boolean,
     ticketId: string,
     dto: ReplyTicketDto,
+    files: Express.Multer.File[] = [],
   ) {
     const ticket = await this.ticketRepo.findOne({
       where: { id: ticketId, deletedAt: IsNull() },
     });
     if (!ticket) throw new NotFoundException('Ticket not found.');
 
+    this.assertAttachmentsValid(files);
+
     const senderRole = isSuper
       ? TicketMessageSenderRole.SUPER_ADMIN
       : TicketMessageSenderRole.ADMIN;
 
-    return this.dataSource.transaction(async (em) => {
-      const msg = await em.save(
+    const msg = await this.dataSource.transaction(async (em) => {
+      const saved = await em.save(
         em.create(TicketMessage, {
           ticketId: ticket.id,
           senderId: adminId,
@@ -802,9 +832,6 @@ export class SupportTicketsService {
         }),
       );
       const now = new Date();
-      // Admin replied → user has one more unread; admin queue clears for this ticket.
-      // No auto-assignment — every admin can act on any ticket in this product.
-      void adminId;
       await em.query(
         `UPDATE tickets
             SET status               = $1,
@@ -817,8 +844,23 @@ export class SupportTicketsService {
           WHERE id = $4`,
         [TicketStatus.WAITING_FOR_USER, now, senderRole, ticket.id],
       );
-      return msg;
+      return saved;
     });
+
+    if (files.length > 0) {
+      try {
+        await this.persistAttachments(
+          ticket.id,
+          files,
+          adminId,
+          isSuper ? 'super_admin' : 'admin',
+        );
+      } catch (err) {
+        await this.msgRepo.softDelete(msg.id);
+        throw err;
+      }
+    }
+    return msg;
   }
 
   async updateStatus(ticketId: string, status: TicketStatus) {

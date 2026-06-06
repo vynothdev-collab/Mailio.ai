@@ -16,7 +16,7 @@ import {
   type TicketType,
   type TicketWithThread,
 } from "@/src/services/ticketsService";
-import { TicketAttachmentUpload } from "./TicketAttachmentUpload";
+import { TicketAttachmentInput } from "./TicketAttachmentInput";
 import { TicketAttachmentsList } from "./TicketAttachmentsList";
 
 // ─── Display maps ────────────────────────────────────────────────────────────
@@ -109,6 +109,7 @@ export function SubmitTicketSection() {
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const [reply, setReply]     = useState("");
+  const [replyAttachments, setReplyAttachments] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
 
   // New-ticket form
@@ -212,13 +213,15 @@ export function SubmitTicketSection() {
     if (!text || !detail) return;
     setSending(true);
     try {
-      await ticketsService.reply(detail.ticket.id, text);
+      await ticketsService.reply(detail.ticket.id, text, replyAttachments);
       setReply("");
+      setReplyAttachments([]);
       const fresh = await ticketsService.detail(detail.ticket.id);
       setDetail(fresh);
       await refreshList();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to send reply.");
+      const apiMsg = (e as { message?: string } | null)?.message;
+      toast.error(apiMsg || (e instanceof Error ? e.message : "Failed to send reply."));
     } finally {
       setSending(false);
     }
@@ -281,6 +284,8 @@ export function SubmitTicketSection() {
         detail={detail}
         reply={reply}
         setReply={setReply}
+        replyAttachments={replyAttachments}
+        setReplyAttachments={setReplyAttachments}
         sending={sending}
         onSend={sendReply}
         onReload={reloadDetail}
@@ -578,12 +583,15 @@ function TicketCard({ ticket: t, onClick }: { ticket: Ticket; onClick: () => voi
 // ─── Ticket detail ──────────────────────────────────────────────────────────
 
 function TicketDetail({
-  loading, detail, reply, setReply, sending, onSend, onReload, onBack, onNew,
+  loading, detail, reply, setReply, replyAttachments, setReplyAttachments,
+  sending, onSend, onReload, onBack, onNew,
 }: {
   loading: boolean;
   detail: TicketWithThread | null;
   reply: string;
   setReply: (s: string) => void;
+  replyAttachments: File[];
+  setReplyAttachments: (f: File[]) => void;
   sending: boolean;
   onSend: () => void;
   onReload: () => Promise<void>;
@@ -739,14 +747,20 @@ function TicketDetail({
             <label htmlFor="ticket-reply" className="block text-xs font-semibold text-[#111827]">
               Add a reply
             </label>
-            <textarea
-              id="ticket-reply"
-              value={reply}
-              onChange={(e) => setReply(e.target.value)}
-              rows={3}
-              placeholder="Type your reply…"
-              className="w-full rounded-xl border border-[#DCE6F3] bg-[#F4F8FF]/60 px-3 py-2.5 text-sm text-[#111827] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#0B47CF]/20 resize-none"
-            />
+            <TicketAttachmentInput
+              files={replyAttachments}
+              onFilesChange={setReplyAttachments}
+              disabled={sending}
+            >
+              <textarea
+                id="ticket-reply"
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                rows={3}
+                placeholder="Type your reply… (drag, paste, or use + to attach)"
+                className="w-full rounded-t-2xl bg-transparent px-3 py-2.5 text-sm text-[#111827] placeholder:text-muted-foreground focus:outline-none resize-none"
+              />
+            </TicketAttachmentInput>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <p className="text-[11px] text-muted-foreground">
                 For instant help, use <strong className="text-[#0B47CF]">Live Chat</strong>. For tracked issues, continue using this ticket.
@@ -878,7 +892,12 @@ function NewTicketForm({
           <p className="text-[10px] text-muted-foreground text-right">{message.length}/5000</p>
         </div>
 
-        <TicketAttachmentUpload files={attachments} onChange={onAttachments} disabled={saving} />
+        <TicketAttachmentInput
+          variant="attachOnly"
+          files={attachments}
+          onFilesChange={onAttachments}
+          disabled={saving}
+        />
 
         {formError && (
           <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">

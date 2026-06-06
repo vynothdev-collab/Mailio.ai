@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,9 +11,30 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+import { memoryStorage } from 'multer';
+
+const MAX_FILES = 5;
+const MAX_TOTAL_BYTES = 5 * 1024 * 1024;
+const ATTACHMENT_MIMES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+];
 import { CurrentAdmin } from '../admin-auth/decorators/current-admin.decorator';
 import { Admin, AdminRole } from '../admin-auth/entities/admin.entity';
 import { AdminJwtGuard } from '../admin-auth/guards/admin-jwt.guard';
@@ -94,13 +116,32 @@ export class AdminSupportTicketsController {
   @Post(':id/reply')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Admin reply to a ticket' })
+  @ApiConsumes('multipart/form-data', 'application/json')
+  @UseInterceptors(
+    FilesInterceptor('attachments', MAX_FILES, {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_TOTAL_BYTES, files: MAX_FILES },
+      fileFilter: (_req, file, cb) => {
+        if (!ATTACHMENT_MIMES.includes(file.mimetype)) {
+          return cb(
+            new BadRequestException(
+              `File type not allowed: ${file.originalname} (${file.mimetype}).`,
+            ),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+    }),
+  )
   reply(
     @CurrentAdmin() admin: Admin,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReplyTicketDto,
+    @UploadedFiles() attachments: Express.Multer.File[] = [],
   ) {
     const isSuper = admin.role === AdminRole.SUPER_ADMIN;
-    return this.service.replyAsAdmin(admin.id, isSuper, id, dto);
+    return this.service.replyAsAdmin(admin.id, isSuper, id, dto, attachments);
   }
 
   @Patch(':id/status')

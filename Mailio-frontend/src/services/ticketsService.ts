@@ -123,8 +123,25 @@ export const ticketsService = {
     return data;
   },
 
-  reply: async (id: string, message: string): Promise<TicketMessage> => {
-    const { data } = await api.post<TicketMessage>(`/tickets/${id}/reply`, { message });
+  reply: async (
+    id: string,
+    message: string,
+    attachments: File[] = [],
+  ): Promise<TicketMessage> => {
+    if (attachments.length === 0) {
+      const { data } = await api.post<TicketMessage>(`/tickets/${id}/reply`, {
+        message,
+      });
+      return data;
+    }
+    const form = new FormData();
+    form.append("message", message);
+    attachments.forEach((f) => form.append("attachments", f));
+    const { data } = await api.post<TicketMessage>(
+      `/tickets/${id}/reply`,
+      form,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    );
     return data;
   },
 };

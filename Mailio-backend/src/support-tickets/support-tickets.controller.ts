@@ -112,12 +112,31 @@ export class SupportTicketsController {
   @ApiOperation({
     summary: 'Reply to a ticket as the owner or enterprise admin',
   })
+  @ApiConsumes('multipart/form-data', 'application/json')
+  @UseInterceptors(
+    FilesInterceptor('attachments', MAX_FILES, {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_TOTAL_BYTES, files: MAX_FILES },
+      fileFilter: (_req, file, cb) => {
+        if (!ATTACHMENT_MIMES.includes(file.mimetype)) {
+          return cb(
+            new BadRequestException(
+              `File type not allowed: ${file.originalname} (${file.mimetype}).`,
+            ),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+    }),
+  )
   reply(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReplyTicketDto,
+    @UploadedFiles() attachments: Express.Multer.File[] = [],
   ) {
-    return this.service.replyAsUser(user, id, dto);
+    return this.service.replyAsUser(user, id, dto, attachments);
   }
 
   @Delete(':ticketId/attachments/:attachmentId')
