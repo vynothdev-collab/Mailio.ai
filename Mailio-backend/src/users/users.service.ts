@@ -50,6 +50,31 @@ export class UsersService {
     await this.usersRepo.delete({ id });
   }
 
+  async findAll(opts: {
+    page: number;
+    limit: number;
+    search?: string;
+  }): Promise<{ users: Omit<User, 'passwordHash'>[]; total: number }> {
+    const skip = (opts.page - 1) * opts.limit;
+    const qb = this.usersRepo
+      .createQueryBuilder('u')
+      .select([
+        'u.id', 'u.email', 'u.name', 'u.plan', 'u.provider',
+        'u.avatarUrl', 'u.isActive', 'u.emailVerified',
+        'u.emailVerifiedAt', 'u.createdAt', 'u.updatedAt',
+      ])
+      .orderBy('u.createdAt', 'DESC')
+      .skip(skip)
+      .take(opts.limit);
+
+    if (opts.search) {
+      qb.andWhere('(u.name ILIKE :s OR u.email ILIKE :s)', { s: `%${opts.search}%` });
+    }
+
+    const [users, total] = await qb.getManyAndCount();
+    return { users, total };
+  }
+
   async create(data: {
     email: string;
     passwordHash: string;

@@ -6,6 +6,7 @@ import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { CrossDomainModule } from './cross-domain/cross-domain.module';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import mailConfig from './config/mail.config';
@@ -79,6 +80,7 @@ import { VerifyModule } from './verify/verify.module';
     UsageModule,
     ResultsModule,
     AdminModule,
+    CrossDomainModule,
   ],
   controllers: [AppController],
   providers: [AppService],
